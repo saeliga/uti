@@ -317,3 +317,89 @@ export async function encerrarInternacao(id, desfecho) {
     }),
   );
 }
+
+// --------------------------------------------------------------------------- evolução
+// Um documento por internação + data + turno (id fixo): o mesmo rascunho no
+// tablet e no PC. O salvamento é por subbloco (dados.<subbloco>), o que reduz
+// conflito quando duas pessoas mexem na mesma evolução. Sem Wi-Fi, a gravação
+// fica no aparelho e sobe sozinha quando a conexão voltar.
+
+const DISPOSITIVO = Math.random().toString(36).slice(2, 10);
+
+export function observarEvolucoesTurno(unidade, { data, turno }, cb, cbErro) {
+  const q = F.query(F.collection(db, 'evolucoes'), F.where('unidade', '==', unidade), F.where('data', '==', data), F.where('turno', '==', turno));
+  return F.onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), (e) => cbErro?.(traduzirErro(e)));
+}
+
+export async function lerEvolucao(id) {
+  return executar(async () => {
+    const s = await F.getDoc(F.doc(db, 'evolucoes', id));
+    return s.exists() ? { id, ...s.data() } : null;
+  });
+}
+
+/** Garante que o rascunho do turno existe. `base` traz pendências herdadas. Precisa de conexão só na criação. */
+export async function abrirEvolucao(id, base) {
+  return executar(async () => {
+    const ref = F.doc(db, 'evolucoes', id);
+    const s = await F.getDoc(ref);
+    if (s.exists()) return { id, ...s.data() };
+    const novo = {
+      ...base, status: 'rascunho', versao: 1, confirmados: {},
+      criadoPor: uid(), criadoEm: agora(), atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
+    };
+    await F.setDoc(ref, novo);
+    return { id, ...novo };
+  });
+}
+
+/** cb(evolucao, { pendente, deOutroAparelho }) */
+export function observarEvolucao(id, cb, cbErro) {
+  return F.onSnapshot(F.doc(db, 'evolucoes', id), { includeMetadataChanges: true }, (s) => {
+    if (!s.exists()) return;
+    const d = s.data();
+    cb({ id, ...d }, { pendente: s.metadata.hasPendingWrites, deOutroAparelho: d.atualizadoNo !== DISPOSITIVO && !s.metadata.hasPendingWrites });
+  }, (e) => cbErro?.(traduzirErro(e)));
+}
+
+/**
+ * Salva um subbloco. Devolve uma promessa que só termina quando o servidor
+ * confirma (sem conexão, fica pendente): a tela mostra "salvo no aparelho" até lá.
+ */
+export function salvarSubbloco(id, subbloco, dados, confirmado) {
+  return F.updateDoc(F.doc(db, 'evolucoes', id), {
+    [`dados.${subbloco}`]: dados,
+    [`confirmados.${subbloco}`]: confirmado || F.deleteField(),
+    atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
+  }).catch((e) => { throw traduzirErro(e); });
+}
+
+export async function finalizarEvolucao(id, { autor, pendenciasAutomaticas, emTexto }) {
+  return executar(() => F.updateDoc(F.doc(db, 'evolucoes', id), {
+    status: 'finalizada', finalizadoPor: uid(), finalizadoPorNome: autor, finalizadoEm: agora(), finalizadoEmTexto: emTexto,
+    pendenciasAutomaticas, atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
+  }));
+}
+
+/** Retificação: guarda a versão finalizada e reabre como rascunho (versão + 1). Precisa de conexão. */
+export async function retificarEvolucao(id, { motivo, emTexto, autor }) {
+  return executar(() => F.runTransaction(db, async (tx) => {
+    const ref = F.doc(db, 'evolucoes', id);
+    const s = await tx.get(ref);
+    const ev = s.data();
+    if (ev.status !== 'finalizada') throw new ErroSistema('conflito_versao');
+    tx.set(F.doc(db, 'evolucoes', id, 'versoes', String(ev.versao)), { ...ev, por: uid(), em: agora() });
+    tx.update(ref, {
+      status: 'rascunho', versao: ev.versao + 1, retificacao: { motivo, por: uid(), porNome: autor, emTexto },
+      atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
+    });
+    auditoria(tx, 'evolucao_retificada', { evolucaoId: id, unidade: ev.unidade });
+  }));
+}
+
+export async function marcarTranscrita(id, { versao, autor, emTexto }) {
+  return executar(() => F.updateDoc(F.doc(db, 'evolucoes', id), {
+    transcritoPEP: { versao, por: uid(), porNome: autor, emTexto },
+    atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
+  }));
+}

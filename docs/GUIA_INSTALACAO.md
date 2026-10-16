@@ -140,7 +140,19 @@ Firestore → **Regras → Playground de regras**. Simule as situações abaixo.
 
 Faça também o teste prático: crie um segundo usuário de teste, aprove só para a UTI 1 e confirme que a aba UTI 2 não aparece.
 
-## 11. Publicar uma versão nova
+## 11. Ao publicar a versão 0.2.0 (evolução)
+
+Esta versão traz regras novas para as evoluções. **Antes do merge**, publique o `firestore.rules` atualizado (Firestore → Regras → colar → Publicar), do mesmo jeito do passo 3. Sem isso, abrir uma evolução dá "sem permissão".
+
+Como funciona a evolução:
+
+- **Abrir:** no painel, cada leito ocupado mostra a situação da evolução do turno. Toque na faixa de baixo do cartão para abrir.
+- **Turnos:** manhã das 7h às 13h, tarde das 13h às 19h e noite das 19h às 7h. Há um rascunho por paciente e turno, o mesmo no tablet e no PC.
+- **Salvamento:** é automático a cada campo. Sem Wi-Fi, aparece "Salvo neste aparelho · ainda não sincronizado", e o envio acontece sozinho quando a conexão volta. Só a abertura de uma evolução nova e a retificação precisam de conexão.
+- **Turno anterior:** aparece em cada subbloco. Para reaproveitar, use "Sem alteração desde o turno anterior". Sinais vitais, dor e medidas preventivas sempre pedem valores novos.
+- **Finalizar e copiar ao PEP:** finalize a evolução, use "Copiar para o PEP" e, depois de colar no PEP, marque "Já colei no PEP". Se precisar corrigir uma evolução finalizada, use "Retificar". A versão anterior fica guardada.
+
+## 12. Publicar uma versão nova
 
 Toda entrega minha diz o número da versão. Ao enviar os arquivos ao GitHub:
 
