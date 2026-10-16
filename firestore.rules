@@ -1,0 +1,188 @@
+rules_version = '2';
+
+// =============================================================================
+// Regras de segurança do Firestore — Sistema de Evolução/SAE UTI 1 e 2 (Liga)
+// Estas regras são a proteção real dos dados: o navegador pode ser adulterado,
+// o servidor do Firestore não. Publicar no console: Firestore → Regras.
+//
+// Princípios:
+// - Login somente com conta Google (Firebase Authentication → provedor Google).
+// - Só usuário cadastrado, aprovado (ativo) e da unidade lê dados clínicos.
+// - Ninguém altera o próprio perfil; só administrador aprova e muda perfis.
+// - Internação encerrada não muda mais. Nada clínico é apagado.
+// - Leito e internação só mudam juntos e de forma coerente (transação).
+// - Auditoria só recebe inclusões, com autor e hora do servidor.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------ apoio
+    // Só contas Google com e-mail verificado (o login do sistema é pelo Google).
+    function logado() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true;
+    }
+    function caminho(colecao, id) { return /databases/$(database)/documents/$(colecao)/$(id); }
+    function meuPerfil() { return get(caminho('usuarios', request.auth.uid)).data; }
+    function ativo() {
+      return logado() && exists(caminho('usuarios', request.auth.uid))
+        && meuPerfil().ativo == true && meuPerfil().perfil in ['enfermeiro', 'leitura', 'admin'];
+    }
+    function admin() { return ativo() && meuPerfil().perfil == 'admin'; }
+    function clinico() { return ativo() && meuPerfil().perfil in ['enfermeiro', 'admin']; }
+    function naUnidade(u) { return ativo() && (meuPerfil().perfil == 'admin' || u in meuPerfil().unidades); }
+    function autoria() {
+      return request.resource.data.atualizadoPor == request.auth.uid
+        && request.resource.data.atualizadoEm == request.time;
+    }
+    function inalterados(campos) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    // ------------------------------------------------------------------ usuários
+    match /usuarios/{uid} {
+      allow read: if (logado() && request.auth.uid == uid) || admin();
+
+      // Cadastro próprio: sempre nasce pendente, inativo e sem unidades.
+      allow create: if logado() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nome', 'coren', 'email', 'perfil', 'ativo', 'unidades', 'criadoEm'])
+        && request.resource.data.perfil == 'pendente'
+        && request.resource.data.ativo == false
+        && request.resource.data.unidades.size() == 0
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 120
+        && request.resource.data.coren is string && request.resource.data.coren.size() <= 20
+        && request.resource.data.criadoEm == request.time;
+
+      // Só administrador muda perfil/ativo/unidades, e nunca o próprio cadastro.
+      allow update: if admin() && request.auth.uid != uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['perfil', 'ativo', 'unidades', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.perfil in ['pendente', 'enfermeiro', 'leitura', 'admin']
+        && request.resource.data.ativo is bool
+        && request.resource.data.unidades is list
+        && autoria();
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------ unidades
+    match /unidades/{unidade} {
+      allow read: if ativo();
+      allow create, update: if admin()
+        && request.resource.data.keys().hasOnly(['nome', 'ordem', 'leitos'])
+        && request.resource.data.leitos is list;
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------ leitos
+    match /leitos/{leitoId} {
+      function camposLeito() {
+        return request.resource.data.keys().hasOnly(
+          ['unidade', 'numero', 'internacaoId', 'resumo', 'bloqueado', 'bloqueio', 'atualizadoEm', 'atualizadoPor']);
+      }
+      function internacaoDepois(id) { return getAfter(caminho('internacoes', id)).data; }
+
+      allow read: if naUnidade(resource.data.unidade);
+
+      allow create: if admin() && camposLeito()
+        && leitoId == request.resource.data.unidade + '_' + request.resource.data.numero
+        && request.resource.data.internacaoId == null
+        && request.resource.data.bloqueado == false
+        && autoria();
+
+      allow delete: if admin() && resource.data.internacaoId == null;
+
+      allow update: if clinico() && naUnidade(resource.data.unidade) && camposLeito()
+        && inalterados(['unidade', 'numero']) && autoria()
+        && (
+          // (1) Ocupar: leito livre e desbloqueado, internação ativa apontando para ele.
+          (resource.data.internacaoId == null && request.resource.data.internacaoId != null
+            && resource.data.bloqueado == false && request.resource.data.bloqueado == false
+            && internacaoDepois(request.resource.data.internacaoId).leitoId == leitoId
+            && internacaoDepois(request.resource.data.internacaoId).status == 'ativa')
+          ||
+          // (2) Liberar: a internação saiu deste leito ou foi encerrada.
+          (resource.data.internacaoId != null && request.resource.data.internacaoId == null
+            && request.resource.data.resumo == null
+            && (internacaoDepois(resource.data.internacaoId).leitoId != leitoId
+                || internacaoDepois(resource.data.internacaoId).status != 'ativa'))
+          ||
+          // (3) Atualizar o resumo do paciente que continua no leito.
+          (resource.data.internacaoId != null
+            && request.resource.data.internacaoId == resource.data.internacaoId
+            && inalterados(['bloqueado', 'bloqueio'])
+            && internacaoDepois(resource.data.internacaoId).leitoId == leitoId)
+          ||
+          // (4) Bloquear/desbloquear leito vazio.
+          (resource.data.internacaoId == null && request.resource.data.internacaoId == null
+            && request.resource.data.resumo == null
+            && request.resource.data.bloqueado is bool)
+        );
+    }
+
+    // ------------------------------------------------------------------ pacientes
+    match /pacientes/{pacienteId} {
+      allow read: if ativo();
+      allow create, update: if clinico()
+        && request.resource.data.keys().hasOnly(['nome', 'dataNascimento', 'registro', 'convenio', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 150
+        && request.resource.data.registro is string && request.resource.data.registro.size() <= 30
+        && (resource == null || request.resource.data.registro == resource.data.registro)
+        && autoria();
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------ internações
+    match /internacoes/{id} {
+      function leitoDepois(leitoId) { return getAfter(caminho('leitos', leitoId)).data; }
+      function d() { return request.resource.data; }
+
+      allow read: if naUnidade(resource.data.unidade);
+
+      allow create: if clinico() && naUnidade(d().unidade)
+        && d().status == 'ativa' && d().versao == 1 && d().desfecho == null
+        && d().criadoPor == request.auth.uid && d().criadoEm == request.time && autoria()
+        && existsAfter(caminho('pacientes', d().pacienteId))
+        && leitoDepois(d().leitoId).internacaoId == id
+        && leitoDepois(d().leitoId).unidade == d().unidade;
+
+      allow update: if clinico()
+        && resource.data.status == 'ativa'                       // encerrada não muda mais
+        && naUnidade(resource.data.unidade) && naUnidade(d().unidade)
+        && inalterados(['pacienteId', 'criadoEm', 'criadoPor'])
+        && d().paciente.registro == resource.data.paciente.registro
+        && d().versao == resource.data.versao + 1
+        && autoria()
+        && (
+          (d().status == 'ativa'
+            && leitoDepois(d().leitoId).internacaoId == id
+            && leitoDepois(d().leitoId).unidade == d().unidade)
+          ||
+          (d().status == 'encerrada' && d().desfecho != null
+            && d().desfecho.registradoPor == request.auth.uid
+            && inalterados(['leitoId', 'unidade'])
+            && leitoDepois(resource.data.leitoId).internacaoId != id)
+        );
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------ auditoria
+    match /auditoria/{registro} {
+      allow create: if ativo()
+        && request.resource.data.por == request.auth.uid
+        && request.resource.data.em == request.time
+        && request.resource.data.acao is string;
+      allow read: if admin();
+      allow update, delete: if false;
+    }
+
+    // Qualquer outra coleção: negado.
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}

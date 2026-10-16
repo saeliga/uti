@@ -1,0 +1,69 @@
+/* =========================================================================
+   Identidade visual — Liga Contra o Câncer
+   Tokens de cor e tipografia para o sistema das UTI 1 e 2.
+   Cores: paleta oficial (manual "CORES"). Fontes: Gotham Pro e Zona Pro,
+   fornecidas pela Liga. Os papéis semânticos (--ui-*) são uma PROPOSTA
+   a confirmar, pensada para contraste (WCAG) e para não confundir a cor
+   da marca com alertas clínicos.
+   ========================================================================= */
+
+/* ---------- Fontes ---------- */
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-Light.woff") format("woff"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-LightItalic.woff") format("woff"); font-weight: 300; font-style: italic; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro.woff") format("woff"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-Italic.woff") format("woff"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-Medium.woff") format("woff"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-MediumItalic.woff") format("woff"); font-weight: 500; font-style: italic; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-Bold.woff") format("woff"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-BoldItalic.woff") format("woff"); font-weight: 700; font-style: italic; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-Black.woff") format("woff"); font-weight: 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Gotham Pro"; src: url("../assets/fontes/GothamPro-BlackItalic.woff") format("woff"); font-weight: 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Gotham Pro Narrow"; src: url("../assets/fontes/GothamProNarrow-Medium.woff") format("woff"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Gotham Pro Narrow"; src: url("../assets/fontes/GothamProNarrow-Bold.woff") format("woff"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Zona Pro"; src: url("../assets/fontes/ZonaPro-Thin.woff") format("woff"); font-weight: 200; font-display: swap; }
+@font-face { font-family: "Zona Pro"; src: url("../assets/fontes/ZonaPro-Light.woff") format("woff"); font-weight: 300; font-display: swap; }
+@font-face { font-family: "Zona Pro"; src: url("../assets/fontes/ZonaPro-Regular.woff") format("woff"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Zona Pro"; src: url("../assets/fontes/ZonaPro-Bold.woff") format("woff"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Zona Pro"; src: url("../assets/fontes/ZonaPro-Black.woff") format("woff"); font-weight: 900; font-display: swap; }
+
+:root {
+  /* ---------- Paleta oficial (hex do manual) ---------- */
+  --liga-coral-claro:     #ff9070; /* Pantone 1635 C */
+  --liga-coral:           #e7674d; /* Pantone 7416 C */
+  --liga-vermelho:        #e44855; /* Pantone 711 C  */
+  --liga-verde-claro:     #67bda0; /* Pantone 338 C  */
+  --liga-verde-petroleo:  #569099; /* Pantone 5483 C */
+  --liga-petroleo:        #006581; /* Pantone 5473 C */
+  --liga-magenta:         #b4649c; /* Pantone 688 C  */
+  --liga-roxo:            #8563a3; /* Pantone 2577 C */
+  --liga-azul:            #475b94; /* Pantone 653 C  */
+  --liga-cinza-claro:     #d9dade; /* Pantone 427 C  */
+  --liga-cinza:           #9c9ba0; /* Pantone Cool Gray 7 C (manual traz "RGB 256r" — erro de digitação; vale o hex) */
+  --liga-grafite:         #5b5b5f; /* Pantone 425 C  — também a cor do texto do logotipo */
+
+  /* Degradê do símbolo (amostrado do logo colorido) */
+  --liga-degrade-simbolo: linear-gradient(225deg, #e73e4f 0%, #e8494b 35%, #eb6252 70%, #ed705f 100%);
+
+  /* ---------- Tipografia ---------- */
+  --fonte-titulo: "Zona Pro", "Gotham Pro", "Montserrat", system-ui, sans-serif;     /* títulos, cabeçalhos */
+  --fonte-texto:  "Gotham Pro", "Montserrat", system-ui, "Segoe UI", Arial, sans-serif; /* texto e interface */
+  --fonte-densa:  "Gotham Pro Narrow", "Gotham Pro", "Montserrat", "Arial Narrow", sans-serif; /* tabelas densas, impressos */
+
+  /* ---------- Papéis de interface (PROPOSTA) ----------
+     Contraste sobre branco: petróleo 6,6:1; azul 6,6:1; grafite 6,8:1;
+     vermelho 3,9:1 (só texto grande/negrito); coral/verde-claro/cinzas < 3:1 (nunca para texto). */
+  --ui-fundo:            #ffffff;
+  --ui-superficie:       #f4f4f6;               /* derivado do cinza claro, para cartões */
+  --ui-borda:            var(--liga-cinza-claro);
+  --ui-texto:            var(--liga-grafite);
+  --ui-texto-forte:      #3a3a3e;               /* derivado, para títulos longos */
+  --ui-acao:             var(--liga-petroleo);  /* botões e links */
+  --ui-acao-secundaria:  var(--liga-azul);
+  --ui-marca:            var(--liga-vermelho);  /* cabeçalho, logotipo, destaques de identidade */
+  --ui-alerta-critico:   var(--liga-vermelho);  /* usar sempre com ícone/rótulo, não só a cor */
+  --ui-atencao:          var(--liga-coral);
+  --ui-ok:               var(--liga-verde-petroleo);
+  --ui-ia:               var(--liga-roxo);      /* sinaliza conteúdo sugerido pela IA, pendente de revisão */
+  --ui-desabilitado:     var(--liga-cinza);
+}
+
