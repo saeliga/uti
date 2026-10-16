@@ -54,18 +54,17 @@ Esses valores não são secretos: o Firebase precisa deles no navegador. A prote
 
 ## 5. Publicar no GitHub Pages
 
-1. No GitHub: **New repository** → nome `sae-uti-liga` → **Public** → **Create repository**.
-2. Na página do repositório: **Add file → Upload files**. Arraste **o conteúdo** da pasta `sae-uti-liga` (os arquivos e as pastas `css`, `js`, `assets`, `apps-script`, `docs`, `testes`, mais `index.html`, `versao.json`, `.nojekyll`, `firestore.rules`, `LICENSE`, `README.md`). O GitHub mantém as pastas → **Commit changes**.
-   - O arquivo `.nojekyll` começa com ponto e pode ficar oculto no seu computador. Se não aparecer, crie no GitHub: **Add file → Create new file**, nome `.nojekyll`, conteúdo vazio.
+1. O código já está no repositório **saeliga/uti** (enviado pelo Claude). Nas próximas entregas, as mudanças chegam por *pull request*: você confere e clica em **Merge** para publicar.
+2. Para editar o `js/config.js` (passos 4 e 8), abra o arquivo no GitHub → lápis → cole os valores → **Commit changes**.
 3. **Settings → Pages** → em *Branch*, escolha `main` e a pasta `/ (root)` → **Save**.
-4. Em 1 ou 2 minutos aparece o endereço: `https://SEU-USUARIO.github.io/sae-uti-liga/`.
+4. Em 1 ou 2 minutos aparece o endereço: `https://saeliga.github.io/uti/`.
 
-Para ver as telas antes de terminar a configuração, abra `https://SEU-USUARIO.github.io/sae-uti-liga/?demo=1`. É o modo demonstração, com dados fictícios.
+Para ver as telas antes de terminar a configuração, abra `https://saeliga.github.io/uti/?demo=1`. É o modo demonstração, com dados fictícios.
 
 ## 6. Autorizar o endereço do GitHub no login
 
 1. Firebase → **Authentication → Configurações → Domínios autorizados → Adicionar domínio**.
-2. Digite `SEU-USUARIO.github.io` (sem `https://` e sem `/sae-uti-liga`) → **Adicionar**.
+2. Digite `saeliga.github.io` (sem `https://` e sem `/uti`) → **Adicionar**.
 
 ## 7. Tornar-se o primeiro administrador
 
