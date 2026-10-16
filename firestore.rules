@@ -45,12 +45,20 @@ service cloud.firestore {
     match /usuarios/{uid} {
       allow read: if (logado() && request.auth.uid == uid) || admin();
 
-      // Cadastro próprio: sempre nasce pendente, inativo e sem unidades.
+      // Cadastro próprio: nasce pendente, inativo e sem unidades. Única exceção:
+      // a conta do administrador inicial, que já nasce administradora.
       allow create: if logado() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['nome', 'coren', 'email', 'perfil', 'ativo', 'unidades', 'criadoEm'])
-        && request.resource.data.perfil == 'pendente'
-        && request.resource.data.ativo == false
-        && request.resource.data.unidades.size() == 0
+        && (
+          (request.resource.data.perfil == 'pendente'
+            && request.resource.data.ativo == false
+            && request.resource.data.unidades.size() == 0)
+          ||
+          (request.auth.token.email == 'tercio.neto@liga.org.br'
+            && request.resource.data.perfil == 'admin'
+            && request.resource.data.ativo == true
+            && request.resource.data.unidades is list)
+        )
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.nome is string && request.resource.data.nome.size() <= 120
         && request.resource.data.coren is string && request.resource.data.coren.size() <= 20
