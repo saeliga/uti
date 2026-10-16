@@ -178,6 +178,60 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ------------------------------------------------------------------ evoluções
+    // Um documento por internação + data + turno. Rascunho é editável por
+    // enfermeiros da unidade; finalizada só muda para marcar a cópia ao PEP ou
+    // por retificação, que guarda antes a versão anterior em /versoes.
+    match /evolucoes/{id} {
+      function d() { return request.resource.data; }
+      function internacao(iid) { return get(caminho('internacoes', iid)).data; }
+      function caminhoVersao(v) { return /databases/$(database)/documents/evolucoes/$(id)/versoes/$(v); }
+
+      // resource == null: consultar se a evolução de um turno já existe (não revela nada).
+      allow read: if ativo() && (resource == null || naUnidade(resource.data.unidade));
+
+      allow create: if clinico() && naUnidade(d().unidade)
+        && id == d().internacaoId + '_' + d().data + '_' + d().turno
+        && d().turno in ['M', 'T', 'N']
+        && d().status == 'rascunho' && d().versao == 1
+        && d().criadoPor == request.auth.uid && d().criadoEm == request.time && autoria()
+        && internacao(d().internacaoId).status == 'ativa'
+        && internacao(d().internacaoId).unidade == d().unidade;
+
+      allow update: if clinico() && naUnidade(resource.data.unidade)
+        && inalterados(['internacaoId', 'unidade', 'leitoId', 'data', 'turno', 'criadoPor', 'criadoEm'])
+        && autoria()
+        && (
+          // (1) edição do rascunho
+          (resource.data.status == 'rascunho' && d().status == 'rascunho' && d().versao == resource.data.versao)
+          ||
+          // (2) finalização (autor e hora do servidor)
+          (resource.data.status == 'rascunho' && d().status == 'finalizada' && d().versao == resource.data.versao
+            && d().finalizadoPor == request.auth.uid && d().finalizadoEm == request.time)
+          ||
+          // (3) marcar como transcrita ao PEP (só esse campo muda)
+          (resource.data.status == 'finalizada' && d().status == 'finalizada'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['transcritoPEP', 'atualizadoEm', 'atualizadoPor', 'atualizadoNo'])
+            && d().transcritoPEP.por == request.auth.uid && d().transcritoPEP.versao == resource.data.versao)
+          ||
+          // (4) retificação: versão anterior guardada na mesma operação
+          (resource.data.status == 'finalizada' && d().status == 'rascunho' && d().versao == resource.data.versao + 1
+            && d().retificacao.por == request.auth.uid
+            && existsAfter(caminhoVersao(string(resource.data.versao))))
+        );
+
+      allow delete: if false;
+
+      match /versoes/{v} {
+        function evolucao() { return get(/databases/$(database)/documents/evolucoes/$(id)).data; }
+        allow read: if naUnidade(evolucao().unidade);
+        allow create: if clinico() && naUnidade(evolucao().unidade)
+          && evolucao().status == 'finalizada' && v == string(evolucao().versao)
+          && request.resource.data.por == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
     // ------------------------------------------------------------------ auditoria
     match /auditoria/{registro} {
       allow create: if ativo()

@@ -2,8 +2,8 @@
 
 Sistema web para os enfermeiros das UTI 1 e 2 da Liga Contra o Câncer (Natal/RN), desenvolvido no mestrado em Enfermagem da UFRN.
 
-- **Versão atual:** 0.1.1, Entrega 1 (fundação): login com conta Google e aprovação, painel de leitos, admissão, troca de leito, saída da UTI e administração.
-- **Próximas entregas:** evolução por blocos, Processo de Enfermagem com IA, prescrição de enfermagem impressa, folha de balanço hídrico e checklists.
+- **Versão atual:** 0.2.0, Entrega 2 (evolução): blocos 1, 2 e 6 da evolução por turno, com escalas calculadas, rascunho salvo também sem Wi-Fi, finalização com retificação, "Copiar para o PEP" e impressão. Inclui a Entrega 1 (login Google com aprovação, painel de leitos, internação, administração).
+- **Próximas entregas:** Processo de Enfermagem com IA (blocos 3 a 5), prescrição de enfermagem impressa, folha de balanço hídrico, checklists e, ao final, exportador de casos anonimizados para a pesquisa.
 
 ## Como funciona
 
@@ -30,8 +30,8 @@ js/main.js            entrada e navegação
 js/nucleo/            interface, sessão, bloqueio por inatividade, aviso de versão
 js/dados/             acesso ao Firebase e modo demonstração
 js/api/               Apps Script e catálogos sob demanda
-js/regras/            regras clínicas puras (datas, validações), testáveis
-js/modulos/           painel de leitos, internação, administração
+js/regras/            regras clínicas puras (datas, escalas, cálculos, turnos, esquema e texto da evolução), testáveis
+js/modulos/           painel de leitos, internação, evolução, administração
 apps-script/          código do Apps Script (sem os catálogos)
 testes/               testes automáticos (opcional; precisa de Node 20+)
 docs/                 guia de instalação

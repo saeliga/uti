@@ -1,0 +1,395 @@
+// Tela da evolução de enfermagem (blocos 1, 2 e 6; blocos 3 a 5 chegam com a SAE).
+// Um rascunho por paciente e turno, salvo por subbloco enquanto se digita.
+
+import { backend } from '../../dados/backend.js';
+import { estado, podeEditar } from '../../nucleo/estado.js';
+import { h, limpar, carregando, aviso, abrirJanela, confirmar } from '../../nucleo/ui.js';
+import { BLOCOS, contextoEvolucao } from '../../regras/evolucao-esquema.js';
+import {
+  validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP,
+  pendenciasAbertas, resumoSubbloco, subblocoRegistrado,
+} from '../../regras/evolucao.js';
+import { turnoDe, turnoAnterior, rotuloTurno, idEvolucao, TURNOS } from '../../regras/turnos.js';
+import { agoraLocalISO, formatarData, formatarDataHora, idade, contagemDia } from '../../regras/datas.js';
+import { ISOLAMENTOS } from '../../regras/opcoes.js';
+import { formularioSubbloco } from './formulario.js';
+
+const horaAgora = () => agoraLocalISO().slice(11, 16);
+// Redesenha a tela pelo roteador (sem recarregar a página: no modo demonstração, recarregar apagaria tudo).
+const redesenhar = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
+const autor = () => ({ nome: estado.perfil.nome, coren: estado.perfil.coren });
+
+/** Procura a evolução mais recente antes do turno informado (até 2 dias para trás). */
+async function buscarAnterior(internacaoId, chave) {
+  let k = chave;
+  for (let i = 0; i < 6; i++) {
+    k = turnoAnterior(k);
+    const ev = await backend.lerEvolucao(idEvolucao(internacaoId, k)).catch(() => null);
+    if (ev) return ev;
+  }
+  return null;
+}
+
+export async function telaEvolucao(conteudo, { internacaoId, data, turno }) {
+  carregando(conteudo, 'Abrindo a evolução…');
+  const chave = data && turno ? { data, turno } : turnoDe();
+  const id = idEvolucao(internacaoId, chave);
+  let internacao;
+  let anterior;
+  let ev;
+  try {
+    internacao = await backend.lerInternacao(internacaoId);
+    if (!internacao) throw new Error('Internação não encontrada.');
+    anterior = await buscarAnterior(internacaoId, chave);
+    ev = await backend.lerEvolucao(id);
+    if (!ev) {
+      if (internacao.status !== 'ativa' || !podeEditar()) throw new Error('Não há evolução registrada neste turno.');
+      const herdadas = pendenciasAbertas(anterior).map((p) => ({ ...p, herdada: true }));
+      ev = await backend.abrirEvolucao(id, {
+        internacaoId, unidade: internacao.unidade, leitoId: internacao.leitoId, ...chave,
+        dados: herdadas.length ? { pendencias: { itens: herdadas } } : {},
+      });
+    }
+  } catch (e) {
+    limpar(conteudo).append(h('div', { class: 'vazio' }, h('p', {}, e.message),
+      h('a', { class: 'btn btn-secundario', href: `#/${internacao?.unidade || ''}` }, 'Voltar ao painel')));
+    return () => {};
+  }
+
+  const unidadeNome = estado.unidades.find((u) => u.id === ev.unidade)?.nome || ev.unidade;
+  const formularios = {};
+  const timers = {};
+  const editadoEm = {};
+  let pendentes = 0;
+  let blocoAtual = sessionStorage.getItem(`bloco_${id}`) || 'b2';
+
+  const ro = () => ev.status === 'finalizada' || !podeEditar();
+  const ctx = () => contextoEvolucao(Object.fromEntries(Object.entries(formularios).map(([k, f]) => [k, f.dados()])), ev.data);
+
+  // ------------------------------------------------------------------ cabeçalho fixo
+  const indicador = h('span', { class: 'salvamento', 'aria-live': 'polite' });
+  const situacaoEl = h('span', { class: 'situacao' });
+  const avisoOutro = h('div', { class: 'faixa-outro-aparelho', hidden: true });
+  const p = internacao.paciente;
+  const al = internacao.alergias;
+  const cabecalho = h('div', { class: 'evo-cabecalho' },
+    h('div', { class: 'evo-paciente' },
+      h('a', { href: `#/${ev.unidade}`, class: 'btn btn-link btn-pequeno evo-voltar' }, '← Painel'),
+      h('div', {},
+        h('div', { class: 'evo-nome' }, p.nome),
+        h('div', { class: 'evo-ident' }, `${idade(p.dataNascimento, ev.data)} anos · nasc. ${formatarData(p.dataNascimento)} · Reg. ${p.registro} · ${unidadeNome} leito ${String(ev.leitoId).split('_')[1]} · UTI ${contagemDia(internacao.admissaoUti, ev.data)}`)),
+      h('div', { class: 'evo-alertas' },
+        al?.situacao === 'possui' ? h('span', { class: 'chip chip-alerta' }, '⚠ ALERGIA: ', al.descricao) : h('span', { class: 'chip' }, al?.situacao === 'nega' ? 'Nega alergias' : 'Alergias: sem informação'),
+        internacao.isolamento?.tipo !== 'padrao' && h('span', { class: 'chip chip-isolamento' }, ISOLAMENTOS[internacao.isolamento?.tipo]?.replace(/ \(.*\)$/, '')))),
+    h('div', { class: 'evo-turno' }, h('strong', {}, rotuloTurno(ev)), situacaoEl, indicador),
+    avisoOutro);
+
+  // ------------------------------------------------------------------ navegação por blocos
+  const navegacao = h('nav', { class: 'evo-nav', 'aria-label': 'Blocos da evolução' });
+  const ABAS = [
+    ...BLOCOS.filter((b) => b.id !== 'b6').map((b) => [b.id, b.titulo]),
+    ['b345', '3 a 5. Processo de Enfermagem'],
+    ['b6', BLOCOS.find((b) => b.id === 'b6').titulo],
+    ['fim', 'Finalizar e copiar ao PEP'],
+  ];
+  const corpo = h('div', { class: 'evo-corpo' });
+
+  function abrirBloco(bid) {
+    blocoAtual = bid;
+    try { sessionStorage.setItem(`bloco_${id}`, bid); } catch { /* sem armazenamento */ }
+    for (const b of navegacao.children) b.setAttribute('aria-current', String(b.dataset.id === bid));
+    for (const s of corpo.children) s.hidden = s.dataset.bloco !== bid;
+    if (bid === 'fim') desenharFim();
+    window.scrollTo({ top: 0 });
+  }
+  for (const [bid, t] of ABAS) navegacao.append(h('button', { type: 'button', class: 'evo-aba', dataset: { id: bid }, onclick: () => abrirBloco(bid) }, t));
+
+  // ------------------------------------------------------------------ salvamento
+  function marcarSalvando() {
+    pendentes += 1;
+    indicador.className = 'salvamento salvando';
+    indicador.textContent = 'Salvando…';
+  }
+  function marcarSalvo(ok, erro) {
+    pendentes = Math.max(0, pendentes - 1);
+    if (pendentes) return;
+    if (ok) {
+      indicador.className = 'salvamento salvo';
+      indicador.textContent = `✓ Salvo às ${horaAgora()}`;
+    } else {
+      indicador.className = 'salvamento erro';
+      indicador.textContent = `Não salvo: ${erro}`;
+    }
+  }
+  function agendarSalvar(subId, imediato = false) {
+    editadoEm[subId] = Date.now();
+    clearTimeout(timers[subId]);
+    const salvar = () => {
+      marcarSalvando();
+      if (!navigator.onLine) {
+        indicador.className = 'salvamento offline';
+        indicador.textContent = 'Salvo neste aparelho · ainda não sincronizado';
+      }
+      backend.salvarSubbloco(id, subId, formularios[subId].dados(), ev.confirmados?.[subId] || null)
+        .then(() => marcarSalvo(true), (e) => marcarSalvo(false, e.message));
+    };
+    if (imediato) salvar(); else timers[subId] = setTimeout(salvar, 700);
+  }
+
+  // ------------------------------------------------------------------ subblocos
+  const estadosSub = {};
+  function atualizarEstadoSub(sid) {
+    const el = estadosSub[sid];
+    if (!el) return;
+    const conf = ev.confirmados?.[sid];
+    const atual = { ...ev, dados: { ...(ev.dados || {}), [sid]: formularios[sid].dados() } };
+    el.className = `sub-estado ${conf ? 'confirmado' : subblocoRegistrado(atual, sid) ? 'preenchido' : 'vazio'}`;
+    el.textContent = conf ? `Sem alteração · confirmado às ${conf.hora}` : subblocoRegistrado(atual, sid) ? 'Registrado' : 'Sem registro';
+  }
+
+  function cartaoSubbloco(s) {
+    const anteriorTexto = anterior ? resumoSubbloco(s.id, anterior.dados || {}, anterior.data) : '';
+    const form = formularioSubbloco(s, {
+      dados: ev.dados?.[s.id] || {},
+      contexto: ctx,
+      somenteLeitura: ro(),
+      aoMudar: () => {
+        if (ev.confirmados?.[s.id]) {
+          // Alterou um campo: deixa de ser "sem alteração".
+          ev.confirmados = { ...ev.confirmados };
+          delete ev.confirmados[s.id];
+        }
+        atualizarEstadoSub(s.id);
+        // Peso e dispositivos mudam cálculos de outros subblocos.
+        if (['contexto', 'dispositivos', 'respiratorio', 'renal'].includes(s.id)) for (const f of Object.values(formularios)) f.atualizar();
+        agendarSalvar(s.id);
+      },
+    });
+    formularios[s.id] = form;
+    estadosSub[s.id] = h('span', { class: 'sub-estado' });
+
+    const semAlteracao = s.copiavel && anterior?.dados?.[s.id] && !ro() && h('button', {
+      type: 'button', class: 'btn btn-secundario btn-pequeno',
+      onclick: async () => {
+        if (subblocoRegistrado({ dados: { [s.id]: form.dados() } }, s.id)
+          && !(await confirmar('Substituir o que já foi preenchido neste subbloco pelos dados do turno anterior?', { sim: 'Substituir' }))) return;
+        form.definirDados(anterior.dados[s.id]);
+        ev.confirmados = { ...(ev.confirmados || {}), [s.id]: { hora: horaAgora(), por: estado.perfil.uid, porNome: estado.perfil.nome } };
+        atualizarEstadoSub(s.id);
+        for (const f of Object.values(formularios)) f.atualizar();
+        agendarSalvar(s.id, true);
+      },
+    }, 'Sem alteração desde o turno anterior');
+
+    const det = h('details', { class: 'subbloco', open: true, dataset: { sub: s.id } },
+      h('summary', {}, h('span', { class: 'sub-titulo' }, s.titulo, s.obrigatorio && h('span', { class: 'obrigatorio', title: 'Obrigatório para finalizar' }, ' *')), estadosSub[s.id]),
+      s.descricao && h('p', { class: 'sub-descricao' }, s.descricao),
+      anterior && h('div', { class: 'sub-anterior' },
+        h('div', { class: 'sub-anterior-titulo' }, `Turno anterior (${rotuloTurno(anterior)})`),
+        h('div', { class: 'sub-anterior-texto' }, anteriorTexto || 'Sem registro.'),
+        s.copiavel === false && anteriorTexto && h('div', { class: 'campo-ajuda' }, 'Este subbloco precisa de valores novos a cada turno.'),
+        semAlteracao),
+      form.el);
+    atualizarEstadoSub(s.id);
+    return det;
+  }
+
+  for (const b of BLOCOS) {
+    corpo.append(h('section', { class: 'evo-bloco', dataset: { bloco: b.id }, hidden: true },
+      h('h2', {}, b.titulo), b.descricao && h('p', { class: 'ajuda' }, b.descricao),
+      ...b.subblocos.map(cartaoSubbloco)));
+  }
+  corpo.append(h('section', { class: 'evo-bloco', dataset: { bloco: 'b345' }, hidden: true },
+    h('h2', {}, '3 a 5. Problemas, cuidados e resposta'),
+    h('div', { class: 'detalhe-proximos' },
+      h('p', {}, 'Diagnósticos de enfermagem, NIC realizadas e indicadores NOC entram na próxima entrega, junto com a sugestão do Processo de Enfermagem pela IA e a biblioteca NANDA-I.'))));
+  const fim = h('section', { class: 'evo-bloco', dataset: { bloco: 'fim' }, hidden: true });
+  corpo.append(fim);
+
+  // ------------------------------------------------------------------ finalizar, PEP, imprimir
+  function desenharFim() {
+    const atual = evolucaoAtual();
+    const { erros, avisos } = validarFinalizacao(atual);
+    const sit = situacaoEvolucao(ev);
+    limpar(fim).append(...[
+      h('h2', {}, 'Finalizar e copiar ao PEP'),
+      ev.status === 'rascunho' && h('div', {},
+        erros.length ? h('div', { class: 'caixa caixa-erro' }, h('strong', {}, 'Falta para finalizar:'), h('ul', {}, erros.map((e) => h('li', {}, e))))
+          : h('div', { class: 'caixa caixa-ok' }, 'Todos os itens obrigatórios estão preenchidos.'),
+        avisos.length ? h('div', { class: 'caixa caixa-atencao' }, h('strong', {}, 'Confira antes de finalizar:'), h('ul', {}, avisos.map((a) => h('li', {}, a)))) : null,
+        ev.retificacao && h('p', { class: 'ajuda' }, `Retificação em andamento (versão ${ev.versao}): ${ev.retificacao.motivo}`),
+        podeEditar() && h('button', { class: 'btn btn-primario', type: 'button', disabled: erros.length > 0, onclick: finalizar }, 'Finalizar evolução')),
+      ev.status === 'finalizada' && h('div', {},
+        h('div', { class: `caixa ${sit === 'transcrita' ? 'caixa-ok' : 'caixa-atencao'}` },
+          h('strong', {}, ROTULO_SITUACAO[sit]), h('br'),
+          `Finalizada por ${ev.finalizadoPorNome?.nome || '—'} (Coren ${ev.finalizadoPorNome?.coren || '—'}) ${ev.finalizadoEmTexto ? `em ${ev.finalizadoEmTexto}` : ''}.`,
+          ev.transcritoPEP && h('div', {}, `Cópia ao PEP marcada por ${ev.transcritoPEP.porNome?.nome || '—'} em ${ev.transcritoPEP.emTexto} (versão ${ev.transcritoPEP.versao}).`)),
+        h('div', { class: 'linha-acoes' },
+          h('button', { class: 'btn btn-primario', type: 'button', onclick: copiarPEP }, 'Copiar para o PEP'),
+          h('button', { class: 'btn btn-secundario', type: 'button', onclick: imprimir }, 'Imprimir / PDF'),
+          podeEditar() && h('button', { class: 'btn btn-perigo', type: 'button', onclick: retificar }, 'Retificar')))].filter(Boolean));
+  }
+
+  function evolucaoAtual() {
+    return { ...ev, dados: Object.fromEntries(Object.entries(formularios).map(([k, f]) => [k, f.dados()])) };
+  }
+
+  async function finalizar() {
+    const atual = evolucaoAtual();
+    const { erros, avisos } = validarFinalizacao(atual);
+    if (erros.length) return desenharFim();
+    if (avisos.length && !(await confirmar(`Há ${avisos.length} ponto(s) para conferir (veja a lista). Finalizar mesmo assim?`, { sim: 'Finalizar' }))) return;
+    if (!navigator.onLine) return aviso('Sem conexão. O rascunho está salvo neste aparelho; finalize quando o Wi-Fi voltar.', 'atencao', 8000);
+    // Garante que tudo o que está na tela chegou ao servidor antes de finalizar.
+    for (const sid of Object.keys(timers)) clearTimeout(timers[sid]);
+    const prazo = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('sem_conexao')), ms))]);
+    try {
+      await prazo(Promise.all(Object.keys(formularios).map((sid) => backend.salvarSubbloco(id, sid, formularios[sid].dados(), ev.confirmados?.[sid] || null))), 10000);
+      await prazo(backend.finalizarEvolucao(id, { autor: autor(), pendenciasAutomaticas: pendenciasAutomaticas(atual), emTexto: formatarDataHora(agoraLocalISO()) }), 10000);
+      aviso('Evolução finalizada. Agora copie para o PEP.', 'ok');
+      sessionStorage.setItem(`bloco_${id}`, 'fim');
+      redesenhar();
+    } catch (e) {
+      aviso(e.message === 'sem_conexao' ? 'A conexão está instável: a evolução ainda não foi finalizada. Tente de novo em instantes.' : e.message, 'erro', 8000);
+    }
+  }
+
+  function copiarPEP() {
+    const texto = textoParaPEP(evolucaoAtual(), internacao, { unidadeNome });
+    const area = h('textarea', { class: 'texto-pep', readonly: true, rows: 18 });
+    area.value = texto;
+    abrirJanela({
+      titulo: 'Copiar para o PEP',
+      conteudo: h('div', {},
+        h('p', { class: 'ajuda' }, 'Texto simples, sem tabelas. Copie, cole no campo de evolução do PEP e depois marque como transcrito.'),
+        area),
+      acoes: [
+        { texto: 'Fechar', classe: 'btn-secundario' },
+        { texto: 'Copiar texto', classe: 'btn-secundario', aoClicar: async () => {
+          try {
+            await navigator.clipboard.writeText(texto);
+          } catch {
+            area.select();
+            document.execCommand('copy');
+          }
+          aviso('Texto copiado.', 'ok');
+          return false;
+        } },
+        podeEditar() && ev.transcritoPEP?.versao !== ev.versao && { texto: 'Já colei no PEP', classe: 'btn-primario', aoClicar: async () => {
+          try {
+            await backend.marcarTranscrita(id, { versao: ev.versao, autor: autor(), emTexto: formatarDataHora(agoraLocalISO()) });
+            aviso('Marcada como transcrita ao PEP.', 'ok');
+          } catch (e) {
+            aviso(e.message, 'erro');
+            return false;
+          }
+        } },
+      ].filter(Boolean),
+    });
+    setTimeout(() => area.select(), 50);
+  }
+
+  function imprimir() {
+    const texto = textoParaPEP(evolucaoAtual(), internacao, { unidadeNome });
+    const [titulo, ...resto] = texto.split('\n');
+    const folha = h('div', { class: 'impressao' },
+      h('div', { class: 'impressao-topo' }, h('img', { src: 'assets/logo/logo_liga_cinza.png', alt: 'Liga Contra o Câncer' }), h('h1', {}, titulo)),
+      ...resto.map((l) => (l ? h('p', {}, l) : h('div', { class: 'impressao-sep' }))),
+      h('div', { class: 'impressao-assinatura' }, '_______________________________________', h('br'), 'Assinatura e carimbo'));
+    document.body.append(folha);
+    document.body.classList.add('imprimindo');
+    const limparImp = () => {
+      folha.remove();
+      document.body.classList.remove('imprimindo');
+      window.removeEventListener('afterprint', limparImp);
+    };
+    window.addEventListener('afterprint', limparImp);
+    setTimeout(() => window.print(), 100);
+  }
+
+  async function retificar() {
+    const motivo = h('textarea', { rows: 3, id: 'motivo-retif' });
+    abrirJanela({
+      titulo: 'Retificar evolução',
+      conteudo: h('div', {},
+        h('p', {}, 'A versão finalizada fica guardada. A evolução volta a ser rascunho; ao finalizar de novo, vira a versão seguinte.'),
+        ev.transcritoPEP && h('p', { class: 'caixa caixa-atencao' }, 'Esta evolução já foi copiada ao PEP. Depois de corrigir, será preciso atualizar o PEP.'),
+        h('label', { for: 'motivo-retif', class: 'campo-rotulo' }, 'Motivo da retificação *'), motivo),
+      acoes: [
+        { texto: 'Cancelar', classe: 'btn-secundario' },
+        { texto: 'Retificar', classe: 'btn-perigo', aoClicar: async () => {
+          if (!motivo.value.trim()) { aviso('Informe o motivo.', 'atencao'); return false; }
+          try {
+            await backend.retificarEvolucao(id, { motivo: motivo.value.trim(), autor: autor(), emTexto: formatarDataHora(agoraLocalISO()) });
+            setTimeout(redesenhar, 50);
+          } catch (e) {
+            aviso(e.message, 'erro');
+            return false;
+          }
+        } },
+      ],
+    });
+  }
+
+  // ------------------------------------------------------------------ montagem e sincronização
+  limpar(conteudo).append(...[cabecalho, navegacao,
+    ro() && h('div', { class: 'faixa-somente-leitura' }, ev.status === 'finalizada' ? 'Evolução finalizada: somente leitura. Para corrigir, use "Retificar" em Finalizar.' : 'Seu perfil é somente consulta.'),
+    corpo].filter(Boolean));
+  situacaoEl.textContent = ROTULO_SITUACAO[situacaoEvolucao(ev)];
+  situacaoEl.className = `situacao sit-${situacaoEvolucao(ev)}`;
+  indicador.textContent = ro() ? '' : 'Salvamento automático';
+  abrirBloco(ABAS.some((a) => a[0] === blocoAtual) ? blocoAtual : 'b2');
+
+  const parar = backend.observarEvolucao(id, (novo, meta) => {
+    const statusMudou = novo.status !== ev.status || novo.versao !== ev.versao;
+    ev = { ...ev, ...novo, confirmados: novo.confirmados || {} };
+    situacaoEl.textContent = ROTULO_SITUACAO[situacaoEvolucao(ev)];
+    situacaoEl.className = `situacao sit-${situacaoEvolucao(ev)}`;
+    if (meta.pendente && !pendentes) {
+      indicador.className = 'salvamento offline';
+      indicador.textContent = 'Salvo neste aparelho · ainda não sincronizado';
+    } else if (!meta.pendente && indicador.classList.contains('offline')) {
+      indicador.className = 'salvamento salvo';
+      indicador.textContent = `✓ Sincronizado às ${horaAgora()}`;
+    }
+    if (meta.deOutroAparelho) {
+      const recente = Object.values(editadoEm).some((t) => Date.now() - t < 4000);
+      if (statusMudou) {
+        avisoOutro.hidden = false;
+        avisoOutro.replaceChildren('Esta evolução mudou de situação em outro aparelho. ', h('button', { class: 'btn btn-pequeno', type: 'button', onclick: redesenhar }, 'Atualizar'));
+      } else if (!recente) {
+        // Atualiza os subblocos que este aparelho não está editando.
+        for (const [sid, f] of Object.entries(formularios)) {
+          const remoto = JSON.stringify(novo.dados?.[sid] || {});
+          if (remoto !== JSON.stringify(f.dados()) && !corpo.querySelector(`[data-sub="${sid}"]`)?.contains(document.activeElement)) {
+            f.definirDados(novo.dados?.[sid] || {});
+            atualizarEstadoSub(sid);
+          }
+        }
+      }
+    }
+    if (blocoAtual === 'fim') desenharFim();
+  });
+
+  // O cabeçalho do paciente fica fixo logo abaixo da barra superior (que muda de altura no tablet).
+  const ajustarTopo = () => { cabecalho.style.top = `${document.querySelector('.topo')?.offsetHeight || 0}px`; };
+  ajustarTopo();
+  window.addEventListener('resize', ajustarTopo);
+
+  const antesDeSair = (e) => {
+    if (pendentes) { e.preventDefault(); e.returnValue = ''; }
+  };
+  window.addEventListener('beforeunload', antesDeSair);
+  return () => {
+    // Ao sair da tela, envia o que estiver aguardando.
+    for (const [sid, t] of Object.entries(timers)) {
+      clearTimeout(t);
+      if (Date.now() - (editadoEm[sid] || 0) < 800) backend.salvarSubbloco(id, sid, formularios[sid].dados(), ev.confirmados?.[sid] || null).catch(() => {});
+    }
+    parar?.();
+    window.removeEventListener('beforeunload', antesDeSair);
+    window.removeEventListener('resize', ajustarTopo);
+  };
+}
+
+export { TURNOS };

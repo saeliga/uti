@@ -110,6 +110,12 @@ async function rotear() {
   for (const a of document.querySelectorAll('[data-rota]')) a.classList.toggle('ativa', a.dataset.rota === rota);
 
   const p = estado.perfil;
+  if (rota.startsWith('evolucao/')) {
+    const [, internacaoId, data, turno] = rota.split('/');
+    const { telaEvolucao } = await import('./modulos/evolucao/evolucao.js');
+    desmontarAtual = await telaEvolucao(conteudo, { internacaoId, data, turno });
+    return;
+  }
   if (rota === 'admin' && p.perfil === 'admin') {
     const { telaAdmin } = await import('./modulos/admin/admin.js');
     desmontarAtual = await telaAdmin(conteudo, { aoMudarUnidades: recarregarUnidades });

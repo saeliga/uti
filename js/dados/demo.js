@@ -6,6 +6,7 @@ import { UNIDADES_PADRAO } from '../config.js';
 import { ErroSistema } from './erros.js';
 import { idPaciente, resumoParaLeito } from '../regras/validacao.js';
 import { agoraLocalISO, somarDias, hojeISO } from '../regras/datas.js';
+import { turnoDe, turnoAnterior, idEvolucao } from '../regras/turnos.js';
 
 export const modo = 'demo';
 
@@ -224,4 +225,87 @@ export async function encerrarInternacao(id, desfecho) {
   Object.assign(i, { status: 'encerrada', desfecho: { ...desfecho, registradoPor: USUARIO.uid }, versao: i.versao + 1 });
   auditar('desfecho', { internacaoId: id });
   notificar();
+}
+
+// --------------------------------------------------------------------------- evolução (demonstração)
+const evolucoes = {};
+const obsEvol = new Set();
+function notificarEvol() {
+  for (const o of obsEvol) o();
+}
+{
+  // Exemplo: evolução finalizada no turno anterior para o leito 01 (com pendência aberta).
+  const ana = Object.entries(internacoes).find(([, i]) => i.leitoId === 'uti1_01');
+  if (ana) {
+    const ant = turnoAnterior(turnoDe());
+    const id = idEvolucao(ana[0], ant);
+    evolucoes[id] = {
+      internacaoId: ana[0], unidade: 'uti1', leitoId: 'uti1_01', ...ant, status: 'finalizada', versao: 1,
+      dados: {
+        contexto: { peso: '64', pesoOrigem: 'estimado', limitacao: 'nao', objetivos: 'curativo' },
+        sinais: { horario: '20:00', estadoGeral: 'grave', t: '38,2', fc: '118', fr: '26', pas: '92', pad: '54', spo2: '93', tendencia: 'piora' },
+        neuro: { consciencia: 'sedado', gOcular: '1', gVerbal: 'T', gMotora: '4', rass: '-4', metaRass: '-3', pupilaD: '3', pupilaE: '3', fotoD: 'presente', fotoE: 'presente', interrupcao: 'nao_realizada' },
+        respiratorio: { suporte: 'vmi_tot', modo: 'PCV', peep: '10', fio2: '50', cuff: '24', padrao: ['assincronia'], secrecao: 'moderada', secrecaoAspecto: 'Amarelada' },
+        hemodinamica: { ritmo: 'sinusal', tec: 'mais3', extremidades: 'frias', infusoes: [
+          { finalidade: 'vasopressor', medicamento: 'noradrenalina', quantidade: '4', unidadeQtd: 'mg', volume: '250', vazao: '18', unidadeDose: 'mcg/kg/min' },
+          { finalidade: 'sedacao', medicamento: 'midazolam', quantidade: '150', unidadeQtd: 'mg', volume: '150', vazao: '8', unidadeDose: 'mg/h' }] },
+        dispositivos: { itens: [{ tipo: 'cvc', local: 'Jugular interna direita', insercao: somarDias(hoje, -3), necessario: 'sim' }, { tipo: 'tot', local: '22 cm na rima labial', insercao: somarDias(hoje, -3), necessario: 'sim' }, { tipo: 'cvd', insercao: somarDias(hoje, -3), necessario: 'sim' }] },
+        pendencias: { itens: [{ descricao: 'Resultado da hemocultura de ontem', comunicado: 'Plantonista', situacao: 'aberta' }] },
+        narrativa: { texto: 'Piora hemodinâmica no fim do turno, com aumento da noradrenalina. Febre persistente.' },
+      },
+      confirmados: {}, finalizadoPorNome: { nome: 'ENFERMEIRA DEMONSTRAÇÃO', coren: '000000-RN' }, finalizadoEmTexto: 'turno anterior',
+    };
+  }
+}
+export function observarEvolucoesTurno(unidade, { data, turno }, cb) {
+  const enviar = () => cb(Object.entries(evolucoes).filter(([, e]) => e.unidade === unidade && e.data === data && e.turno === turno).map(([id, e]) => ({ id, ...clone(e) })));
+  obsEvol.add(enviar);
+  setTimeout(enviar, 60);
+  return () => obsEvol.delete(enviar);
+}
+export async function lerEvolucao(id) {
+  await espera(80);
+  return evolucoes[id] ? { id, ...clone(evolucoes[id]) } : null;
+}
+export async function abrirEvolucao(id, base) {
+  await espera(150);
+  if (!evolucoes[id]) evolucoes[id] = { ...clone(base), status: 'rascunho', versao: 1, confirmados: {}, criadoPor: USUARIO.uid };
+  notificarEvol();
+  return { id, ...clone(evolucoes[id]) };
+}
+const obsUma = new Map();
+export function observarEvolucao(id, cb) {
+  const f = () => evolucoes[id] && cb({ id, ...clone(evolucoes[id]) }, { pendente: false, deOutroAparelho: false });
+  obsUma.set(f, id);
+  setTimeout(f, 30);
+  return () => obsUma.delete(f);
+}
+export function salvarSubbloco(id, sub, dados, confirmado) {
+  const e = evolucoes[id];
+  e.dados = { ...(e.dados || {}), [sub]: clone(dados) };
+  e.confirmados = { ...(e.confirmados || {}) };
+  if (confirmado) e.confirmados[sub] = clone(confirmado); else delete e.confirmados[sub];
+  notificarEvol();
+  return espera(250);
+}
+export async function finalizarEvolucao(id, { autor, pendenciasAutomaticas, emTexto }) {
+  await espera(200);
+  Object.assign(evolucoes[id], { status: 'finalizada', finalizadoPorNome: autor, finalizadoEmTexto: emTexto, pendenciasAutomaticas });
+  auditar('evolucao_finalizada', { evolucaoId: id });
+  notificarEvol();
+  for (const [f, i] of obsUma) if (i === id) f();
+}
+export async function retificarEvolucao(id, { motivo, emTexto, autor }) {
+  await espera(200);
+  const e = evolucoes[id];
+  Object.assign(e, { status: 'rascunho', versao: e.versao + 1, retificacao: { motivo, porNome: autor, emTexto } });
+  auditar('evolucao_retificada', { evolucaoId: id });
+  notificarEvol();
+  for (const [f, i] of obsUma) if (i === id) f();
+}
+export async function marcarTranscrita(id, { versao, autor, emTexto }) {
+  await espera(150);
+  evolucoes[id].transcritoPEP = { versao, porNome: autor, emTexto };
+  notificarEvol();
+  for (const [f, i] of obsUma) if (i === id) f();
 }

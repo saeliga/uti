@@ -5,37 +5,71 @@ import { estado, podeEditar } from '../../nucleo/estado.js';
 import { h, limpar, carregando, aviso, confirmar, abrirJanela, campo, lerFormulario } from '../../nucleo/ui.js';
 import { contagemDia, idade, hojeISO } from '../../regras/datas.js';
 import { ISOLAMENTOS, MOTIVOS_BLOQUEIO } from '../../regras/opcoes.js';
+import { turnoDe, rotuloTurno } from '../../regras/turnos.js';
+import { situacaoEvolucao, ROTULO_SITUACAO } from '../../regras/evolucao.js';
 
 const ordenar = (a, b) => a.numero.localeCompare(b.numero, 'pt', { numeric: true });
 
 export function telaPainel(conteudo, unidade) {
   carregando(conteudo, `Carregando leitos da ${unidade.nome}…`);
-  const parar = backend.observarLeitos(
+  let leitos = null;
+  let evolucoes = {};
+  let turno = turnoDe();
+  const redesenhar = () => leitos && desenhar(conteudo, unidade, leitos, evolucoes, turno);
+  const pararLeitos = backend.observarLeitos(
     unidade.id,
-    (leitos, meta) => {
+    (ls, meta) => {
       estado.atualizarConexao?.(meta);
-      desenhar(conteudo, unidade, leitos.sort(ordenar));
+      leitos = ls.sort(ordenar);
+      redesenhar();
     },
-    (erro) => {
-      limpar(conteudo).append(h('p', { class: 'vazio' }, erro.message));
-    },
+    (erro) => limpar(conteudo).append(h('p', { class: 'vazio' }, erro.message)),
   );
-  return parar;
+  let pararEvol = null;
+  const observarTurno = () => {
+    pararEvol?.();
+    pararEvol = backend.observarEvolucoesTurno(unidade.id, turno, (lista) => {
+      evolucoes = Object.fromEntries(lista.map((e) => [e.internacaoId, e]));
+      redesenhar();
+    });
+  };
+  observarTurno();
+  // Na virada do turno, passa a mostrar a situação do novo turno.
+  const relogio = setInterval(() => {
+    const t = turnoDe();
+    if (t.turno !== turno.turno || t.data !== turno.data) {
+      turno = t;
+      evolucoes = {};
+      observarTurno();
+    }
+  }, 60000);
+  return () => {
+    pararLeitos?.();
+    pararEvol?.();
+    clearInterval(relogio);
+  };
 }
 
-function desenhar(conteudo, unidade, leitos) {
-  const ocupados = leitos.filter((l) => l.internacaoId).length;
+function desenhar(conteudo, unidade, leitos, evolucoes, turno) {
+  const ocupados = leitos.filter((l) => l.internacaoId);
   const bloqueados = leitos.filter((l) => l.bloqueado).length;
-  const livres = leitos.length - ocupados - bloqueados;
+  const livres = leitos.length - ocupados.length - bloqueados;
+  const sits = ocupados.map((l) => situacaoEvolucao(evolucoes[l.internacaoId]));
+  const faltam = sits.filter((x) => x === 'sem_evolucao' || x === 'rascunho').length;
+  const semPEP = sits.filter((x) => x === 'finalizada' || x === 'alterada_apos_copia').length;
   const rolagem = window.scrollY;
   limpar(conteudo).append(
     h('div', { class: 'painel-cabecalho' },
       h('h1', {}, unidade.nome),
       h('div', { class: 'painel-contagem' },
-        h('span', {}, h('strong', {}, ocupados), ' ocupados'),
+        h('span', {}, h('strong', {}, ocupados.length), ' ocupados'),
         h('span', {}, h('strong', {}, livres), ' livres'),
         bloqueados ? h('span', {}, h('strong', {}, bloqueados), ' bloqueados') : null)),
-    h('div', { class: 'grade-leitos' }, leitos.map((l) => cartao(l, unidade))));
+    ocupados.length ? h('div', { class: 'painel-turno' },
+      h('strong', {}, rotuloTurno(turno)), ': ',
+      faltam ? `${faltam} evolução(ões) a concluir` : 'todas as evoluções finalizadas',
+      semPEP ? ` · ${semPEP} a copiar ao PEP` : '') : null,
+    h('div', { class: 'grade-leitos' }, leitos.map((l) => cartao(l, unidade, evolucoes[l.internacaoId]))));
   window.scrollTo(0, rolagem);
 }
 
@@ -51,23 +85,23 @@ function chipIsolamento(iso) {
   return h('span', { class: 'chip chip-isolamento' }, 'Isolamento: ', ISOLAMENTOS[iso.tipo]?.replace(/ \(.*\)$/, '') || iso.tipo);
 }
 
-function cartao(l, unidade) {
+function cartao(l, unidade, ev) {
   const rotulo = `Leito ${l.numero}`;
   if (l.internacaoId && l.resumo) {
     const r = l.resumo;
     const hoje = hojeISO();
-    return h('button', {
-      class: 'leito leito-ocupado', type: 'button',
-      'aria-label': `${rotulo}, ${r.nome}`,
-      onclick: () => abrirDetalhe(l, unidade),
-    },
-    h('div', { class: 'leito-topo' },
-      h('span', { class: 'leito-num' }, rotulo),
-      h('span', { class: 'leito-dia', title: 'Dias de UTI (admissão = D0)' }, `UTI ${contagemDia(r.admissaoUti, hoje)}`)),
-    h('div', { class: 'leito-nome' }, r.nome),
-    h('div', { class: 'leito-ident' }, `${idade(r.dataNascimento, hoje)} anos · Reg. ${r.registro}`),
-    h('div', { class: 'leito-diag' }, r.diagnosticoMedico),
-    h('div', { class: 'leito-chips' }, chipAlergia(r.alergias), chipIsolamento(r.isolamento)));
+    const sit = situacaoEvolucao(ev);
+    return h('div', { class: `leito leito-ocupado sit-borda-${sit}` },
+      h('button', { class: 'leito-abrir', type: 'button', 'aria-label': `${rotulo}, ${r.nome}: abrir dados da internação`, onclick: () => abrirDetalhe(l, unidade) },
+        h('div', { class: 'leito-topo' },
+          h('span', { class: 'leito-num' }, rotulo),
+          h('span', { class: 'leito-dia', title: 'Dias de UTI (admissão = D0)' }, `UTI ${contagemDia(r.admissaoUti, hoje)}`)),
+        h('div', { class: 'leito-nome' }, r.nome),
+        h('div', { class: 'leito-ident' }, `${idade(r.dataNascimento, hoje)} anos · Reg. ${r.registro}`),
+        h('div', { class: 'leito-diag' }, r.diagnosticoMedico),
+        h('div', { class: 'leito-chips' }, chipAlergia(r.alergias), chipIsolamento(r.isolamento))),
+      h('a', { class: `leito-evolucao sit-${sit}`, href: `#/evolucao/${l.internacaoId}` },
+        h('span', {}, ROTULO_SITUACAO[sit]), h('span', { 'aria-hidden': 'true' }, '→')));
   }
   if (l.bloqueado) {
     return h('div', { class: 'leito leito-bloqueado' },
