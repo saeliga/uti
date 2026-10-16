@@ -6,7 +6,7 @@ import { UNIDADES_PADRAO } from '../config.js';
 import { ErroSistema } from './erros.js';
 import { idPaciente, resumoParaLeito } from '../regras/validacao.js';
 import { agoraLocalISO, somarDias, hojeISO } from '../regras/datas.js';
-import { turnoDe, turnoAnterior, idEvolucao } from '../regras/turnos.js';
+import { diaAssistencial, diaAnterior, idEvolucao } from '../regras/turnos.js';
 
 export const modo = 'demo';
 
@@ -237,10 +237,10 @@ function notificarEvol() {
   // Exemplo: evolução finalizada no turno anterior para o leito 01 (com pendência aberta).
   const ana = Object.entries(internacoes).find(([, i]) => i.leitoId === 'uti1_01');
   if (ana) {
-    const ant = turnoAnterior(turnoDe());
+    const ant = diaAnterior(diaAssistencial());
     const id = idEvolucao(ana[0], ant);
     evolucoes[id] = {
-      internacaoId: ana[0], unidade: 'uti1', leitoId: 'uti1_01', ...ant, status: 'finalizada', versao: 1,
+      internacaoId: ana[0], unidade: 'uti1', leitoId: 'uti1_01', data: ant, turnoInicio: 'N', status: 'finalizada', versao: 1,
       dados: {
         contexto: { peso: '64', pesoOrigem: 'estimado', limitacao: 'nao', objetivos: 'curativo' },
         sinais: { horario: '20:00', estadoGeral: 'grave', t: '38,2', fc: '118', fr: '26', pas: '92', pad: '54', spo2: '93', tendencia: 'piora' },
@@ -253,12 +253,12 @@ function notificarEvol() {
         pendencias: { itens: [{ descricao: 'Resultado da hemocultura de ontem', comunicado: 'Plantonista', situacao: 'aberta' }] },
         narrativa: { texto: 'Piora hemodinâmica no fim do turno, com aumento da noradrenalina. Febre persistente.' },
       },
-      confirmados: {}, finalizadoPorNome: { nome: 'ENFERMEIRA DEMONSTRAÇÃO', coren: '000000-RN' }, finalizadoEmTexto: 'turno anterior',
+      confirmados: {}, finalizadoPorNome: { nome: 'ENFERMEIRA DEMONSTRAÇÃO', coren: '000000-RN' }, finalizadoEmTexto: 'dia anterior',
     };
   }
 }
-export function observarEvolucoesTurno(unidade, { data, turno }, cb) {
-  const enviar = () => cb(Object.entries(evolucoes).filter(([, e]) => e.unidade === unidade && e.data === data && e.turno === turno).map(([id, e]) => ({ id, ...clone(e) })));
+export function observarEvolucoesDia(unidade, data, cb) {
+  const enviar = () => cb(Object.entries(evolucoes).filter(([, e]) => e.unidade === unidade && e.data === data).map(([id, e]) => ({ id, ...clone(e) })));
   obsEvol.add(enviar);
   setTimeout(enviar, 60);
   return () => obsEvol.delete(enviar);

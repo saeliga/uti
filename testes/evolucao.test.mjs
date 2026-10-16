@@ -2,9 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { glasgow, camIcu, braden, morse, bps, evn } from '../js/regras/escalas.js';
+import { glasgow, camIcu, bps, evn } from '../js/regras/escalas.js';
 import { pam, checarSinal, diureseReal, debitoUrinario, doseInfusao } from '../js/regras/calculos.js';
-import { turnoDe, turnoAnterior, idEvolucao } from '../js/regras/turnos.js';
+import { diaAssistencial, diaAnterior, turnoDe, idEvolucao } from '../js/regras/turnos.js';
 import { validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, textoParaPEP, pendenciasAbertas } from '../js/regras/evolucao.js';
 import { BLOCOS } from '../js/regras/evolucao-esquema.js';
 
@@ -23,16 +23,16 @@ test('CAM-ICU', () => {
   assert.equal(camIcu({ rass: '0', agudo: 'sim', desatencao: 'sim', desorganizado: 'sim' }).resultado, 'positivo');
 });
 
-test('Braden, Morse, BPS e EVN: escore e classificação calculados', () => {
-  assert.deepEqual(braden({ percepcao: 2, umidade: 2, atividade: 1, mobilidade: 2, nutricao: 2, friccao: 1 }), { total: 10, risco: 'Risco alto', completo: true });
-  assert.equal(braden({ percepcao: 4, umidade: 4, atividade: 4, mobilidade: 4, nutricao: 4, friccao: 3 }).risco, 'Sem risco');
-  assert.equal(braden({ percepcao: 4 }).completo, false);
-  assert.equal(morse({ historico: 25, diagnosticoSecundario: 15, auxilio: 0, terapiaVenosa: 20, marcha: 0, estadoMental: 0 }).risco, 'Risco alto');
-  assert.equal(morse({ historico: 0, diagnosticoSecundario: 15, auxilio: 0, terapiaVenosa: 0, marcha: 10, estadoMental: 0 }).risco, 'Risco moderado');
+test('BPS e EVN: escore e classificação calculados', () => {
   assert.equal(bps({ facial: 2, membros: 2, ventilacao: 2 }).comDor, true);
   assert.equal(bps({ facial: 1, membros: 1, ventilacao: 1 }).classe, 'Sem dor');
   assert.equal(evn(0).classe, 'Sem dor');
   assert.equal(evn(5).comDor, true);
+});
+
+test('Braden e Morse não fazem parte do sistema (ficam no PEP oficial)', () => {
+  const campos = BLOCOS.flatMap((b) => b.subblocos.flatMap((x) => x.campos.map((c) => c.rotulo))).join(' ');
+  assert.doesNotMatch(campos, /Braden|Morse/);
 });
 
 test('PAM, faixas, diurese real e débito', () => {
@@ -59,13 +59,14 @@ test('dose de infusão', () => {
   assert.equal(doseInfusao({ quantidade: 100, unidadeQtd: 'UI', volume: 100, vazao: 3, unidadeDose: 'mg/h' }), null, 'unidades incompatíveis');
 });
 
-test('turnos: noite pertence à data em que começou', () => {
-  assert.deepEqual(turnoDe(new Date(2026, 9, 16, 8, 0)), { data: '2026-10-16', turno: 'M' });
-  assert.deepEqual(turnoDe(new Date(2026, 9, 16, 13, 0)), { data: '2026-10-16', turno: 'T' });
-  assert.deepEqual(turnoDe(new Date(2026, 9, 16, 22, 0)), { data: '2026-10-16', turno: 'N' });
-  assert.deepEqual(turnoDe(new Date(2026, 9, 17, 3, 0)), { data: '2026-10-16', turno: 'N' });
-  assert.deepEqual(turnoAnterior({ data: '2026-10-17', turno: 'M' }), { data: '2026-10-16', turno: 'N' });
-  assert.equal(idEvolucao('abc', { data: '2026-10-16', turno: 'T' }), 'abc_2026-10-16_T');
+test('dia assistencial: das 07h às 07h; uma evolução por dia', () => {
+  assert.equal(diaAssistencial(new Date(2026, 9, 16, 7, 0)), '2026-10-16');
+  assert.equal(diaAssistencial(new Date(2026, 9, 16, 22, 0)), '2026-10-16');
+  assert.equal(diaAssistencial(new Date(2026, 9, 17, 6, 59)), '2026-10-16', 'madrugada ainda é o dia anterior');
+  assert.equal(diaAssistencial(new Date(2026, 9, 17, 7, 0)), '2026-10-17');
+  assert.equal(diaAnterior('2026-11-01'), '2026-10-31');
+  assert.equal(turnoDe(new Date(2026, 9, 16, 14, 0)), 'T');
+  assert.equal(idEvolucao('abc', '2026-10-16'), 'abc_2026-10-16');
 });
 
 const internacao = {
@@ -76,7 +77,7 @@ const internacao = {
 
 function evolucaoCompleta() {
   return {
-    data: '2026-10-16', turno: 'M', status: 'rascunho', versao: 1,
+    data: '2026-10-16', turnoInicio: 'M', status: 'rascunho', versao: 1,
     dados: {
       contexto: { peso: '70' },
       sinais: { horario: '08:00', estadoGeral: 'grave', t: '37,8', fc: '112', fr: '24', pas: '96', pad: '58', spo2: '94', hgt: '180', tendencia: 'estavel' },
@@ -85,8 +86,7 @@ function evolucaoCompleta() {
       respiratorio: { suporte: 'vmi_tot', modo: 'PCV', peep: '8', fio2: '40', cuff: '25' },
       hemodinamica: { ritmo: 'sinusal', infusoes: [{ finalidade: 'vasopressor', medicamento: 'noradrenalina', quantidade: '4', unidadeQtd: 'mg', volume: '250', vazao: '15', unidadeDose: 'mcg/kg/min' }] },
       renal: { modo: 'cvd', volume: '600', horas: '6' },
-      pele: { br_percepcao: '1', br_umidade: '2', br_atividade: '1', br_mobilidade: '1', br_nutricao: '2', br_friccao: '1' },
-      quedas: { mo_historico: '0', mo_diagnosticoSecundario: '15', mo_auxilio: '0', mo_terapiaVenosa: '20', mo_marcha: '0', mo_estadoMental: '0' },
+      pele: { inspecao: 'Pele íntegra' },
       dispositivos: { itens: [{ tipo: 'cvc', local: 'Jugular direita', insercao: '2026-10-13', necessario: 'sim' }, { tipo: 'avp', local: 'Antebraço' }] },
       prevencao: { lpp: { 'Mudança de decúbito a cada 2 h': { estado: 'nao_realizado' } } },
       pendencias: { itens: [{ descricao: 'Coletar hemocultura', situacao: 'aberta' }, { descricao: 'Trocar curativo', situacao: 'resolvida' }] },
@@ -139,7 +139,7 @@ test('texto para o PEP: seções, cálculos e só siglas do manual da Liga', () 
   assert.match(t, /SpO2: 94 %/);
   assert.match(t, /pupilas: isocóricas, direita 3 mm/);
   assert.match(t, /0,057 mcg\/kg\/min/);
-  assert.match(t, /Braden: 8 - Risco muito alto/);
+  assert.match(t, /DIA 16\/10\/2026 \(TURNO DA MANHÃ\)/);
   assert.match(t, /Alergias: Dipirona/);
   assert.match(t, /PENDÊNCIAS IDENTIFICADAS PELO SISTEMA/);
   assert.doesNotMatch(t, /[│┃|<>]/, 'sem caracteres de tabela');
@@ -148,7 +148,7 @@ test('texto para o PEP: seções, cálculos e só siglas do manual da Liga', () 
   const ignorar = new Set([...internacao.paciente.nome.split(' '), 'ENF', 'TESTE', 'UTI', 'LEITO', 'DEMO-1', 'RN']);
   const titulos = new Set(BLOCOS.flatMap((b) => b.subblocos.map((s) => s.titulo.toUpperCase())).join(' ').split(/[\s(),]+/));
   const palavras = t.split(/[\s.,;:()]+/).filter((w) => /^[A-Z][A-Z0-9]{1,}$|^SpO2$|^FiO2$/.test(w));
-  const fora = [...new Set(palavras)].filter((w) => !/^D\d+$/.test(w) && !ignorar.has(w) && !titulos.has(w) && !['EVOLUÇÃO', 'ENFERMAGEM', 'MANHÃ', 'DE', 'PENDÊNCIAS', 'IDENTIFICADAS', 'PELO', 'SISTEMA'].includes(w));
+  const fora = [...new Set(palavras)].filter((w) => !/^D\d+$/.test(w) && !ignorar.has(w) && !titulos.has(w) && !['EVOLUÇÃO', 'ENFERMAGEM', 'MANHÃ', 'DE', 'DIA', 'TURNO', 'DA', 'PENDÊNCIAS', 'IDENTIFICADAS', 'PELO', 'SISTEMA'].includes(w));
   const naoPermitidas = fora.filter((w) => !manual.permitidas.includes(w));
   assert.deepEqual(naoPermitidas, [], `siglas fora do manual ou ambíguas: ${naoPermitidas}`);
 });

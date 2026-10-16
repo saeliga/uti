@@ -179,7 +179,7 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------ evoluções
-    // Um documento por internação + data + turno. Rascunho é editável por
+    // Um documento por internação + dia assistencial (07h às 07h). Rascunho é editável por
     // enfermeiros da unidade; finalizada só muda para marcar a cópia ao PEP ou
     // por retificação, que guarda antes a versão anterior em /versoes.
     match /evolucoes/{id} {
@@ -187,19 +187,20 @@ service cloud.firestore {
       function internacao(iid) { return get(caminho('internacoes', iid)).data; }
       function caminhoVersao(v) { return /databases/$(database)/documents/evolucoes/$(id)/versoes/$(v); }
 
-      // resource == null: consultar se a evolução de um turno já existe (não revela nada).
+      // resource == null: consultar se a evolução de um dia já existe (não revela nada).
       allow read: if ativo() && (resource == null || naUnidade(resource.data.unidade));
 
       allow create: if clinico() && naUnidade(d().unidade)
-        && id == d().internacaoId + '_' + d().data + '_' + d().turno
-        && d().turno in ['M', 'T', 'N']
+        && id == d().internacaoId + '_' + d().data
+        && d().data is string && d().data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d().turnoInicio in ['M', 'T', 'N']
         && d().status == 'rascunho' && d().versao == 1
         && d().criadoPor == request.auth.uid && d().criadoEm == request.time && autoria()
         && internacao(d().internacaoId).status == 'ativa'
         && internacao(d().internacaoId).unidade == d().unidade;
 
       allow update: if clinico() && naUnidade(resource.data.unidade)
-        && inalterados(['internacaoId', 'unidade', 'leitoId', 'data', 'turno', 'criadoPor', 'criadoEm'])
+        && inalterados(['internacaoId', 'unidade', 'leitoId', 'data', 'turnoInicio', 'criadoPor', 'criadoEm'])
         && autoria()
         && (
           // (1) edição do rascunho

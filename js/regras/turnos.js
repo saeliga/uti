@@ -1,33 +1,34 @@
-// Turnos da UTI. Padrão provisório (questão em aberto na especificação):
-// uma evolução por turno — manhã 07–13, tarde 13–19, noite 19–07.
-// O turno da noite pertence à data em que começou (ex.: noite de 16/10 vai até 07h de 17/10).
+// Dia assistencial e turnos da UTI.
+// A evolução é UMA POR DIA por paciente (decidido pelo Tercio em 16/10/2026):
+// qualquer turno pode fazê-la, e o que ficar pendente passa para o turno seguinte.
+// O dia assistencial vai das 07h às 07h do dia seguinte (mesmo corte da folha
+// de BH: controle das 07h às 06h). Ex.: 03h de 17/10 ainda pertence ao dia 16/10.
 
 import { hojeISO, somarDias, formatarData } from './datas.js';
+
+export const HORA_VIRADA = 7;
 
 export const TURNOS = {
   M: { nome: 'Manhã', inicio: 7, fim: 13 },
   T: { nome: 'Tarde', inicio: 13, fim: 19 },
   N: { nome: 'Noite', inicio: 19, fim: 7 },
 };
-const ORDEM = ['M', 'T', 'N'];
 
-/** { data: 'AAAA-MM-DD', turno: 'M'|'T'|'N' } do momento informado. */
+/** Data do dia assistencial do momento informado ('AAAA-MM-DD'). */
+export function diaAssistencial(momento = new Date()) {
+  const d = hojeISO(momento);
+  return momento.getHours() < HORA_VIRADA ? somarDias(d, -1) : d;
+}
+
+/** Turno do momento (só informativo: registra em que turno a evolução foi feita). */
 export function turnoDe(momento = new Date()) {
   const h = momento.getHours();
-  if (h >= 7 && h < 13) return { data: hojeISO(momento), turno: 'M' };
-  if (h >= 13 && h < 19) return { data: hojeISO(momento), turno: 'T' };
-  const data = h < 7 ? somarDias(hojeISO(momento), -1) : hojeISO(momento);
-  return { data, turno: 'N' };
+  return h >= 7 && h < 13 ? 'M' : h >= 13 && h < 19 ? 'T' : 'N';
 }
 
-export function turnoAnterior({ data, turno }) {
-  const i = ORDEM.indexOf(turno);
-  return i > 0 ? { data, turno: ORDEM[i - 1] } : { data: somarDias(data, -1), turno: 'N' };
-}
+export const diaAnterior = (data) => somarDias(data, -1);
 
-export function rotuloTurno({ data, turno }) {
-  return `${TURNOS[turno].nome} de ${formatarData(data)}`;
-}
+export const rotuloDia = (data) => `Dia ${formatarData(data)}`;
 
-/** Identificador do documento: uma evolução por internação, data e turno. */
-export const idEvolucao = (internacaoId, { data, turno }) => `${internacaoId}_${data}_${turno}`;
+/** Identificador do documento: uma evolução por internação e dia assistencial. */
+export const idEvolucao = (internacaoId, data) => `${internacaoId}_${data}`;

@@ -319,15 +319,15 @@ export async function encerrarInternacao(id, desfecho) {
 }
 
 // --------------------------------------------------------------------------- evolução
-// Um documento por internação + data + turno (id fixo): o mesmo rascunho no
+// Um documento por internação + dia assistencial (id fixo): o mesmo rascunho no
 // tablet e no PC. O salvamento é por subbloco (dados.<subbloco>), o que reduz
 // conflito quando duas pessoas mexem na mesma evolução. Sem Wi-Fi, a gravação
 // fica no aparelho e sobe sozinha quando a conexão voltar.
 
 const DISPOSITIVO = Math.random().toString(36).slice(2, 10);
 
-export function observarEvolucoesTurno(unidade, { data, turno }, cb, cbErro) {
-  const q = F.query(F.collection(db, 'evolucoes'), F.where('unidade', '==', unidade), F.where('data', '==', data), F.where('turno', '==', turno));
+export function observarEvolucoesDia(unidade, data, cb, cbErro) {
+  const q = F.query(F.collection(db, 'evolucoes'), F.where('unidade', '==', unidade), F.where('data', '==', data));
   return F.onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), (e) => cbErro?.(traduzirErro(e)));
 }
 
@@ -338,7 +338,7 @@ export async function lerEvolucao(id) {
   });
 }
 
-/** Garante que o rascunho do turno existe. `base` traz pendências herdadas. Precisa de conexão só na criação. */
+/** Garante que o rascunho do dia existe. `base` traz pendências herdadas. Precisa de conexão só na criação. */
 export async function abrirEvolucao(id, base) {
   return executar(async () => {
     const ref = F.doc(db, 'evolucoes', id);

@@ -3,7 +3,7 @@
 // campo, mude aqui. Rótulos por extenso; siglas só do Manual da Liga e nunca as
 // ambíguas (PA, FR, EV, SC, HD, PCR, SAE…).
 
-import { GLASGOW, glasgow, RASS, camAplicavel, camIcu, BRADEN, braden, MORSE, morse, BPS, dor } from './escalas.js';
+import { GLASGOW, glasgow, RASS, camAplicavel, camIcu, BPS, dor } from './escalas.js';
 import { pam, diureseReal, debitoUrinario, FINALIDADES, MEDICAMENTOS, UNIDADES_DOSE, doseInfusao, num } from './calculos.js';
 import { contagemDia } from './datas.js';
 
@@ -72,7 +72,7 @@ export const BLOCOS = [
   },
   {
     id: 'b2', titulo: '2. Avaliação atual',
-    descricao: 'Valores do turno. O turno anterior aparece para consulta; para reaproveitar, confirme "sem alteração".',
+    descricao: 'Valores de hoje. A evolução anterior aparece para consulta; para reaproveitar, confirme "sem alteração".',
     subblocos: [
       {
         id: 'sinais', titulo: 'Estado geral e sinais vitais', copiavel: false, obrigatorio: true,
@@ -87,7 +87,7 @@ export const BLOCOS = [
           { nome: 'pam', rotulo: 'PAM', tipo: 'calculado', calc: (d) => { const v = pam(d.pas, d.pad); return v == null ? '' : `${v} mmHg`; }, sinalCalc: (d) => ['pam', pam(d.pas, d.pad)] },
           { nome: 'spo2', rotulo: 'SpO2', tipo: 'numero', unidade: '%', sinal: 'spo2', obrigatorio: true },
           { nome: 'hgt', rotulo: 'HGT', tipo: 'numero', unidade: 'mg/dL', sinal: 'hgt' },
-          { nome: 'tendencia', rotulo: 'Tendência no turno', tipo: 'escolha', opcoes: op(['melhora', 'Melhora'], ['estavel', 'Estável'], ['piora', 'Piora']) },
+          { nome: 'tendencia', rotulo: 'Tendência nas últimas horas', tipo: 'escolha', opcoes: op(['melhora', 'Melhora'], ['estavel', 'Estável'], ['piora', 'Piora']) },
           { nome: 'suporte', rotulo: 'Suporte usado para manter os valores', tipo: 'texto', ajuda: 'Ex.: noradrenalina em titulação, O2 por CNAF.' },
         ],
       },
@@ -208,11 +208,9 @@ export const BLOCOS = [
         ],
       },
       {
-        id: 'pele', titulo: 'Pele, feridas e LPP', copiavel: true, obrigatorio: true,
+        id: 'pele', titulo: 'Pele, feridas e LPP', copiavel: true,
+        descricao: 'Braden e Morse não são registrados aqui: são preenchidos e acompanhados no PEP oficial.',
         campos: [
-          ...Object.entries({ percepcao: 'Percepção sensorial', umidade: 'Umidade', atividade: 'Atividade', mobilidade: 'Mobilidade', nutricao: 'Nutrição', friccao: 'Fricção e cisalhamento' })
-            .map(([k, r]) => ({ nome: `br_${k}`, rotulo: `Braden — ${r}`, tipo: 'escala', opcoes: BRADEN[k], obrigatorio: true })),
-          { nome: 'braden', rotulo: 'Braden', tipo: 'calculado', calc: (d) => { const r = bradenDe(d); return r.total == null ? '' : `${r.total} — ${r.risco}`; } },
           { nome: 'inspecao', rotulo: 'Inspeção da pele', tipo: 'texto' },
           { nome: 'mucosas', rotulo: 'Mucosas', tipo: 'escolha', opcoes: op(['integras', 'Íntegras'], ['ressecadas', 'Ressecadas'], ['mucosite', 'Com mucosite']) },
           {
@@ -259,15 +257,6 @@ export const BLOCOS = [
         ],
       },
       {
-        id: 'quedas', titulo: 'Risco de queda', copiavel: true, obrigatorio: true,
-        campos: [
-          ...Object.entries({ historico: 'Histórico de queda', diagnosticoSecundario: 'Diagnóstico secundário', auxilio: 'Auxílio na deambulação', terapiaVenosa: 'Terapia venosa / dispositivo venoso', marcha: 'Marcha', estadoMental: 'Estado mental' })
-            .map(([k, r]) => ({ nome: `mo_${k}`, rotulo: `Morse — ${r}`, tipo: 'escala', opcoes: MORSE[k], obrigatorio: true })),
-          { nome: 'morse', rotulo: 'Morse', tipo: 'calculado', calc: (d) => { const r = morseDe(d); return r.total == null ? '' : `${r.total} — ${r.risco}`; } },
-          { nome: 'medidas', rotulo: 'Medidas de prevenção de queda', tipo: 'medidas', itens: ['Grades elevadas', 'Cama baixa e travada', 'Campainha ao alcance', 'Acompanhante orientado', 'Pertences ao alcance'] },
-        ],
-      },
-      {
         id: 'contencao', titulo: 'Contenção mecânica', copiavel: true,
         campos: [
           { nome: 'emUso', rotulo: 'Contenção em uso?', tipo: 'escolha', opcoes: simNao },
@@ -306,6 +295,7 @@ export const BLOCOS = [
         id: 'prevencao', titulo: 'Medidas preventivas', copiavel: false,
         descricao: 'Começam sem marcação. "Não realizado" pede justificativa.',
         campos: [
+          { nome: 'quedas', rotulo: 'Prevenção de queda', tipo: 'medidas', itens: ['Grades elevadas', 'Cama baixa e travada', 'Campainha ao alcance', 'Acompanhante orientado', 'Pertences ao alcance'] },
           { nome: 'lpp', rotulo: 'Prevenção de LPP', tipo: 'medidas', itens: ['Mudança de decúbito a cada 2 h', 'Superfície de redistribuição de pressão', 'Proteção de proeminências ósseas', 'Hidratação da pele'] },
           { nome: 'pav', rotulo: 'Prevenção de pneumonia associada à ventilação', tipo: 'medidas', itens: ['Cabeceira entre 30° e 45°', 'Higiene oral', 'Pressão do cuff entre 20 e 30 cmH2O', 'Avaliação diária da sedação e da extubação'], se: (d, ctx) => ctx.ventilado },
           { nome: 'itu', rotulo: 'Prevenção de infecção urinária (CVD)', tipo: 'medidas', itens: ['Sistema fechado e fixação', 'Bolsa abaixo do nível da bexiga', 'Avaliação diária da necessidade'], se: (d, ctx) => ctx.temCvd },
@@ -316,10 +306,10 @@ export const BLOCOS = [
   },
   {
     id: 'b6', titulo: '6. Intercorrências, pendências e narrativa',
-    descricao: 'Pendências abertas do turno anterior já vêm para cá e seguem até serem resolvidas.',
+    descricao: 'Pendências abertas da evolução anterior já vêm para cá e seguem até serem resolvidas.',
     subblocos: [
       {
-        id: 'intercorrencias', titulo: 'Intercorrências do turno', copiavel: false,
+        id: 'intercorrencias', titulo: 'Intercorrências', copiavel: false,
         campos: [
           { nome: 'itens', rotulo: 'Intercorrências', tipo: 'lista', rotuloItem: 'intercorrência',
             textoItem: (i) => [i.hora, i.descricao, i.conduta && `conduta: ${i.conduta}`, i.comunicado && `comunicado: ${i.comunicado}`, i.resultado && `resultado: ${i.resultado}`].filter(Boolean).join(', '),
@@ -356,8 +346,6 @@ export const BLOCOS = [
 
 // Atalhos de cálculo a partir dos dados do subbloco.
 export const dorDe = (d) => dor({ escala: d.escala, escore: d.escore, bps: { facial: d.bpsFacial, membros: d.bpsMembros, ventilacao: d.bpsVentilacao } });
-export const bradenDe = (d) => braden(Object.fromEntries(Object.keys(BRADEN).map((k) => [k, d[`br_${k}`]])));
-export const morseDe = (d) => morse(Object.fromEntries(Object.keys(MORSE).map((k) => [k, d[`mo_${k}`]])));
 
 export const SUBBLOCOS = Object.fromEntries(BLOCOS.flatMap((b) => b.subblocos.map((s) => [s.id, { ...s, bloco: b.id }])));
 

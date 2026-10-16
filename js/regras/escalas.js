@@ -40,39 +40,7 @@ export function camIcu({ rass, agudo, desatencao, desorganizado } = {}) {
   return { aplicavel: true, resultado: '' };
 }
 
-// --------------------------------------------------------------------------- Braden
-export const BRADEN = {
-  percepcao: { 1: 'Totalmente limitada', 2: 'Muito limitada', 3: 'Levemente limitada', 4: 'Nenhuma limitação' },
-  umidade: { 1: 'Completamente molhada', 2: 'Muito molhada', 3: 'Ocasionalmente molhada', 4: 'Raramente molhada' },
-  atividade: { 1: 'Acamado', 2: 'Confinado à cadeira', 3: 'Anda ocasionalmente', 4: 'Anda frequentemente' },
-  mobilidade: { 1: 'Totalmente imóvel', 2: 'Bastante limitada', 3: 'Levemente limitada', 4: 'Não apresenta limitações' },
-  nutricao: { 1: 'Muito pobre', 2: 'Provavelmente inadequada', 3: 'Adequada', 4: 'Excelente' },
-  friccao: { 1: 'Problema', 2: 'Problema em potencial', 3: 'Nenhum problema' },
-};
-export function braden(sub = {}) {
-  const chaves = Object.keys(BRADEN);
-  if (!chaves.every((k) => Number(sub[k]))) return { total: null, risco: '', completo: false };
-  const total = chaves.reduce((s, k) => s + Number(sub[k]), 0);
-  const risco = total <= 9 ? 'Risco muito alto' : total <= 12 ? 'Risco alto' : total <= 14 ? 'Risco moderado' : total <= 18 ? 'Risco baixo' : 'Sem risco';
-  return { total, risco, completo: true };
-}
-
-// --------------------------------------------------------------------------- Morse
-export const MORSE = {
-  historico: { 0: 'Não', 25: 'Sim' },
-  diagnosticoSecundario: { 0: 'Não', 15: 'Sim' },
-  auxilio: { 0: 'Nenhum / acamado / auxiliado pela enfermagem', 15: 'Muletas, bengala ou andador', 30: 'Apoia-se no mobiliário' },
-  terapiaVenosa: { 0: 'Não', 20: 'Sim' },
-  marcha: { 0: 'Normal / acamado / cadeira de rodas', 10: 'Fraca', 20: 'Comprometida / cambaleante' },
-  estadoMental: { 0: 'Orientado / reconhece a própria capacidade', 15: 'Superestima a capacidade / esquece limitações' },
-};
-export function morse(sub = {}) {
-  const chaves = Object.keys(MORSE);
-  if (!chaves.every((k) => sub[k] !== undefined && sub[k] !== '')) return { total: null, risco: '', completo: false };
-  const total = chaves.reduce((s, k) => s + Number(sub[k]), 0);
-  const risco = total >= 45 ? 'Risco alto' : total >= 25 ? 'Risco moderado' : 'Risco baixo';
-  return { total, risco, completo: true };
-}
+// Braden e Morse ficam fora do sistema: são preenchidas e acompanhadas no PEP oficial.
 
 // --------------------------------------------------------------------------- Dor
 export const BPS = {
