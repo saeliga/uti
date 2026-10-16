@@ -15,6 +15,11 @@ export const FIREBASE_CONFIG = {
   appId: '1:711645001575:web:7c59b87d72e7fd646da1c2',
 };
 
+// Administrador inicial: no primeiro acesso, esta conta Google já entra como
+// administradora (sem passar pela aprovação). As regras do Firestore conferem
+// o mesmo e-mail. Os demais usuários são aprovados por ela em Administração.
+export const ADMIN_INICIAL = 'tercio.neto@liga.org.br';
+
 // URL da implantação do Apps Script (termina em /exec).
 export const APPS_SCRIPT_URL = 'COLE_AQUI';
 

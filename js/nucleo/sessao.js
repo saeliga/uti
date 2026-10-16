@@ -113,7 +113,7 @@ export function telaSolicitarAcesso(raiz, usuario) {
     b.disabled = true;
     try {
       await backend.solicitarAcesso({ nome: nome.toUpperCase(), coren: d.coren.trim().toUpperCase() });
-      telaAguardando(raiz, { perfil: 'pendente' });
+      location.reload(); // relê o perfil: pendente vai para "aguardando"; administrador inicial entra direto
     } catch (err) {
       aviso(err.message, 'erro');
       b.disabled = false;

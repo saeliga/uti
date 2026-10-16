@@ -2,7 +2,7 @@
 // As regras do Firestore (firestore.rules) repetem as mesmas checagens no
 // servidor: o que está aqui é conveniência, a proteção real está nas regras.
 
-import { FIREBASE_CONFIG } from '../config.js';
+import { FIREBASE_CONFIG, ADMIN_INICIAL } from '../config.js';
 import { ErroSistema, traduzirErro } from './erros.js';
 import { idPaciente, resumoParaLeito } from '../regras/validacao.js';
 
@@ -57,8 +57,11 @@ export const entrarComGoogle = () => executar(() => A.signInWithPopup(auth, prov
 export async function solicitarAcesso({ nome, coren }) {
   return executar(() => {
     const u = auth.currentUser;
+    const admin = u.email.toLowerCase() === ADMIN_INICIAL.toLowerCase();
     return F.setDoc(F.doc(db, 'usuarios', u.uid), {
-      nome, coren, email: u.email, perfil: 'pendente', ativo: false, unidades: [], criadoEm: agora(),
+      nome, coren, email: u.email,
+      perfil: admin ? 'admin' : 'pendente', ativo: admin, unidades: admin ? ['uti1', 'uti2'] : [],
+      criadoEm: agora(),
     });
   });
 }

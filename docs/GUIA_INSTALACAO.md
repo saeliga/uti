@@ -66,18 +66,17 @@ Para ver as telas antes de terminar a configuração, abra `https://saeliga.gith
 1. Firebase → **Authentication → Configurações → Domínios autorizados → Adicionar domínio**.
 2. Digite `saeliga.github.io` (sem `https://` e sem `/uti`) → **Adicionar**.
 
-## 7. Tornar-se o primeiro administrador
+## 7. Primeiro acesso do administrador
 
-1. Abra o sistema (sem `?demo=1`) → **Entrar com Google** → escolha sua conta → preencha nome e Coren → **Solicitar acesso**.
+A conta **tercio.neto@liga.org.br** está definida como administrador inicial (em `js/config.js` e em `firestore.rules`). Ela precisa ser uma conta Google, como as do Google Workspace da Liga.
+
+1. Abra o sistema (sem `?demo=1`) → **Entrar com Google** → escolha a conta `tercio.neto@liga.org.br` → preencha nome e Coren → **Solicitar acesso**.
    - Se aparecer "o navegador bloqueou a janela do Google", permita pop-ups para o endereço do sistema.
    - Se aparecer "este endereço ainda não foi autorizado", refaça o passo 6.
-2. Vai aparecer "aguardando aprovação". Isso é esperado.
-3. No Firebase: **Firestore Database → Dados → usuarios →** documento com o seu e-mail. Edite três campos:
-   - `perfil` (string): `admin`
-   - `ativo` (boolean): `true`
-   - `unidades` (array): adicione dois itens string, `uti1` e `uti2`
-4. No sistema, clique em **Verificar de novo**. Vai aparecer **Primeira configuração** → **Criar unidades e leitos**.
-5. Em **Administração → Unidades e leitos**, ajuste os leitos da UTI 2 (vieram 10 por padrão).
+2. Você entra direto como administrador. Vai aparecer **Primeira configuração** → **Criar unidades e leitos**.
+3. Em **Administração → Unidades e leitos**, ajuste os leitos da UTI 2 (vieram 10 por padrão).
+
+Para trocar o administrador inicial no futuro, mude o e-mail nos dois arquivos e publique as regras de novo. Mais simples: o administrador atual dá o perfil de administrador a outra pessoa em **Administração → Usuários**.
 
 A partir daí, cada colega entra com a própria conta Google, preenche nome e Coren, e você aprova em **Administração → Usuários**, sem mexer no console.
 
