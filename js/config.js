@@ -21,7 +21,7 @@ export const FIREBASE_CONFIG = {
 export const ADMIN_INICIAL = 'tercio.neto@liga.org.br';
 
 // URL da implantação do Apps Script (termina em /exec).
-export const APPS_SCRIPT_URL = 'COLE_AQUI';
+export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYIiydVGCjTim8u1hZfAalhFGWN0pGWwlRruzeSh_xE9s4mWlR9vSVTQul3FsCRKjE/exec';
 
 // Minutos sem uso até a tela bloquear (pede a senha de novo).
 export const MINUTOS_BLOQUEIO = 10;
