@@ -116,7 +116,7 @@ const COD = { infeccao: '00004', lpp: '00304', aspiracao: '00039' };
 export function avisosRisco(dados = {}, sae = {}) {
   const tem = new Set((sae.diagnosticos || []).filter((d) => d.situacao !== 'resolvido').map((d) => d.codigo));
   const avisos = [];
-  const disp = (dados.dispositivos?.itens || []).map((i) => i.tipo);
+  const disp = (dados.dispositivos?.itens || []).filter((i) => i?.tipo && !i.retirada).map((i) => i.tipo);
   const invasivos = disp.filter((t) => ['cvc', 'picc', 'cti', 'cateter_dialise', 'cvd', 'tot', 'tqt', 'pai'].includes(t));
   const vmi = ['vmi_tot', 'vmi_tqt'].includes(dados.respiratorio?.suporte);
   if ((invasivos.length || vmi || dados.renal?.modo === 'cvd') && !tem.has(COD.infeccao))
@@ -124,7 +124,7 @@ export function avisosRisco(dados = {}, sae = {}) {
   const consc = dados.neuro?.consciencia;
   if (['sedado', 'comatoso', 'torporoso'].includes(consc) && !tem.has(COD.lpp))
     avisos.push({ codigo: COD.lpp, texto: 'Paciente sedado ou com rebaixamento do nível de consciência e o plano não tem "Risco de lesão por pressão no adulto".' });
-  const sonda = disp.some((t) => ['sne', 'sng', 'soe'].includes(t)) || (dados.gi?.via || []).some((v) => ['sne', 'sng', 'soe'].includes(v));
+  const sonda = disp.some((t) => ['sne', 'sng', 'soe', 'sog'].includes(t)) || (dados.gi?.via || []).some((v) => ['sne', 'sng', 'soe'].includes(v));
   if (sonda && ['sedado', 'comatoso', 'torporoso', 'sonolento'].includes(consc) && !tem.has(COD.aspiracao))
     avisos.push({ codigo: COD.aspiracao, texto: 'Sonda para dieta com rebaixamento do nível de consciência e o plano não tem "Risco de aspiração".' });
   return avisos;

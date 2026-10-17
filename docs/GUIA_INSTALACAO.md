@@ -182,6 +182,23 @@ Como funciona o Processo de Enfermagem (aba "3 a 5" da evolução):
 
 **Ao publicar a 0.3.1:** cole de novo `SAE.gs` e `Codigo.gs` no Apps Script (nova ação `ia.sugerirAtividades`) e publique **Nova versão** em Gerenciar implantações, antes do merge.
 
+## 11.2 Versão 0.4.0 (ajustes do exame físico, dispositivos e herança)
+
+Não precisa mexer no Apps Script nem nas regras do Firestore.
+
+- **Dor:** sem EVA (fica EVN, BPS ou não avaliável).
+- **Respiratório:** ausculta em caixas de marcar; com MV diminuídos ou abolidos, abre a escolha dos locais (ápices, terços médios, bases, difusamente). Sem pressão do cuff (avaliada pela fisioterapia).
+- **Cardiovascular e hemodinâmica:** ausculta cardíaca de marcar (BNF em 2T, hipofonéticas, arrítmicas, sopro, bulhas acessórias) e edema (sem edema, MMII, MMSS, sacral, facial, anasarca) com grau de +1 a +4.
+- **Abdome:** subbloco próprio logo após a hemodinâmica: inspeção, palpação e percussão de marcar, RHA e ascite.
+- **Evacuação:** pergunta se evacuou nas últimas 24 horas; se sim, número de episódios, escala de Bristol e aspecto. Se não, mostra a data da última evacuação registrada no sistema e há quantos dias.
+- **Estomias:** lista com tipo (colostomia, ileostomia, jejunostomia, gastrostomia, outra); dá para registrar mais de uma.
+- **Infusões:** por finalidade — hidratação venosa (solução + vazão), outras infusões, DVA e sedoanalgesia. Marque o medicamento e informe a vazão. Nomes pelo princípio ativo, em caixa alta e sem edição; "+ Outra" inclui outro medicamento.
+- **Hemodiálise:** ao marcar, abre UF, duração, heparina e intercorrências.
+- **Pele, lesões e LPP:** inspeção em caixas de marcar (normocorada/hipocorada, acianótica/cianótica, anictérica/ictérica, hidratada/desidratada, íntegra/não íntegra); estágio da LPP em lista.
+- **Dispositivos:** modal por tipo, como no piloto do Hospital dos Pescadores — localização em lista, lado, lúmens, calibre, número, fixação, data de inserção, se foi implantado na UTI e curativo. No cartão de cada dispositivo: avaliação do sítio do dia, débito (drenos) e "ainda é necessário?". Botões para "Curativo trocado hoje", "Retirar" (fica registrado no dia e não passa para o seguinte) e apagar lançamento feito por engano. Alertas: AVP com 96 h ou mais, curativo vencido (filme: 7 dias; gaze: 1 dia) e sítio com alteração.
+- **Herança automática:** ao abrir o dia, já vêm preenchidos da evolução anterior a limitação de suporte e o objetivo de cuidado, pele e lesões, dispositivos ativos, antimicrobianos e culturas, e o plano do Processo de Enfermagem. Esses subblocos mostram "Herdado de dd/mm · confira": altere o que mudou ou toque em "Conferido, sem alteração".
+- **Evolução da admissão:** no topo da evolução, o botão "Evolução da admissão" abre a primeira evolução da internação para consulta.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.
