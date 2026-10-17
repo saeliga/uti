@@ -110,7 +110,7 @@ const rotuloMin = (r) => {
 };
 
 // Campos-parte que já aparecem num calculado (não repetir no texto).
-const OMITIR = new Set(['gOcular', 'gVerbal', 'gMotora', 'pupilaD', 'pupilaE', 'fotoD', 'fotoE', 'camAgudo', 'camDesatencao', 'camDesorganizado',
+const OMITIR = new Set(['gOcular', 'gVerbal', 'gMotora', 'pupilas', 'fotoD', 'fotoE', 'camAgudo', 'camDesatencao', 'camDesorganizado',
   'escore', 'bpsFacial', 'bpsMembros', 'bpsVentilacao', 'escala', 'pas', 'pad', 'horario', 'unidadeQtd', 'unidadeDose', 'simetria']);
 
 /** Partes do texto de um subbloco (sem título). */
@@ -118,9 +118,9 @@ function partesSubbloco(s, d, ctx) {
   const partes = [];
   if (s.id === 'sinais' && (d.pas || d.pad)) partes.push(`pressão arterial: ${d.pas || '?'}x${d.pad || '?'} mmHg`);
   const unico = s.campos.length === 1;
-  if (s.id === 'neuro' && (d.pupilaD || d.pupilaE)) {
-    const sim = d.pupilaD && d.pupilaE ? (Math.abs(d.pupilaD - d.pupilaE) >= 1 ? 'anisocóricas' : 'isocóricas') + ', ' : '';
-    partes.push(`pupilas: ${sim}direita ${d.pupilaD || '?'} mm (fotorreação ${d.fotoD || 'não registrada'}), esquerda ${d.pupilaE || '?'} mm (fotorreação ${d.fotoE || 'não registrada'})`);
+  if (s.id === 'neuro' && (d.pupilas || d.fotoD || d.fotoE)) {
+    const pup = { isocoricas: 'isocóricas', anisocoricas: 'anisocóricas', puntiformes: 'puntiformes' }[d.pupilas] || 'não registradas';
+    partes.push(`pupilas: ${pup}, fotorreação direita ${d.fotoD || 'não registrada'}, esquerda ${d.fotoE || 'não registrada'}`);
   }
   for (const c of s.campos) {
     if (OMITIR.has(c.nome)) continue;

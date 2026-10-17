@@ -3,7 +3,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, limpar, carregando, aviso, abrirJanela, confirmar } from '../../nucleo/ui.js';
+import { h, limpar, carregando, aviso, abrirJanela, confirmar, campo, lerFormulario, mostrarErros } from '../../nucleo/ui.js';
 import { BLOCOS, contextoEvolucao } from '../../regras/evolucao-esquema.js';
 import {
   validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP,
@@ -72,6 +72,47 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   const avisoOutro = h('div', { class: 'faixa-outro-aparelho', hidden: true });
   const p = internacao.paciente;
   const al = internacao.alergias;
+  // Precaução/isolamento: pode ser alterada daqui (vale para a internação e o painel).
+  const chipIsolamento = h('button', { type: 'button', class: 'chip chip-isolamento chip-botao', title: 'Alterar precaução/isolamento', onclick: () => alterarIsolamento() });
+  const desenharIsolamento = () => {
+    const t = internacao.isolamento?.tipo || 'padrao';
+    chipIsolamento.textContent = `${t === 'padrao' ? 'Precaução padrão' : `Isolamento: ${ISOLAMENTOS[t].replace(/ \(.*\)$/, '')}`}${podeEditar() && internacao.status === 'ativa' ? ' · alterar' : ''}`;
+    chipIsolamento.disabled = !(podeEditar() && internacao.status === 'ativa');
+  };
+  desenharIsolamento();
+  function alterarIsolamento() {
+    const form = h('form', { class: 'formulario', novalidate: true },
+      campo({ nome: 'tipo', rotulo: 'Precaução / isolamento', tipo: 'select', opcoes: ISOLAMENTOS, valor: internacao.isolamento?.tipo || 'padrao', obrigatorio: true }),
+      campo({ nome: 'motivo', rotulo: 'Motivo', valor: internacao.isolamento?.motivo || '' }));
+    const sinc = () => { form.querySelector('[data-campo=motivo]').hidden = lerFormulario(form).tipo === 'padrao'; };
+    form.addEventListener('change', sinc);
+    sinc();
+    abrirJanela({
+      titulo: 'Alterar precaução / isolamento',
+      conteudo: form,
+      acoes: [
+        { texto: 'Cancelar', classe: 'btn-secundario' },
+        { texto: 'Salvar', classe: 'btn-primario', aoClicar: async () => {
+          const d = lerFormulario(form);
+          const iso = { tipo: d.tipo, motivo: d.tipo === 'padrao' ? '' : d.motivo.trim() };
+          const erros = {};
+          if (!iso.tipo) erros.tipo = 'Escolha a precaução.';
+          if (iso.tipo && iso.tipo !== 'padrao' && !iso.motivo) erros.motivo = 'Informe o motivo do isolamento.';
+          if (!mostrarErros(form, erros)) return false;
+          try {
+            await backend.alterarIsolamento(internacao.id, iso);
+            internacao.isolamento = iso;
+            internacao.versao = (internacao.versao || 1) + 1;
+            desenharIsolamento();
+            aviso('Precaução/isolamento atualizado.', 'ok');
+          } catch (e) {
+            aviso(e.message, 'erro');
+            return false;
+          }
+        } },
+      ],
+    });
+  }
   const cabecalho = h('div', { class: 'evo-cabecalho' },
     h('div', { class: 'evo-paciente' },
       h('a', { href: `#/${ev.unidade}`, class: 'btn btn-link btn-pequeno evo-voltar' }, '← Painel'),
@@ -80,7 +121,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         h('div', { class: 'evo-ident' }, `${idade(p.dataNascimento, ev.data)} anos · nasc. ${formatarData(p.dataNascimento)} · Reg. ${p.registro} · ${unidadeNome} leito ${String(ev.leitoId).split('_')[1]} · UTI ${contagemDia(internacao.admissaoUti, ev.data)}`)),
       h('div', { class: 'evo-alertas' },
         al?.situacao === 'possui' ? h('span', { class: 'chip chip-alerta' }, '⚠ ALERGIA: ', al.descricao) : h('span', { class: 'chip' }, al?.situacao === 'nega' ? 'Nega alergias' : 'Alergias: sem informação'),
-        internacao.isolamento?.tipo !== 'padrao' && h('span', { class: 'chip chip-isolamento' }, ISOLAMENTOS[internacao.isolamento?.tipo]?.replace(/ \(.*\)$/, '')))),
+        chipIsolamento)),
     h('div', { class: 'evo-turno' }, h('strong', {}, rotuloDia(ev.data)), ev.turnoInicio && h('span', { class: 'ajuda' }, `iniciada no turno da ${TURNOS[ev.turnoInicio].nome.toLowerCase()}`), situacaoEl, indicador),
     avisoOutro);
 
@@ -161,7 +202,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         }
         atualizarEstadoSub(s.id);
         // Peso e dispositivos mudam cálculos de outros subblocos.
-        if (['contexto', 'dispositivos', 'respiratorio', 'renal'].includes(s.id)) for (const f of Object.values(formularios)) f.atualizar();
+        if (['dispositivos', 'respiratorio', 'renal'].includes(s.id)) for (const f of Object.values(formularios)) f.atualizar();
         agendarSalvar(s.id);
       },
     });

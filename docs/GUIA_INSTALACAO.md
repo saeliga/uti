@@ -154,6 +154,9 @@ Como funciona a evolução:
 - **Medidas preventivas** (LPP, queda, PAV, infecção urinária e de corrente sanguínea) não ficam na evolução: entram como intervenções do Processo de Enfermagem, na prescrição de enfermagem, com checagem.
 - **Infusões contínuas:** subbloco próprio com os atalhos da folha atual (hidratação venosa, midazolam, fentanil, SG 10%, insulina, amiodarona, noradrenalina, dobutamina, dopamina, nitroprussiato, nitroglicerina) e "+ Outra infusão" para qualquer outro medicamento. Registra só o medicamento e a vazão (mL/h).
 - **No fim de cada bloco** há o botão "Próximo" para seguir sem voltar ao topo.
+- **Neurológico:** RASS (com meta e interrupção diária) só aparece quando o nível de consciência é "Sob sedação"; nos demais, aparece o Glasgow. Pupilas: isocóricas, anisocóricas ou puntiformes. O rastreio de delirium vale também para o paciente sem sedação (alerta ou sonolento).
+- **Sem bloco de identificação e contexto:** limitação de suporte e objetivo de cuidado ficam no início da avaliação. O peso (opcional) fica em Renal, para o débito urinário.
+- **Isolamento:** toque na etiqueta de precaução no topo da evolução para alterar o tipo e o motivo. A mudança vale para a internação e aparece no painel.
 - **Ao publicar a 0.2.1**, publique de novo o `firestore.rules` (a identificação da evolução mudou de turno para dia).
 - **Finalizar e copiar ao PEP:** finalize a evolução, use "Copiar para o PEP" e, depois de colar no PEP, marque "Já colei no PEP". Se precisar corrigir uma evolução finalizada, use "Retificar". A versão anterior fica guardada.
 

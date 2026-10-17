@@ -280,6 +280,18 @@ export async function atualizarInternacao(id, dados, versaoLida) {
   );
 }
 
+/** Altera só a precaução/isolamento da internação ativa (atualiza também o painel). */
+export async function alterarIsolamento(id, isolamento) {
+  return executar(() =>
+    F.runTransaction(db, async (tx) => {
+      const { ref, i } = await lerAtiva(tx, id);
+      tx.update(ref, { isolamento, atualizadoEm: agora(), atualizadoPor: uid(), versao: i.versao + 1 });
+      tx.update(F.doc(db, 'leitos', i.leitoId), { resumo: resumoParaLeito({ ...i, isolamento }), atualizadoEm: agora(), atualizadoPor: uid() });
+      auditoria(tx, 'isolamento_alterado', { internacaoId: id, unidade: i.unidade, tipo: isolamento.tipo });
+    }),
+  );
+}
+
 export async function transferirLeito(id, leitoDestinoId, dataHora) {
   return executar(() =>
     F.runTransaction(db, async (tx) => {

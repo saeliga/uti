@@ -14,6 +14,15 @@ const fmt = (v, casas = 1) => (v == null ? '' : String(Math.round(v * 10 ** casa
 // Medidas preventivas: sempre começam sem marcação e usam quatro estados.
 export const ESTADOS_MEDIDA = op(['prescrito', 'Prescrito'], ['realizado', 'Realizado'], ['nao_realizado', 'Não realizado'], ['nao_se_aplica', 'Não se aplica']);
 
+// Neurológico: RASS só para paciente sob sedação; Glasgow para os demais.
+const sedado = (d) => d.consciencia === 'sedado';
+const semSedacao = (d) => !!d.consciencia && d.consciencia !== 'sedado';
+const nivelAlterado = (d) => (sedado(d) ? Number(d.rass) !== 0 : d.consciencia !== 'alerta');
+export function camDe(d) {
+  const aplicavel = sedado(d) ? camAplicavel(d.rass) : ['alerta', 'sonolento'].includes(d.consciencia);
+  return camIcu({ rass: d.rass, agudo: d.camAgudo, desatencao: d.camDesatencao, desorganizado: d.camDesorganizado, aplicavel, nivelAlterado: nivelAlterado(d) });
+}
+
 const SUPORTES = op(
   ['aa', 'Ar ambiente'], ['cn', 'Cateter nasal (CN)'], ['venturi', 'Máscara de Venturi'], ['nao_reinalante', 'Máscara não reinalante'],
   ['cnaf', 'Cateter nasal de alto fluxo (CNAF)'], ['vni', 'VNI'], ['vmi_tot', 'VMI por TOT'], ['vmi_tqt', 'VMI por TQT'], ['tqt_espontanea', 'TQT em respiração espontânea'],
@@ -55,42 +64,17 @@ export const TIPOS_DISPOSITIVO = op(
  */
 export const BLOCOS = [
   {
-    id: 'b1', titulo: '1. Identificação e contexto',
-    descricao: 'O cabeçalho vem da internação. Aqui ficam os dados do turno que mudam: peso, limitação de suporte e contexto oncológico.',
+    id: 'b2', titulo: '2. Avaliação atual',
+    descricao: 'Valores de hoje. A evolução anterior aparece para consulta; para reaproveitar, confirme "sem alteração".',
     subblocos: [
       {
-        id: 'contexto', titulo: 'Peso e objetivos de cuidado', copiavel: true,
+        id: 'cuidado', titulo: 'Limitação de suporte e objetivo de cuidado', copiavel: true,
         campos: [
-          { nome: 'peso', rotulo: 'Peso', tipo: 'numero', unidade: 'kg', ajuda: 'Usado no cálculo do débito urinário (mL/kg/h).' },
-          { nome: 'pesoOrigem', rotulo: 'Origem do peso', tipo: 'escolha', opcoes: op(['aferido', 'Aferido'], ['estimado', 'Estimado'], ['referido', 'Referido']), se: (d) => num(d.peso) },
           { nome: 'limitacao', rotulo: 'Limitação de suporte documentada pela equipe', tipo: 'escolha', opcoes: simNao },
           { nome: 'limitacaoDescricao', rotulo: 'Qual limitação', tipo: 'texto', se: (d) => d.limitacao === 'sim' },
           { nome: 'objetivos', rotulo: 'Objetivo de cuidado (consulta)', tipo: 'escolha', opcoes: op(['curativo', 'Curativo'], ['paliativo', 'Paliativo exclusivo'], ['nao_definido', 'Não definido']) },
         ],
       },
-      {
-        id: 'oncologico', titulo: 'Contexto oncológico (preencher se necessário)', copiavel: true, opcional: true,
-        campos: [
-          { nome: 'neoplasia', rotulo: 'Neoplasia e fase do tratamento', tipo: 'texto' },
-          { nome: 'ultimoTratamento', rotulo: 'Última quimioterapia/radioterapia (data e protocolo informado)', tipo: 'texto' },
-          { nome: 'neutrofilos', rotulo: 'Neutrófilos', tipo: 'numero', unidade: '/mm³' },
-          { nome: 'plaquetas', rotulo: 'Plaquetas', tipo: 'numero', unidade: '/mm³' },
-          { nome: 'hemoglobina', rotulo: 'Hemoglobina', tipo: 'numero', unidade: 'g/dL' },
-          { nome: 'dataExame', rotulo: 'Data do exame', tipo: 'data' },
-          { nome: 'precaucoes', rotulo: 'Precauções', tipo: 'multipla', opcoes: op(['neutropenia', 'Neutropenia'], ['sangramento', 'Risco de sangramento']) },
-          { nome: 'transfusoes', rotulo: 'Transfusões recentes e reações', tipo: 'texto' },
-          { nome: 'mucosite', rotulo: 'Mucosite', tipo: 'escolha', opcoes: op(['0', 'Ausente'], ['1', 'Grau 1'], ['2', 'Grau 2'], ['3', 'Grau 3'], ['4', 'Grau 4']) },
-          { nome: 'pps', rotulo: 'PPS', tipo: 'select', opcoes: op(...['100', '90', '80', '70', '60', '50', '40', '30', '20', '10'].map((v) => [v, `${v}%`])) },
-          { nome: 'apoio', rotulo: 'Necessidades de apoio do paciente e da família', tipo: 'area' },
-          { nome: 'acompanhante', rotulo: 'Acompanhante e contato de referência', tipo: 'texto' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'b2', titulo: '2. Avaliação atual',
-    descricao: 'Valores de hoje. A evolução anterior aparece para consulta; para reaproveitar, confirme "sem alteração".',
-    subblocos: [
       {
         id: 'sinais', titulo: 'Estado geral e sinais vitais', copiavel: false, obrigatorio: true,
         campos: [
@@ -104,7 +88,6 @@ export const BLOCOS = [
           { nome: 'pam', rotulo: 'PAM', tipo: 'calculado', calc: (d) => { const v = pam(d.pas, d.pad); return v == null ? '' : `${v} mmHg`; }, sinalCalc: (d) => ['pam', pam(d.pas, d.pad)] },
           { nome: 'spo2', rotulo: 'SpO2', tipo: 'numero', unidade: '%', sinal: 'spo2', obrigatorio: true },
           { nome: 'hgt', rotulo: 'HGT', tipo: 'numero', unidade: 'mg/dL', sinal: 'hgt' },
-          { nome: 'suporte', rotulo: 'Suporte usado para manter os valores', tipo: 'texto', ajuda: 'Ex.: noradrenalina em titulação, O2 por CNAF.' },
         ],
       },
       {
@@ -112,22 +95,21 @@ export const BLOCOS = [
         campos: [
           { nome: 'consciencia', rotulo: 'Nível de consciência', tipo: 'escolha', obrigatorio: true,
             opcoes: op(['alerta', 'Alerta'], ['sonolento', 'Sonolento'], ['torporoso', 'Torporoso'], ['comatoso', 'Comatoso'], ['sedado', 'Sob sedação']) },
-          { nome: 'gOcular', rotulo: 'Glasgow — abertura ocular', tipo: 'escala', opcoes: GLASGOW.ocular },
-          { nome: 'gVerbal', rotulo: 'Glasgow — resposta verbal', tipo: 'escala', opcoes: GLASGOW.verbal },
-          { nome: 'gMotora', rotulo: 'Glasgow — resposta motora', tipo: 'escala', opcoes: GLASGOW.motora },
-          { nome: 'glasgow', rotulo: 'Glasgow', tipo: 'calculado', calc: (d) => glasgow({ ocular: d.gOcular, verbal: d.gVerbal, motora: d.gMotora }).texto },
-          { nome: 'pupilaD', rotulo: 'Pupila direita (mm)', tipo: 'select', opcoes: op('1', '2', '3', '4', '5', '6', '7', '8') },
-          { nome: 'pupilaE', rotulo: 'Pupila esquerda (mm)', tipo: 'select', opcoes: op('1', '2', '3', '4', '5', '6', '7', '8') },
+          { nome: 'gOcular', rotulo: 'Glasgow — abertura ocular', tipo: 'escala', opcoes: GLASGOW.ocular, se: semSedacao },
+          { nome: 'gVerbal', rotulo: 'Glasgow — resposta verbal', tipo: 'escala', opcoes: GLASGOW.verbal, se: semSedacao },
+          { nome: 'gMotora', rotulo: 'Glasgow — resposta motora', tipo: 'escala', opcoes: GLASGOW.motora, se: semSedacao },
+          { nome: 'glasgow', rotulo: 'Glasgow', tipo: 'calculado', se: semSedacao, calc: (d) => glasgow({ ocular: d.gOcular, verbal: d.gVerbal, motora: d.gMotora }).texto },
+          { nome: 'rass', rotulo: 'RASS', tipo: 'select', opcoes: RASS, se: sedado },
+          { nome: 'metaRass', rotulo: 'Meta de RASS prescrita', tipo: 'select', opcoes: RASS, se: sedado },
+          { nome: 'interrupcao', rotulo: 'Interrupção diária da sedação', tipo: 'escolha', opcoes: op(['realizada', 'Realizada'], ['nao_realizada', 'Não realizada'], ['nao_se_aplica', 'Não se aplica']), se: sedado },
+          { nome: 'pupilas', rotulo: 'Pupilas', tipo: 'escolha', opcoes: op(['isocoricas', 'Isocóricas'], ['anisocoricas', 'Anisocóricas'], ['puntiformes', 'Puntiformes']) },
           { nome: 'fotoD', rotulo: 'Fotorreação direita', tipo: 'escolha', opcoes: op(['presente', 'Presente'], ['lenta', 'Lenta'], ['ausente', 'Ausente']) },
           { nome: 'fotoE', rotulo: 'Fotorreação esquerda', tipo: 'escolha', opcoes: op(['presente', 'Presente'], ['lenta', 'Lenta'], ['ausente', 'Ausente']) },
-          { nome: 'simetria', rotulo: 'Pupilas', tipo: 'calculado', calc: (d) => (!d.pupilaD || !d.pupilaE ? '' : Math.abs(d.pupilaD - d.pupilaE) >= 1 ? 'Anisocóricas' : 'Isocóricas') },
-          { nome: 'rass', rotulo: 'RASS', tipo: 'select', opcoes: RASS },
-          { nome: 'metaRass', rotulo: 'Meta de RASS prescrita', tipo: 'select', opcoes: RASS },
-          { nome: 'interrupcao', rotulo: 'Interrupção diária da sedação', tipo: 'escolha', opcoes: op(['realizada', 'Realizada'], ['nao_realizada', 'Não realizada'], ['nao_se_aplica', 'Não se aplica']), se: (d) => d.consciencia === 'sedado' },
-          { nome: 'camAgudo', rotulo: 'Delirium — início agudo ou curso flutuante?', tipo: 'escolha', opcoes: simNao, se: (d) => camAplicavel(d.rass) },
-          { nome: 'camDesatencao', rotulo: 'Delirium — desatenção?', tipo: 'escolha', opcoes: simNao, se: (d) => camAplicavel(d.rass) && d.camAgudo === 'sim' },
-          { nome: 'camDesorganizado', rotulo: 'Delirium — pensamento desorganizado?', tipo: 'escolha', opcoes: simNao, se: (d) => camAplicavel(d.rass) && d.camAgudo === 'sim' && d.camDesatencao === 'sim' && Number(d.rass) === 0 },
-          { nome: 'cam', rotulo: 'Rastreio de delirium', ajuda: 'Método CAM-ICU.', tipo: 'calculado', calc: (d) => ({ positivo: 'Positivo', negativo: 'Negativo', nao_aplicavel: 'Não aplicável (RASS abaixo de −3)' })[camIcu({ rass: d.rass, agudo: d.camAgudo, desatencao: d.camDesatencao, desorganizado: d.camDesorganizado }).resultado] || '' },
+          { nome: 'camAgudo', rotulo: 'Delirium — início agudo ou curso flutuante?', tipo: 'escolha', opcoes: simNao, se: (d) => camDe(d).aplicavel },
+          { nome: 'camDesatencao', rotulo: 'Delirium — desatenção?', tipo: 'escolha', opcoes: simNao, se: (d) => camDe(d).aplicavel && d.camAgudo === 'sim' },
+          { nome: 'camDesorganizado', rotulo: 'Delirium — pensamento desorganizado?', tipo: 'escolha', opcoes: simNao, se: (d) => camDe(d).aplicavel && d.camAgudo === 'sim' && d.camDesatencao === 'sim' && !nivelAlterado(d) },
+          { nome: 'cam', rotulo: 'Rastreio de delirium', ajuda: 'Método CAM-ICU.', tipo: 'calculado', se: (d) => !!d.consciencia,
+            calc: (d) => ({ positivo: 'Positivo', negativo: 'Negativo', nao_aplicavel: sedado(d) ? 'Não aplicável (RASS abaixo de −3)' : 'Não aplicável (nível de consciência)' })[camDe(d).resultado] || '' },
         ],
       },
       {
@@ -197,6 +179,7 @@ export const BLOCOS = [
           { nome: 'modo', rotulo: 'Eliminação urinária', tipo: 'escolha', opcoes: op(['espontanea', 'Espontânea'], ['cvd', 'CVD'], ['cva', 'CVA'], ['fralda', 'Fralda'], ['urostomia', 'Urostomia'], ['nefrostomia', 'Nefrostomia'], ['anuria', 'Anúria']) },
           { nome: 'volume', rotulo: 'Volume no período', tipo: 'numero', unidade: 'mL', se: (d) => !d.irrigacao || d.irrigacao === 'nao' },
           { nome: 'horas', rotulo: 'Período', tipo: 'numero', unidade: 'h' },
+          { nome: 'peso', rotulo: 'Peso', tipo: 'numero', unidade: 'kg', ajuda: 'Opcional: usado para o débito urinário em mL/kg/h.' },
           { nome: 'aspecto', rotulo: 'Aspecto', tipo: 'texto' },
           { nome: 'irrigacao', rotulo: 'Irrigação vesical', tipo: 'escolha', opcoes: simNao },
           { nome: 'infundido', rotulo: 'Volume infundido (irrigação)', tipo: 'numero', unidade: 'mL', se: (d) => d.irrigacao === 'sim' },
@@ -358,7 +341,7 @@ export function contextoEvolucao(dados = {}, dataTurno) {
   const sup = dados.respiratorio?.suporte;
   return {
     dataTurno,
-    peso: num(dados.contexto?.peso),
+    peso: num(dados.renal?.peso),
     ventilado: ['vmi_tot', 'vmi_tqt'].includes(sup) || disp.some((i) => i.tipo === 'tot' || i.tipo === 'tqt'),
     temCvd: dados.renal?.modo === 'cvd' || disp.some((i) => i.tipo === 'cvd'),
     temCvc: disp.some((i) => ['cvc', 'picc', 'cti', 'cateter_dialise'].includes(i.tipo)),
