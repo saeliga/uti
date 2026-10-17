@@ -135,3 +135,47 @@ function iaSugerirSAE_(dados) {
     sugestoes: sugestoes,
   };
 }
+
+/**
+ * Ação ia.sugerirAtividades: para UM diagnóstico já aceito pelo enfermeiro e
+ * UMA intervenção ligada a ele, a IA escolhe as atividades mais pertinentes
+ * (somente pelos identificadores A1, A2… da lista oficial). Pedido pequeno,
+ * feito na hora em que o diagnóstico entra no plano, para já trazer as
+ * atividades marcadas; o enfermeiro altera o que quiser.
+ * Entrada: { resumo, codigoNanda, codigoNic }.
+ */
+var SAE_MAX_ATIVIDADES = 6;
+var SAE_SISTEMA_ATIV =
+  'Você é enfermeira especialista em terapia intensiva oncológica adulta e no uso da NIC. ' +
+  'Responda APENAS com JSON válido. Da lista oficial de atividades da intervenção, escolha de 3 a ' + SAE_MAX_ATIVIDADES +
+  ' atividades mais pertinentes para este paciente na UTI hoje, em ordem de importância, usando SOMENTE os identificadores fornecidos (ex.: A3). ' +
+  'Prefira atividades executáveis e verificáveis no plantão; evite atividades de educação para alta ou que não se apliquem ao paciente crítico.';
+
+function iaSugerirAtividades_(dados) {
+  var resumo = String(dados.resumo || '').trim();
+  if (resumo.length < 40) throw erro_('resumo_insuficiente');
+  if (resumo.length > SAE_MAX_RESUMO) resumo = resumo.slice(0, SAE_MAX_RESUMO);
+  var nanda = codigo_(dados.codigoNanda, 5);
+  var nic = codigo_(dados.codigoNic, 4);
+  var lig = carregarCatalogo_('ligacoes').ligacoes.filter(function (l) { return l.codigo_nanda === nanda; })[0];
+  if (!lig || !lig.nic.some(function (n) { return n.codigo === nic; })) throw erro_('fora_das_ligacoes');
+  var inicio = Date.now();
+  var det = catalogoDetalheNic_({ codigo: nic });
+  var r = chamarGroq_([
+    { role: 'system', content: SAE_SISTEMA_ATIV },
+    { role: 'user', content: 'DADOS CLÍNICOS:\n' + resumo + '\n\nDIAGNÓSTICO DE ENFERMAGEM: ' + lig.titulo +
+      '\nINTERVENÇÃO: ' + det.codigo + ' — ' + det.titulo + '\nATIVIDADES OFICIAIS:\n' + itensParaIA_(det.atividades) +
+      '\n\nFormato: {"atividades":["A1","A2"]}' },
+  ], { json: true, maxTokens: 800, temperatura: 0.1 });
+  var ids = (extrairJson_(r.texto).atividades || []).map(String);
+  var vistos = {};
+  var escolhidas = [];
+  ids.forEach(function (id) {
+    if (vistos[id] || escolhidas.length >= SAE_MAX_ATIVIDADES) return;
+    var a = det.atividades.filter(function (x) { return x.id === id; })[0];
+    if (!a) return;
+    vistos[id] = true;
+    escolhidas.push({ id: a.id, texto: a.texto });
+  });
+  return { modelo: r.modelo, versaoPrompt: SAE_VERSAO_PROMPT, ms: Date.now() - inicio, atividades: escolhidas };
+}

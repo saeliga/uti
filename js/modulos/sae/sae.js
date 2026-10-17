@@ -30,6 +30,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
   const el = h('div', { class: 'sae' });
   const ligacoes = {}; // codigo NANDA → ligação (cache da tela)
   let aguardandoIA = false;
+  const preenchendo = new Set(); // "nanda" ou "nanda|nic" em preenchimento automático (não é salvo)
 
   // Qualquer mudança depois de concluído volta o PE para revisão.
   const mudou = (imediato = false, { manterStatus = false } = {}) => {
@@ -108,6 +109,81 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
     s.decisao = origem === 'ia_aceito' ? 'aceito' : 'editado';
     if (sae.status === 'sugerido' || sae.status === 'pendente' || sae.status === 'nao_iniciado') sae.status = 'em_revisao';
     mudou();
+    preencherPadrao(s.codigo);
+  }
+
+  // ------------------------------------------------------------------ resultados e intervenções por padrão
+  // Ao entrar no plano, o diagnóstico já recebe o NOC principal (com os indicadores
+  // sugeridos na tabela de ligações) e a NIC principal (com atividades escolhidas
+  // pela IA entre as oficiais). O enfermeiro só ajusta.
+  const diagAtual = (codigo) => sae.diagnosticos.find((x) => x.codigo === codigo);
+  const novoIndicador = (i, det) => ({
+    codigo: i.codigo, texto: i.texto, niveis: det.escalas[i.escala] || det.escalas[det.escala_principal] || [], meta: '', pontuacao: '', anterior: '',
+  });
+
+  /** Acrescenta um NOC ligado. Com indicadores sugeridos, já vêm marcados; sem eles, abre a escolha. */
+  async function adicionarNoc(codigo, item, { abrirSeVazio = true } = {}) {
+    const det = await cat.detalheResultado(item.codigo);
+    const d = diagAtual(codigo);
+    if (!d || d.noc.some((r) => r.codigo === item.codigo)) return;
+    const sug = new Set(item.indicadores_sugeridos || []);
+    const r = { codigo: item.codigo, titulo: item.titulo, padrao: true, indicadores: det.indicadores.filter((i) => sug.has(i.codigo)).map((i) => novoIndicador(i, det)) };
+    d.noc.push(r);
+    mudou();
+    if (!r.indicadores.length && abrirSeVazio) escolherIndicadores(d, r);
+  }
+
+  /** Acrescenta uma NIC ligada e pede à IA as atividades pertinentes; se a IA falhar, abre a escolha. */
+  async function adicionarNic(codigo, item, { abrirSeFalhar = true } = {}) {
+    let d = diagAtual(codigo);
+    if (!d || d.nic.some((x) => x.codigo === item.codigo)) return;
+    d.nic.push({ codigo: item.codigo, titulo: item.titulo, nivel: item.nivel_formacao, padrao: true, atividades: [] });
+    const chave = `${codigo}|${item.codigo}`;
+    preenchendo.add(chave);
+    mudou();
+    let falhou = '';
+    try {
+      const r = await cat.sugerirAtividades(resumoIA(), codigo, item.codigo);
+      d = diagAtual(codigo);
+      const x = d?.nic.find((n) => n.codigo === item.codigo);
+      if (x && !x.atividades.length) {
+        x.atividades = (r.atividades || []).map((a) => ({ id: a.id, texto: a.texto, status: '', justificativa: '', sugeridaIA: true }));
+        x.modeloIA = r.modelo;
+      }
+      if (!r.atividades?.length) falhou = 'a IA não indicou atividades';
+    } catch (e) {
+      falhou = e.message;
+    } finally {
+      preenchendo.delete(chave);
+      mudou();
+    }
+    if (falhou) {
+      aviso(`Atividades de "${item.titulo}": ${falhou}. Escolha na lista.`, 'atencao', 7000);
+      const x = diagAtual(codigo)?.nic.find((n) => n.codigo === item.codigo);
+      if (x && !x.atividades.length && abrirSeFalhar) escolherAtividades(diagAtual(codigo), x);
+    }
+  }
+
+  async function preencherPadrao(codigo) {
+    preenchendo.add(codigo);
+    desenhar();
+    try {
+      const lig = await ligacaoDe(codigo);
+      if (!lig || lig.semLigacoes) return;
+      const principal = (lista) => lista.find((x) => x.papel === 'principal') || lista[0];
+      const noc = principal(lig.noc);
+      const nic = principal(lig.nic);
+      preenchendo.delete(codigo);
+      await Promise.all([
+        noc && adicionarNoc(codigo, noc, { abrirSeVazio: false }),
+        nic && adicionarNic(codigo, nic, { abrirSeFalhar: false }),
+      ]);
+    } catch (e) {
+      aviso(`Não foi possível trazer o resultado e a intervenção padrão (${e.message}). Escolha nas opções do diagnóstico.`, 'atencao', 8000);
+    } finally {
+      preenchendo.delete(codigo);
+      desenhar();
+    }
   }
 
   // ------------------------------------------------------------------ evidências (catálogo oficial)
@@ -186,6 +262,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
               sae.diagnosticos.push(novoDiagnostico({ ...det, evidencias: ev, observacao: obs }, 'enfermeiro'));
               if (sae.status !== 'concluido') sae.status = 'em_revisao';
               mudou();
+              preencherPadrao(det.codigo);
             });
           } },
           h('strong', {}, r.titulo), h('span', {}, `${r.codigo} · ${ROT_CAT[r.categoria] || r.categoria} · ${r.dominio}`),
@@ -292,39 +369,45 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
     const secaoNoc = h('div', { class: 'sae-secao' }, h('h4', {}, 'Resultados esperados (NOC) e pontuação de hoje'));
     const secaoNic = h('div', { class: 'sae-secao' }, h('h4', {}, 'Intervenções (NIC) e atividades realizadas'));
     if (ativo) {
-      // Opções vêm da tabela de ligações (carregadas sob demanda).
-      const opcoesNoc = h('div', { class: 'chips' }, h('span', { class: 'ajuda' }, 'Carregando opções…'));
-      const opcoesNic = h('div', { class: 'chips' }, h('span', { class: 'ajuda' }, 'Carregando opções…'));
+      // Opções vêm da tabela de ligações (carregadas sob demanda e guardadas na tela).
+      const opcoesNoc = h('div', { class: 'chips' });
+      const opcoesNic = h('div', { class: 'chips' });
+      const botao = (item, tipo) => {
+        const on = d[tipo].some((e) => e.codigo === item.codigo);
+        return h('button', { type: 'button', class: `chip-op chip-mini${on ? ' on' : ''}`, onclick: async () => {
+          if (on) {
+            if (!(await confirmar(`Retirar "${item.titulo}" do plano deste diagnóstico?`, { sim: 'Retirar' }))) return;
+            d[tipo] = d[tipo].filter((e) => e.codigo !== item.codigo);
+            return mudou();
+          }
+          try {
+            if (tipo === 'noc') await adicionarNoc(d.codigo, item); else await adicionarNic(d.codigo, item);
+          } catch (e) {
+            aviso(e.message, 'erro');
+          }
+        } }, `${on ? '✓ ' : '+ '}${item.titulo}${item.papel === 'principal' ? ' (principal)' : ''}`);
+      };
+      const preencherOpcoes = (lig) => {
+        if (!lig || lig.semLigacoes) {
+          opcoesNoc.replaceChildren(h('span', { class: 'caixa caixa-atencao' }, 'Sem NOC na tabela de ligações para este diagnóstico.'));
+          opcoesNic.replaceChildren(h('span', { class: 'caixa caixa-atencao' }, 'Sem NIC na tabela de ligações para este diagnóstico.'));
+          return;
+        }
+        opcoesNoc.replaceChildren(...lig.noc.map((x) => botao(x, 'noc')));
+        opcoesNic.replaceChildren(...lig.nic.map((x) => botao(x, 'nic')));
+      };
       if (!somenteLeitura) {
         secaoNoc.append(opcoesNoc);
         secaoNic.append(opcoesNic);
-        ligacaoDe(d.codigo).then((lig) => {
-          const botao = (item, escolhidos, tipo) => {
-            const on = escolhidos.some((e) => e.codigo === item.codigo);
-            return h('button', { type: 'button', class: `chip-op chip-mini${on ? ' on' : ''}`, onclick: async () => {
-              if (on) {
-                if (!(await confirmar(`Retirar "${item.titulo}" do plano deste diagnóstico?`, { sim: 'Retirar' }))) return;
-                d[tipo] = d[tipo].filter((e) => e.codigo !== item.codigo);
-                return mudou();
-              }
-              const novo = tipo === 'noc' ? { codigo: item.codigo, titulo: item.titulo, indicadores: [] } : { codigo: item.codigo, titulo: item.titulo, nivel: item.nivel_formacao, atividades: [] };
-              d[tipo].push(novo);
-              mudou();
-              if (tipo === 'noc') escolherIndicadores(d, novo); else escolherAtividades(d, novo);
-            } }, `${on ? '✓ ' : '+ '}${item.titulo}${item.papel === 'principal' ? ' (principal)' : ''}`);
-          };
-          if (!lig || lig.semLigacoes) {
-            opcoesNoc.replaceChildren(h('span', { class: 'caixa caixa-atencao' }, 'Sem NOC na tabela de ligações para este diagnóstico.'));
-            opcoesNic.replaceChildren(h('span', { class: 'caixa caixa-atencao' }, 'Sem NIC na tabela de ligações para este diagnóstico.'));
-            return;
-          }
-          opcoesNoc.replaceChildren(...lig.noc.map((x) => botao(x, d.noc, 'noc')));
-          opcoesNic.replaceChildren(...lig.nic.map((x) => botao(x, d.nic, 'nic')));
-        }).catch((e) => {
-          opcoesNoc.replaceChildren(h('span', { class: 'campo-erro' }, `Não foi possível carregar as ligações: ${e.message}`));
-          opcoesNic.replaceChildren();
-        });
+        if (ligacoes[d.codigo]) preencherOpcoes(ligacoes[d.codigo]);
+        else {
+          opcoesNoc.append(h('span', { class: 'ajuda' }, 'Carregando opções…'));
+          ligacaoDe(d.codigo).then(preencherOpcoes).catch((e) => {
+            opcoesNoc.replaceChildren(h('span', { class: 'campo-erro' }, `Não foi possível carregar as ligações: ${e.message}`));
+          });
+        }
       }
+      if (preenchendo.has(d.codigo)) secaoNoc.append(h('p', { class: 'sae-preenchendo' }, h('span', { class: 'giro' }), 'Trazendo o resultado e a intervenção principais…'));
       for (const r of d.noc) {
         secaoNoc.append(h('div', { class: 'sae-noc' },
           h('div', { class: 'sae-noc-topo' }, h('strong', {}, r.titulo), !somenteLeitura && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => escolherIndicadores(d, r) }, 'Escolher indicadores')),
@@ -344,11 +427,13 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
           h('div', { class: 'sae-noc-topo' }, h('strong', {}, x.titulo), h('span', { class: 'chip' }, responsavel(x.nivel)),
             !somenteLeitura && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => escolherAtividades(d, x) }, 'Escolher atividades')),
           ...(x.atividades || []).map((a) => h('div', { class: 'sae-atividade' },
-            h('div', {}, a.texto),
+            h('div', {}, a.texto, a.sugeridaIA ? h('span', { class: 'etiqueta-ia etiqueta-mini', title: 'Atividade marcada pela IA; altere se não se aplicar' }, 'IA') : null),
             chips(STATUS_ATIVIDADE, a.status, (v) => { a.status = v; mudou(); }),
             a.status === 'nao_realizado' && h('input', { type: 'text', value: a.justificativa || '', placeholder: 'Justificativa (obrigatória)', disabled: somenteLeitura,
               onchange: (e) => { a.justificativa = e.target.value; mudou(); } }))),
-          !(x.atividades || []).length && h('p', { class: 'campo-erro' }, 'Escolha as atividades.')));
+          !(x.atividades || []).length && (preenchendo.has(`${d.codigo}|${x.codigo}`)
+            ? h('p', { class: 'sae-preenchendo' }, h('span', { class: 'giro' }), 'A IA está escolhendo as atividades…')
+            : h('p', { class: 'campo-erro' }, 'Escolha as atividades.'))));
       }
     }
     return h('article', { class: `sae-diagnostico${ativo ? '' : ' resolvido'}${d.confirmado ? '' : ' a-confirmar'}` },
@@ -380,6 +465,15 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
   }
 
   function desenhar() {
+    // Redesenhar não pode mover a tela: guarda a rolagem e segura a altura durante a troca.
+    const y = window.scrollY;
+    if (el.isConnected && el.offsetHeight) el.style.minHeight = `${el.offsetHeight}px`;
+    montar();
+    el.style.minHeight = '';
+    if (el.isConnected && window.scrollY !== y) window.scrollTo(0, y);
+  }
+
+  function montar() {
     const pendentesIA = (sae.sugestao?.itens || []).filter((s) => !s.decisao);
     const decididas = (sae.sugestao?.itens || []).filter((s) => s.decisao);
     const riscos = avisosRisco(dadosEvolucao(), sae);

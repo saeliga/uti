@@ -47,3 +47,5 @@ export function buscaComPausa(fn, ms = 450) {
 
 /** Sugestão do Processo de Enfermagem pela IA (não usa cache: cada pedido é novo). */
 export const sugerirPE = (resumo) => chamar('ia.sugerirSAE', { resumo }, { tempoMs: 120000 });
+export const sugerirAtividades = (resumo, codigoNanda, codigoNic) =>
+  chamar('ia.sugerirAtividades', { resumo, codigoNanda, codigoNic }, { tempoMs: 60000 });

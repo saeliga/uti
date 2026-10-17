@@ -38,7 +38,7 @@ const LIG = { 90001: [[9101], [9201]], 90002: [[9102], [9202]], 90003: [[9103], 
 const resumoNanda = (c) => ({ codigo: c, titulo: NANDA[c].titulo, dominio: NANDA[c].dominio, classe: '—', categoria: NANDA[c].categoria, temLigacoes: true });
 
 export async function responder(acao, dados = {}) {
-  await espera(acao === 'ia.sugerirSAE' ? 1800 : 350);
+  await espera(acao === 'ia.sugerirSAE' ? 1800 : acao === 'ia.sugerirAtividades' ? 900 : 350);
   switch (acao) {
     case 'ping':
       return { ok: true, usuario: 'demonstracao@exemplo.org', perfil: 'admin', demo: true };
@@ -80,6 +80,10 @@ export async function responder(acao, dados = {}) {
           { ...resumoNanda('90003'), justificativa: 'Exemplo: paciente sedado e imóvel.', evidencias: { cd: [], fr: [], ri: NANDA[90003].fatoresRisco.slice(0, 2) } },
         ],
       };
+    case 'ia.sugerirAtividades': {
+      const x = NIC[dados.codigoNic];
+      return { modelo: 'demonstração', versaoPrompt: 'sae-1.0', ms: 900, atividades: x ? numerar('A', x.atividades).slice(0, 2) : [] };
+    }
     case 'ia.teste':
       return { modelo: 'demonstração', ms: 600 };
     default:

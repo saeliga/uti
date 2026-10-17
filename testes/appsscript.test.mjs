@@ -233,6 +233,22 @@ test('IA sugere PE: só códigos da lista e identificadores do catálogo; nada i
   assert.ok(!JSON.stringify(chamadas.groq[0]).includes('ANA'), 'o resumo enviado vem do navegador já sem identificação');
 });
 
+test('IA sugere atividades: só IDs da NIC ligada ao diagnóstico, no máximo 6', () => {
+  const { chamar, chamadas } = criarAmbiente({
+    perfis: PERFIS,
+    groq: () => ({ status: 200, corpo: { choices: [{ message: { content: '{"atividades":["A2","A99","A1","A2","X"]}' } }] } }),
+  });
+  const resumo = 'Paciente em ventilação mecânica por TOT, com CVC em jugular, febre e taquipneia.';
+  const lig = chamar({ acao: 'catalogo.ligacoes', token: token(), dados: { codigos: ['00004'] } }).dados.ligacoes[0];
+  const nic = lig.nic.find((n) => n.papel === 'principal').codigo;
+  const r = chamar({ acao: 'ia.sugerirAtividades', token: token(), dados: { resumo, codigoNanda: '4', codigoNic: nic } });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.deepEqual(r.dados.atividades.map((a) => a.id), ['A2', 'A1'], 'descarta inexistente e repetido, mantém a ordem');
+  assert.ok(r.dados.atividades.every((a) => a.texto));
+  assert.equal(chamadas.groq.length, 1);
+  assert.equal(chamar({ acao: 'ia.sugerirAtividades', token: token(), dados: { resumo, codigoNanda: '00004', codigoNic: '9999' } }).erro, 'fora_das_ligacoes');
+});
+
 test('IA sugere PE: resumo curto é recusado e leitura não pode pedir', () => {
   const { chamar } = criarAmbiente({ perfis: PERFIS });
   assert.equal(chamar({ acao: 'ia.sugerirSAE', token: token(), dados: { resumo: 'curto' } }).erro, 'resumo_insuficiente');
