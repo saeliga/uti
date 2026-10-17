@@ -6,6 +6,7 @@ import { checarSinal, num } from './calculos.js';
 import { formatarData, formatarDataHora, idade, contagemDia } from './datas.js';
 import { rotuloDia, TURNOS } from './turnos.js';
 import { ISOLAMENTOS } from './opcoes.js';
+import { textoSAE } from './sae.js';
 
 const vazio = (v) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
 
@@ -55,6 +56,7 @@ export function validarFinalizacao(ev) {
       }
     }
   }
+  if (ev.dados?.sae?.status !== 'concluido') erros.push('Processo de Enfermagem (blocos 3 a 5): conclua o PE antes de finalizar');
   for (const pa of pendenciasAutomaticas(ev)) avisos.push(`Pendência: ${pa}`);
   return { erros, avisos };
 }
@@ -166,6 +168,11 @@ export function textoParaPEP(ev, internacao, { unidadeNome = '', autor } = {}) {
     if (sec.length) {
       linhas.push('');
       linhas.push(...sec);
+    }
+    // O Processo de Enfermagem (blocos 3 a 5) entra depois da avaliação.
+    if (b.id === 'b2' && ev.dados?.sae) {
+      const pe = textoSAE(ev.dados.sae);
+      if (pe) linhas.push('', pe);
     }
   }
   const auto = pendenciasAutomaticas(ev);

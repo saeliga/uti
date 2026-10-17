@@ -40,7 +40,8 @@ function acoes_() {
     'catalogo.ligacoes': { fn: catalogoLigacoes_, perfis: CLINICOS },
     'catalogo.noc.detalhe': { fn: catalogoDetalheNoc_, perfis: CLINICOS },
     'catalogo.nic.detalhe': { fn: catalogoDetalheNic_, perfis: CLINICOS },
-    'ia.teste': { fn: iaTeste_, perfis: ADMIN }
+    'ia.teste': { fn: iaTeste_, perfis: ADMIN },
+    'ia.sugerirSAE': { fn: iaSugerirSAE_, perfis: CLINICOS }
   };
 }
 

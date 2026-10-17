@@ -96,7 +96,7 @@ function criarAmbiente({ perfis = {}, groq = () => ({ status: 200, corpo: { choi
     return { getResponseCode: () => status, getContentText: () => JSON.stringify(corpo) };
   }
   vm.createContext(ctx);
-  for (const f of ['Codigo.gs', 'Catalogo.gs', 'Groq.gs']) vm.runInContext(fs.readFileSync(path.join(raiz, 'apps-script', f), 'utf8'), ctx, { filename: f });
+  for (const f of ['Codigo.gs', 'Catalogo.gs', 'Groq.gs', 'SAE.gs']) vm.runInContext(fs.readFileSync(path.join(raiz, 'apps-script', f), 'utf8'), ctx, { filename: f });
   const cat = codigoCatalogo();
   vm.runInContext(cat.codigo, ctx, { filename: 'Dados.gs' });
   const chamar = (corpo) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(corpo) } }).texto);
@@ -206,4 +206,35 @@ test('Groq: cai para o modelo de reserva em 429 e envia ajustes por modelo', () 
 test('Groq: chave inválida vira erro claro', () => {
   const { chamar } = criarAmbiente({ perfis: PERFIS, groq: () => ({ status: 401, corpo: {} }) });
   assert.equal(chamar({ acao: 'ia.teste', token: token({ sub: 'adm' }) }).erro, 'ia_chave_invalida');
+});
+
+test('IA sugere PE: só códigos da lista e identificadores do catálogo; nada inventado passa', () => {
+  let chamada = 0;
+  const { chamar, chamadas } = criarAmbiente({
+    perfis: PERFIS,
+    groq: (c) => {
+      chamada += 1;
+      const txt = chamada === 1
+        ? '<think>pensando</think>{"diagnosticos":[{"codigo":"00004","justificativa":"CVC e TOT"},{"codigo":"99999","justificativa":"inventado"},{"codigo":"32","justificativa":"taquipneia"},{"codigo":"00004","justificativa":"repetido"}]}'
+        : '{"diagnosticos":[{"codigo":"00004","itens":["RI1","RI2","CD1","RI99"]},{"codigo":"00032","itens":["CD2","FR1","XX1"]}]}';
+      return { status: 200, corpo: { choices: [{ message: { content: txt } }] } };
+    },
+  });
+  const r = chamar({ acao: 'ia.sugerirSAE', token: token(), dados: { resumo: 'Paciente em ventilação mecânica por TOT, com CVC em jugular, febre e taquipneia, secreção moderada.' } });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const s = r.dados.sugestoes;
+  assert.deepEqual(s.map((x) => x.codigo), ['00004', '00032'], 'descarta código inexistente e repetido; completa zeros');
+  assert.deepEqual(s[0].evidencias.cd, [], 'risco não recebe característica definidora');
+  assert.ok(s[0].evidencias.ri.every((i) => /^RI\d+$/.test(i.id) && i.texto), 'só fatores de risco que existem');
+  assert.ok(!s[0].evidencias.ri.some((i) => i.id === 'RI99'));
+  assert.ok(s[1].evidencias.cd.some((i) => i.id === 'CD2') && s[1].evidencias.fr.some((i) => i.id === 'FR1'));
+  assert.equal(r.dados.versaoPrompt, 'sae-1.0');
+  assert.equal(chamadas.groq.length, 2);
+  assert.ok(!JSON.stringify(chamadas.groq[0]).includes('ANA'), 'o resumo enviado vem do navegador já sem identificação');
+});
+
+test('IA sugere PE: resumo curto é recusado e leitura não pode pedir', () => {
+  const { chamar } = criarAmbiente({ perfis: PERFIS });
+  assert.equal(chamar({ acao: 'ia.sugerirSAE', token: token(), dados: { resumo: 'curto' } }).erro, 'resumo_insuficiente');
+  assert.equal(chamar({ acao: 'ia.sugerirSAE', token: token({ sub: 'ler' }), dados: { resumo: 'x'.repeat(100) } }).erro, 'sem_permissao');
 });

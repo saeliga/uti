@@ -85,6 +85,8 @@ function evolucaoCompleta() {
 
 test('validação para finalizar: obrigatórios e pendências automáticas', () => {
   const ev = evolucaoCompleta();
+  assert.ok(validarFinalizacao(ev).erros.some((e) => e.startsWith('Processo de Enfermagem')), 'sem PE concluído não finaliza');
+  ev.dados.sae = { status: 'concluido', diagnosticos: [] };
   const r2 = validarFinalizacao(ev);
   assert.deepEqual(r2.erros, []);
   assert.ok(r2.avisos.some((a) => a.includes('Dor sem reavaliação')));
@@ -147,6 +149,16 @@ test('pendências abertas passam ao turno seguinte', () => {
 
 test('texto para o PEP: seções, cálculos e só siglas do manual da Liga', () => {
   const ev = evolucaoCompleta();
+  ev.dados.sae = {
+    status: 'concluido',
+    diagnosticos: [{
+      codigo: '90001', titulo: 'Risco de infecção (exemplo)', categoria: 'Potencial para deteriorar', situacao: 'ativo', confirmado: true,
+      evidencias: { ri: [{ id: 'RI1', texto: 'cateter venoso central' }] },
+      noc: [{ codigo: '9101', titulo: 'Controle de infecção', indicadores: [{ codigo: '910101', texto: 'febre', niveis: ['Grave', 'Substancial', 'Moderado', 'Leve', 'Nenhum'], meta: '5', pontuacao: '4', anterior: '3' }] }],
+      nic: [{ codigo: '9201', titulo: 'Cuidados com dispositivos', atividades: [{ id: 'A1', texto: 'avaliar necessidade do cateter', status: 'realizado' }] }],
+      decisao: 'manter',
+    }],
+  };
   const t = textoParaPEP(ev, internacao, { unidadeNome: 'UTI 1', autor: { nome: 'ENF. TESTE', coren: '123-RN' } });
   assert.match(t, /pressão arterial: 96x58 mmHg/);
   assert.match(t, /PAM: 71 mmHg/);
@@ -160,13 +172,17 @@ test('texto para o PEP: seções, cálculos e só siglas do manual da Liga', () 
   assert.match(t, /DIA 16\/10\/2026 \(TURNO DA MANHÃ\)/);
   assert.match(t, /Alergias: Dipirona/);
   assert.match(t, /PENDÊNCIAS IDENTIFICADAS PELO SISTEMA/);
+  assert.match(t, /1\) Diagnóstico: Risco de infecção \(exemplo\), evidenciado por fatores de risco: cateter venoso central\./);
+  assert.match(t, /Resultado: Controle de infecção - febre: 4 \(Leve\), meta 5, anterior 3\./);
+  assert.match(t, /Intervenção: Cuidados com dispositivos - avaliar necessidade do cateter \(realizado\)\./);
+  assert.ok(t.indexOf('SINAIS VITAIS') < t.indexOf('PROCESSO DE ENFERMAGEM:') && t.indexOf('PROCESSO DE ENFERMAGEM:') < t.indexOf('PENDÊNCIAS IDENTIFICADAS'), 'PE entra depois da avaliação');
   assert.doesNotMatch(t, /[│┃|<>]/, 'sem caracteres de tabela');
   // Siglas: toda palavra toda em maiúsculas (exceto nome do paciente, cabeçalhos de seção e unidade)
   const manual = JSON.parse(fs.readFileSync(new URL('./siglas_liga_resumo.json', import.meta.url)));
   const ignorar = new Set([...internacao.paciente.nome.split(' '), 'ENF', 'TESTE', 'UTI', 'LEITO', 'DEMO-1', 'RN']);
   const titulos = new Set(BLOCOS.flatMap((b) => b.subblocos.map((s) => s.titulo.toUpperCase())).join(' ').split(/[\s(),]+/));
   const palavras = t.split(/[\s.,;:()]+/).filter((w) => /^[A-Z][A-Z0-9]{1,}$|^SpO2$|^FiO2$/.test(w));
-  const fora = [...new Set(palavras)].filter((w) => !/^D\d+$/.test(w) && !ignorar.has(w) && !titulos.has(w) && !['EVOLUÇÃO', 'ENFERMAGEM', 'MANHÃ', 'DE', 'DIA', 'TURNO', 'DA', 'PENDÊNCIAS', 'IDENTIFICADAS', 'PELO', 'SISTEMA'].includes(w));
+  const fora = [...new Set(palavras)].filter((w) => !/^D\d+$/.test(w) && !ignorar.has(w) && !titulos.has(w) && !['EVOLUÇÃO', 'ENFERMAGEM', 'MANHÃ', 'DE', 'DIA', 'TURNO', 'DA', 'PENDÊNCIAS', 'IDENTIFICADAS', 'PELO', 'SISTEMA', 'PROCESSO'].includes(w));
   const naoPermitidas = fora.filter((w) => !manual.permitidas.includes(w));
   assert.deepEqual(naoPermitidas, [], `siglas fora do manual ou ambíguas: ${naoPermitidas}`);
 });

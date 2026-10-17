@@ -7,6 +7,7 @@ import { contagemDia, idade, hojeISO } from '../../regras/datas.js';
 import { ISOLAMENTOS, MOTIVOS_BLOQUEIO } from '../../regras/opcoes.js';
 import { diaAssistencial, rotuloDia } from '../../regras/turnos.js';
 import { situacaoEvolucao, ROTULO_SITUACAO } from '../../regras/evolucao.js';
+import { ROTULO_STATUS_PE } from '../../regras/sae.js';
 
 const ordenar = (a, b) => a.numero.localeCompare(b.numero, 'pt', { numeric: true });
 
@@ -101,7 +102,9 @@ function cartao(l, unidade, ev) {
         h('div', { class: 'leito-diag' }, r.diagnosticoMedico),
         h('div', { class: 'leito-chips' }, chipAlergia(r.alergias), chipIsolamento(r.isolamento))),
       h('a', { class: `leito-evolucao sit-${sit}`, href: `#/evolucao/${l.internacaoId}` },
-        h('span', {}, ROTULO_SITUACAO[sit]), h('span', { 'aria-hidden': 'true' }, '→')));
+        h('span', {}, ROTULO_SITUACAO[sit],
+          sit === 'rascunho' && ev?.dados?.sae?.status ? h('span', { class: `leito-pe sae-status-${ev.dados.sae.status}` }, ` · ${ROTULO_STATUS_PE[ev.dados.sae.status]}`) : null),
+        h('span', { 'aria-hidden': 'true' }, '→')));
   }
   if (l.bloqueado) {
     return h('div', { class: 'leito leito-bloqueado' },
