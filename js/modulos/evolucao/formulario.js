@@ -211,7 +211,7 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
           const corpo = h('div', { class: 'item-campos' });
           for (const sc of c.campos) corpo.append(criarCampo(sc, () => (alvo()[c.nome] || [])[k] || {}, mudou, contexto, doItens, ro));
           itensEl.append(h('div', { class: 'item-lista' },
-            h('div', { class: 'item-topo' }, h('strong', {}, `${c.rotuloItem[0].toUpperCase()}${c.rotuloItem.slice(1)} ${k + 1}`),
+            h('div', { class: 'item-topo' }, h('strong', {}, c.tituloItem?.((alvo()[c.nome] || [])[k] || {}) || `${c.rotuloItem[0].toUpperCase()}${c.rotuloItem.slice(1)} ${k + 1}`),
               !ro && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => {
                 const novos = [...(alvo()[c.nome] || [])];
                 novos.splice(k, 1);
@@ -223,13 +223,39 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
         });
       };
       desenhar();
-      wrap.append(...[h('div', { class: 'campo-rotulo' }, c.rotulo), itensEl,
+      // Atalhos: incluem um item pronto com um toque (ex.: controle de infusão).
+      let atalhosEl = null;
+      if (c.atalhos && !ro) {
+        const botoes = c.atalhos.map((a) => {
+          const b = h('button', { type: 'button', class: 'chip-op chip-atalho' }, `+ ${a.rotulo}`);
+          b.addEventListener('click', () => {
+            const itens = alvo()[c.nome] || [];
+            const k = itens.findIndex((i) => i.medicamento === a.item.medicamento);
+            if (k >= 0) {
+              itensEl.children[k]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              itensEl.children[k]?.querySelector('[data-campo=vazao] input')?.focus();
+              return;
+            }
+            alvo()[c.nome] = [...itens, { ...a.item }];
+            desenhar();
+            mudou();
+            itensEl.lastElementChild?.querySelector('[data-campo=quantidade] input, [data-campo=vazao] input')?.focus();
+          });
+          return b;
+        });
+        atalhosEl = h('div', { class: 'chips atalhos' }, botoes);
+        atualizadores.push(() => {
+          const presentes = new Set((alvo()[c.nome] || []).map((i) => i.medicamento));
+          c.atalhos.forEach((a, k) => botoes[k].classList.toggle('on', presentes.has(a.item.medicamento)));
+        });
+      }
+      wrap.append(...[h('div', { class: 'campo-rotulo' }, c.rotulo), atalhosEl, itensEl,
         !ro && h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: () => {
           alvo()[c.nome] = [...(alvo()[c.nome] || []), {}];
           desenhar();
           mudou();
           itensEl.lastElementChild?.querySelector('input, select, textarea')?.focus();
-        } }, `+ Adicionar ${c.rotuloItem}`)].filter(Boolean));
+        } }, c.atalhos ? '+ Outra infusão' : `+ Adicionar ${c.rotuloItem}`)].filter(Boolean));
       break;
     }
     default:

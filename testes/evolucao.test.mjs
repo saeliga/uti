@@ -80,15 +80,15 @@ function evolucaoCompleta() {
     data: '2026-10-16', turnoInicio: 'M', status: 'rascunho', versao: 1,
     dados: {
       contexto: { peso: '70' },
-      sinais: { horario: '08:00', estadoGeral: 'grave', t: '37,8', fc: '112', fr: '24', pas: '96', pad: '58', spo2: '94', hgt: '180', tendencia: 'estavel' },
+      sinais: { horario: '08:00', estadoGeral: 'grave', t: '37,8', fc: '112', fr: '24', pas: '96', pad: '58', spo2: '94', hgt: '180' },
       neuro: { consciencia: 'sedado', gOcular: '1', gVerbal: 'T', gMotora: '4', rass: '-4', metaRass: '-3', pupilaD: '3', pupilaE: '3', fotoD: 'presente', fotoE: 'presente' },
       dor: { escala: 'bps', bpsFacial: '2', bpsMembros: '2', bpsVentilacao: '2', conduta: ['farmacologica'] },
       respiratorio: { suporte: 'vmi_tot', modo: 'PCV', peep: '8', fio2: '40', cuff: '25' },
-      hemodinamica: { ritmo: 'sinusal', infusoes: [{ finalidade: 'vasopressor', medicamento: 'noradrenalina', quantidade: '4', unidadeQtd: 'mg', volume: '250', vazao: '15', unidadeDose: 'mcg/kg/min' }] },
+      hemodinamica: { ritmo: 'sinusal' },
+      infusoes: { itens: [{ finalidade: 'vasopressor', medicamento: 'noradrenalina', quantidade: '4', unidadeQtd: 'mg', volume: '250', vazao: '15', unidadeDose: 'mcg/kg/min' }] },
       renal: { modo: 'cvd', volume: '600', horas: '6' },
       pele: { inspecao: 'Pele íntegra' },
       dispositivos: { itens: [{ tipo: 'cvc', local: 'Jugular direita', insercao: '2026-10-13', necessario: 'sim' }, { tipo: 'avp', local: 'Antebraço' }] },
-      prevencao: { lpp: { 'Mudança de decúbito a cada 2 h': { estado: 'nao_realizado' } } },
       pendencias: { itens: [{ descricao: 'Coletar hemocultura', situacao: 'aberta' }, { descricao: 'Trocar curativo', situacao: 'resolvida' }] },
       narrativa: { texto: 'Paciente grave, em desmame de sedação.' },
     },
@@ -96,11 +96,8 @@ function evolucaoCompleta() {
   };
 }
 
-test('validação para finalizar: obrigatórios, justificativa e pendências automáticas', () => {
+test('validação para finalizar: obrigatórios e pendências automáticas', () => {
   const ev = evolucaoCompleta();
-  const r = validarFinalizacao(ev);
-  assert.deepEqual(r.erros, ['Prevenção de LPP: "Mudança de decúbito a cada 2 h" não realizado sem justificativa'].map((e) => e.replace('Prevenção de LPP', 'Prevenção de LPP')));
-  ev.dados.prevencao.lpp['Mudança de decúbito a cada 2 h'].justificativa = 'Instabilidade hemodinâmica';
   const r2 = validarFinalizacao(ev);
   assert.deepEqual(r2.erros, []);
   assert.ok(r2.avisos.some((a) => a.includes('Dor sem reavaliação')));
@@ -112,6 +109,16 @@ test('validação para finalizar: obrigatórios, justificativa e pendências aut
   assert.ok(r3.avisos.some((a) => a.includes('Temperatura = 3')), 'valor improvável vira aviso, não bloqueio');
   const v = { data: '2026-10-16', dados: {}, confirmados: { neuro: { hora: '08:10' } } };
   assert.ok(!validarFinalizacao(v).erros.some((e) => e.startsWith('Neurológico')), 'confirmado sem alteração dispensa os campos');
+});
+
+test('formulário: sem medidas preventivas e sem tendência; infusões com atalhos da folha', () => {
+  const ids = BLOCOS.flatMap((b) => b.subblocos.map((x) => x.id));
+  assert.ok(!ids.includes('prevencao'), 'medidas preventivas ficam no Processo de Enfermagem');
+  assert.ok(ids.includes('infusoes'));
+  const campos = BLOCOS.flatMap((b) => b.subblocos.flatMap((x) => x.campos.map((c) => c.nome)));
+  assert.ok(!campos.includes('tendencia'));
+  const atalhos = BLOCOS.flatMap((b) => b.subblocos).find((x) => x.id === 'infusoes').campos[0].atalhos.map((a) => a.item.medicamento);
+  for (const m of ['hidratação venosa', 'midazolam', 'fentanil', 'soro glicosado 10%', 'insulina regular', 'amiodarona', 'noradrenalina', 'dobutamina', 'dopamina', 'nitroprussiato', 'nitroglicerina']) assert.ok(atalhos.includes(m), m);
 });
 
 test('situação no painel', () => {
@@ -129,7 +136,6 @@ test('pendências abertas passam ao turno seguinte', () => {
 
 test('texto para o PEP: seções, cálculos e só siglas do manual da Liga', () => {
   const ev = evolucaoCompleta();
-  ev.dados.prevencao.lpp['Mudança de decúbito a cada 2 h'].justificativa = 'Instabilidade';
   const t = textoParaPEP(ev, internacao, { unidadeNome: 'UTI 1', autor: { nome: 'ENF. TESTE', coren: '123-RN' } });
   assert.match(t, /pressão arterial: 96x58 mmHg/);
   assert.match(t, /PAM: 71 mmHg/);

@@ -194,15 +194,25 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     return det;
   }
 
+  // Botões no fim de cada bloco: seguir sem precisar voltar ao topo da tela.
+  const navegacaoRodape = (bid) => {
+    const k = ABAS.findIndex((a) => a[0] === bid);
+    const ant = ABAS[k - 1];
+    const prox = ABAS[k + 1];
+    return h('div', { class: 'evo-rodape-nav' },
+      ant ? h('button', { type: 'button', class: 'btn btn-secundario', onclick: () => abrirBloco(ant[0]) }, `← ${ant[1]}`) : h('span'),
+      prox ? h('button', { type: 'button', class: 'btn btn-primario', onclick: () => abrirBloco(prox[0]) }, `Próximo: ${prox[1]} →`) : h('span'));
+  };
   for (const b of BLOCOS) {
     corpo.append(h('section', { class: 'evo-bloco', dataset: { bloco: b.id }, hidden: true },
       h('h2', {}, b.titulo), b.descricao && h('p', { class: 'ajuda' }, b.descricao),
-      ...b.subblocos.map(cartaoSubbloco)));
+      ...b.subblocos.map(cartaoSubbloco), navegacaoRodape(b.id)));
   }
   corpo.append(h('section', { class: 'evo-bloco', dataset: { bloco: 'b345' }, hidden: true },
     h('h2', {}, '3 a 5. Problemas, cuidados e resposta'),
     h('div', { class: 'detalhe-proximos' },
-      h('p', {}, 'Diagnósticos de enfermagem, NIC realizadas e indicadores NOC entram na próxima entrega, junto com a sugestão do Processo de Enfermagem pela IA e a biblioteca NANDA-I.'))));
+      h('p', {}, 'Diagnósticos de enfermagem, NIC realizadas e indicadores NOC entram na próxima entrega, junto com a sugestão do Processo de Enfermagem pela IA e a biblioteca NANDA-I.')),
+    navegacaoRodape('b345')));
   const fim = h('section', { class: 'evo-bloco', dataset: { bloco: 'fim' }, hidden: true });
   corpo.append(fim);
 
@@ -227,7 +237,8 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         h('div', { class: 'linha-acoes' },
           h('button', { class: 'btn btn-primario', type: 'button', onclick: copiarPEP }, 'Copiar para o PEP'),
           h('button', { class: 'btn btn-secundario', type: 'button', onclick: imprimir }, 'Imprimir / PDF'),
-          podeEditar() && h('button', { class: 'btn btn-perigo', type: 'button', onclick: retificar }, 'Retificar')))].filter(Boolean));
+          podeEditar() && h('button', { class: 'btn btn-perigo', type: 'button', onclick: retificar }, 'Retificar'))),
+      navegacaoRodape('fim')].filter(Boolean));
   }
 
   function evolucaoAtual() {

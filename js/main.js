@@ -10,6 +10,7 @@ import { estado } from './nucleo/estado.js';
 import { PERFIS } from './regras/opcoes.js';
 
 const raiz = document.getElementById('app');
+window.__sistemaCarregado = true; // usado pelo aviso de falha de carregamento (index.html)
 let iniciado = false;
 
 backend.aoMudarSessao(async (usuario) => {

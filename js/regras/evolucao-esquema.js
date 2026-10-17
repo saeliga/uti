@@ -24,6 +24,22 @@ const ventilado = (d) => ['vmi_tot', 'vmi_tqt'].includes(d.suporte);
 const comPressao = (d) => ventilado(d) || d.suporte === 'vni';
 const viaAereaArtificial = (d) => ['vmi_tot', 'vmi_tqt', 'tqt_espontanea'].includes(d.suporte);
 
+// Atalhos do "Controle de infusão" (lista da folha atual da UTI). O texto gravado
+// usa sempre o nome genérico; o nome comercial aparece só no botão, para facilitar a transição.
+export const ATALHOS_INFUSAO = [
+  { rotulo: 'Hidratação venosa', item: { finalidade: 'hidratacao', medicamento: 'hidratação venosa' } },
+  { rotulo: 'Midazolam', item: { finalidade: 'sedacao', medicamento: 'midazolam', unidadeQtd: 'mg', unidadeDose: 'mg/h' } },
+  { rotulo: 'Fentanil', item: { finalidade: 'analgesia', medicamento: 'fentanil', unidadeQtd: 'mcg', unidadeDose: 'mcg/h' } },
+  { rotulo: 'SG 10%', item: { finalidade: 'hidratacao', medicamento: 'soro glicosado 10%' } },
+  { rotulo: 'Insulina', item: { finalidade: 'insulina', medicamento: 'insulina regular', unidadeQtd: 'UI', unidadeDose: 'UI/h' } },
+  { rotulo: 'Amiodarona (Ancoron)', item: { finalidade: 'antiarritmico', medicamento: 'amiodarona', unidadeQtd: 'mg', unidadeDose: 'mg/h' } },
+  { rotulo: 'Noradrenalina', item: { finalidade: 'vasopressor', medicamento: 'noradrenalina', unidadeQtd: 'mg', unidadeDose: 'mcg/kg/min' } },
+  { rotulo: 'Dobutamina', item: { finalidade: 'inotropico', medicamento: 'dobutamina', unidadeQtd: 'mg', unidadeDose: 'mcg/kg/min' } },
+  { rotulo: 'Dopamina', item: { finalidade: 'vasopressor', medicamento: 'dopamina', unidadeQtd: 'mg', unidadeDose: 'mcg/kg/min' } },
+  { rotulo: 'Nitroprussiato (Nipride)', item: { finalidade: 'vasodilatador', medicamento: 'nitroprussiato', unidadeQtd: 'mg', unidadeDose: 'mcg/kg/min' } },
+  { rotulo: 'Nitroglicerina (Tridil)', item: { finalidade: 'vasodilatador', medicamento: 'nitroglicerina', unidadeQtd: 'mg', unidadeDose: 'mcg/min' } },
+];
+
 export const TIPOS_DISPOSITIVO = op(
   ['cvc', 'CVC'], ['picc', 'PICC'], ['cti', 'Cateter venoso totalmente implantado'], ['cateter_dialise', 'Cateter de hemodiálise'],
   ['avp', 'Acesso venoso periférico'], ['pai', 'Cateter de pressão arterial invasiva'], ['tot', 'TOT'], ['tqt', 'TQT'],
@@ -33,7 +49,8 @@ export const TIPOS_DISPOSITIVO = op(
 /**
  * Tipos de campo: texto, numero, area, hora, data, datahora, escolha (uma opção),
  * multipla (várias), select, escala (opções com pontos), calculado (somente
- * leitura), medidas (lista fixa com 4 estados), lista (itens repetíveis).
+ * leitura), medidas (lista fixa com 4 estados), lista (itens repetíveis; `atalhos`
+ * incluem itens prontos com um toque).
  * `se(dados, contexto)` mostra o campo só quando se aplica.
  */
 export const BLOCOS = [
@@ -87,7 +104,6 @@ export const BLOCOS = [
           { nome: 'pam', rotulo: 'PAM', tipo: 'calculado', calc: (d) => { const v = pam(d.pas, d.pad); return v == null ? '' : `${v} mmHg`; }, sinalCalc: (d) => ['pam', pam(d.pas, d.pad)] },
           { nome: 'spo2', rotulo: 'SpO2', tipo: 'numero', unidade: '%', sinal: 'spo2', obrigatorio: true },
           { nome: 'hgt', rotulo: 'HGT', tipo: 'numero', unidade: 'mg/dL', sinal: 'hgt' },
-          { nome: 'tendencia', rotulo: 'Tendência nas últimas horas', tipo: 'escolha', opcoes: op(['melhora', 'Melhora'], ['estavel', 'Estável'], ['piora', 'Piora']) },
           { nome: 'suporte', rotulo: 'Suporte usado para manter os valores', tipo: 'texto', ajuda: 'Ex.: noradrenalina em titulação, O2 por CNAF.' },
         ],
       },
@@ -150,15 +166,23 @@ export const BLOCOS = [
         ],
       },
       {
-        id: 'hemodinamica', titulo: 'Hemodinâmica e infusões', copiavel: true,
+        id: 'hemodinamica', titulo: 'Hemodinâmica', copiavel: true,
         campos: [
           { nome: 'ritmo', rotulo: 'Ritmo', tipo: 'escolha', opcoes: op(['sinusal', 'Sinusal'], ['fibrilacao', 'Fibrilação atrial'], ['marcapasso', 'Marca-passo'], ['outro', 'Outro']) },
           { nome: 'ritmoOutro', rotulo: 'Qual ritmo', tipo: 'texto', se: (d) => d.ritmo === 'outro' },
           { nome: 'tec', rotulo: 'TEC', tipo: 'escolha', opcoes: op(['ate3', 'Até 3 s'], ['mais3', 'Mais de 3 s']) },
           { nome: 'pulsos', rotulo: 'Pulsos periféricos', tipo: 'escolha', opcoes: op(['presentes', 'Presentes e cheios'], ['finos', 'Finos'], ['ausentes', 'Ausentes']) },
           { nome: 'extremidades', rotulo: 'Extremidades', tipo: 'escolha', opcoes: op(['aquecidas', 'Aquecidas'], ['frias', 'Frias'], ['cianoticas', 'Cianóticas']) },
+        ],
+      },
+      {
+        id: 'infusoes', titulo: 'Infusões contínuas (controle de infusão)', copiavel: true,
+        descricao: 'Toque no medicamento para incluir. Para calcular a dose, informe a solução (quantidade e volume), a vazão e o peso (bloco 1).',
+        campos: [
           {
-            nome: 'infusoes', rotulo: 'Infusões contínuas', tipo: 'lista', rotuloItem: 'infusão',
+            nome: 'itens', rotulo: 'Infusões em uso', tipo: 'lista', rotuloItem: 'infusão',
+            tituloItem: (i) => i.medicamento ? i.medicamento.charAt(0).toUpperCase() + i.medicamento.slice(1) : '',
+            atalhos: ATALHOS_INFUSAO,
             textoItem: (i, ctx) => {
               const dose = doseInfusao({ ...i, peso: ctx.peso });
               const sol = i.quantidade && i.volume ? ` ${String(i.quantidade).replace('.', ',')} ${i.unidadeQtd || ''} em ${i.volume} mL` : '';
@@ -289,17 +313,6 @@ export const BLOCOS = [
               { nome: 'resultado', rotulo: 'Resultado', tipo: 'texto' },
             ],
           },
-        ],
-      },
-      {
-        id: 'prevencao', titulo: 'Medidas preventivas', copiavel: false,
-        descricao: 'Começam sem marcação. "Não realizado" pede justificativa.',
-        campos: [
-          { nome: 'quedas', rotulo: 'Prevenção de queda', tipo: 'medidas', itens: ['Grades elevadas', 'Cama baixa e travada', 'Campainha ao alcance', 'Acompanhante orientado', 'Pertences ao alcance'] },
-          { nome: 'lpp', rotulo: 'Prevenção de LPP', tipo: 'medidas', itens: ['Mudança de decúbito a cada 2 h', 'Superfície de redistribuição de pressão', 'Proteção de proeminências ósseas', 'Hidratação da pele'] },
-          { nome: 'pav', rotulo: 'Prevenção de pneumonia associada à ventilação', tipo: 'medidas', itens: ['Cabeceira entre 30° e 45°', 'Higiene oral', 'Pressão do cuff entre 20 e 30 cmH2O', 'Avaliação diária da sedação e da extubação'], se: (d, ctx) => ctx.ventilado },
-          { nome: 'itu', rotulo: 'Prevenção de infecção urinária (CVD)', tipo: 'medidas', itens: ['Sistema fechado e fixação', 'Bolsa abaixo do nível da bexiga', 'Avaliação diária da necessidade'], se: (d, ctx) => ctx.temCvd },
-          { nome: 'ipcs', rotulo: 'Prevenção de infecção de corrente sanguínea (CVC)', tipo: 'medidas', itens: ['Curativo íntegro e datado', 'Desinfecção dos conectores antes do uso', 'Avaliação diária da necessidade'], se: (d, ctx) => ctx.temCvc },
         ],
       },
     ],

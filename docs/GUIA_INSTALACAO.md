@@ -149,17 +149,22 @@ Como funciona a evolução:
 - **Abrir:** no painel, cada leito ocupado mostra a situação da evolução do dia. Toque na faixa de baixo do cartão para abrir.
 - **Uma evolução por dia (desde a 0.2.1):** o dia vai das 07h às 07h. Qualquer turno pode fazer a evolução; o painel mostra quantas ainda faltam (ex.: se a manhã fez 6 de 10, a tarde vê 4 pendentes). É o mesmo rascunho no tablet e no PC.
 - **Salvamento:** é automático a cada campo. Sem Wi-Fi, aparece "Salvo neste aparelho · ainda não sincronizado", e o envio acontece sozinho quando a conexão volta. Só a abertura de uma evolução nova e a retificação precisam de conexão.
-- **Evolução anterior:** aparece em cada subbloco. Para reaproveitar, use "Sem alteração desde a evolução anterior". Sinais vitais, dor e medidas preventivas sempre pedem valores novos.
+- **Evolução anterior:** aparece em cada subbloco. Para reaproveitar, use "Sem alteração desde a evolução anterior". Sinais vitais e dor sempre pedem valores novos.
 - **Braden e Morse** não ficam no sistema: são preenchidos e acompanhados no PEP oficial.
+- **Medidas preventivas** (LPP, queda, PAV, infecção urinária e de corrente sanguínea) não ficam na evolução: entram como intervenções do Processo de Enfermagem, na prescrição de enfermagem, com checagem.
+- **Infusões contínuas:** subbloco próprio com os atalhos da folha atual (hidratação venosa, midazolam, fentanil, SG 10%, insulina, amiodarona, noradrenalina, dobutamina, dopamina, nitroprussiato, nitroglicerina) e "+ Outra infusão". A dose é calculada quando há solução, vazão e peso.
+- **No fim de cada bloco** há o botão "Próximo" para seguir sem voltar ao topo.
 - **Ao publicar a 0.2.1**, publique de novo o `firestore.rules` (a identificação da evolução mudou de turno para dia).
 - **Finalizar e copiar ao PEP:** finalize a evolução, use "Copiar para o PEP" e, depois de colar no PEP, marque "Já colei no PEP". Se precisar corrigir uma evolução finalizada, use "Retificar". A versão anterior fica guardada.
 
 ## 12. Publicar uma versão nova
 
-Toda entrega minha diz o número da versão. Ao enviar os arquivos ao GitHub:
+As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.
 
-1. Atualize o número em **dois lugares**: `js/config.js` (`VERSAO`) e `versao.json`.
-2. Em até 10 minutos, quem estiver com o sistema aberto vê o aviso "Nova versão disponível — Recarregar".
+- **Para que serve o mapa:** cada versão baixa o próprio conjunto de arquivos. Sem ele, o navegador misturava arquivos novos com antigos guardados no cache, e o sistema ficava parado em "Carregando…".
+- **Depois do merge:** em até 10 minutos, quem estiver com o sistema aberto vê o aviso "Nova versão disponível — Recarregar".
+- **Se ainda assim parar em "Carregando…":** depois de 12 segundos aparece um botão **Recarregar**, que busca a versão nova.
+- **Se você mesmo editar um arquivo no GitHub,** por exemplo o `config.js`, o navegador pode levar até 10 minutos para pegar a mudança.
 
 ## Limites do plano gratuito (para acompanhar)
 
