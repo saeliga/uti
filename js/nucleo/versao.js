@@ -20,7 +20,14 @@ function mostrar(nova) {
   avisado = true;
   document.body.append(h('div', { class: 'faixa-versao', role: 'status' },
     `Nova versão disponível (${nova}). Salve o que estiver fazendo e recarregue.`,
-    h('button', { class: 'btn btn-pequeno', type: 'button', onclick: () => location.reload() }, 'Recarregar')));
+    h('button', { class: 'btn btn-pequeno', type: 'button', onclick: () => recarregarSemCache(nova) }, 'Recarregar')));
+}
+
+/** Recarrega pedindo a página com outro endereço (?v=), para não usar a cópia antiga do cache. */
+export function recarregarSemCache(v = Date.now()) {
+  const url = new URL(location.href);
+  url.searchParams.set('v', v);
+  location.replace(url.toString());
 }
 
 export function iniciarVerificacaoVersao() {

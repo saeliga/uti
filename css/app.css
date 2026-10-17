@@ -288,6 +288,10 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .caixa-erro { background: var(--alerta-fundo); border-left: 5px solid #b3202d; }
 .caixa-ok { background: #e7f3ef; border-left: 5px solid var(--liga-verde-petroleo); }
 .caixa-atencao { background: #fdf6e3; border-left: 5px solid #c77700; }
+.evo-rodape-nav { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--ui-borda); }
+.evo-rodape-nav .btn { white-space: normal; text-align: center; min-height: 48px; }
+.chip-atalho { font-weight: 500; }
+.atalhos { margin-bottom: 8px; }
 .texto-pep { width: 100%; font: 13.5px/1.5 var(--fonte-texto); padding: 10px; border: 1px solid #b9bac0; border-radius: 8px; }
 .impressao { display: none; }
 

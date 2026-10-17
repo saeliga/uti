@@ -243,12 +243,11 @@ function notificarEvol() {
       internacaoId: ana[0], unidade: 'uti1', leitoId: 'uti1_01', data: ant, turnoInicio: 'N', status: 'finalizada', versao: 1,
       dados: {
         contexto: { peso: '64', pesoOrigem: 'estimado', limitacao: 'nao', objetivos: 'curativo' },
-        sinais: { horario: '20:00', estadoGeral: 'grave', t: '38,2', fc: '118', fr: '26', pas: '92', pad: '54', spo2: '93', tendencia: 'piora' },
+        sinais: { horario: '20:00', estadoGeral: 'grave', t: '38,2', fc: '118', fr: '26', pas: '92', pad: '54', spo2: '93' },
         neuro: { consciencia: 'sedado', gOcular: '1', gVerbal: 'T', gMotora: '4', rass: '-4', metaRass: '-3', pupilaD: '3', pupilaE: '3', fotoD: 'presente', fotoE: 'presente', interrupcao: 'nao_realizada' },
         respiratorio: { suporte: 'vmi_tot', modo: 'PCV', peep: '10', fio2: '50', cuff: '24', padrao: ['assincronia'], secrecao: 'moderada', secrecaoAspecto: 'Amarelada' },
-        hemodinamica: { ritmo: 'sinusal', tec: 'mais3', extremidades: 'frias', infusoes: [
-          { finalidade: 'vasopressor', medicamento: 'noradrenalina', quantidade: '4', unidadeQtd: 'mg', volume: '250', vazao: '18', unidadeDose: 'mcg/kg/min' },
-          { finalidade: 'sedacao', medicamento: 'midazolam', quantidade: '150', unidadeQtd: 'mg', volume: '150', vazao: '8', unidadeDose: 'mg/h' }] },
+        hemodinamica: { ritmo: 'sinusal', tec: 'mais3', extremidades: 'frias' },
+        infusoes: { itens: [{ medicamento: 'noradrenalina', vazao: '18' }, { medicamento: 'midazolam', vazao: '8' }, { medicamento: 'fentanil', vazao: '3' }] },
         dispositivos: { itens: [{ tipo: 'cvc', local: 'Jugular interna direita', insercao: somarDias(hoje, -3), necessario: 'sim' }, { tipo: 'tot', local: '22 cm na rima labial', insercao: somarDias(hoje, -3), necessario: 'sim' }, { tipo: 'cvd', insercao: somarDias(hoje, -3), necessario: 'sim' }] },
         pendencias: { itens: [{ descricao: 'Resultado da hemocultura de ontem', comunicado: 'Plantonista', situacao: 'aberta' }] },
         narrativa: { texto: 'Piora hemodinâmica no fim do turno, com aumento da noradrenalina. Febre persistente.' },
