@@ -152,7 +152,7 @@ Como funciona a evolução:
 - **Evolução anterior:** aparece em cada subbloco. Para reaproveitar, use "Sem alteração desde a evolução anterior". Sinais vitais e dor sempre pedem valores novos.
 - **Braden e Morse** não ficam no sistema: são preenchidos e acompanhados no PEP oficial.
 - **Medidas preventivas** (LPP, queda, PAV, infecção urinária e de corrente sanguínea) não ficam na evolução: entram como intervenções do Processo de Enfermagem, na prescrição de enfermagem, com checagem.
-- **Infusões contínuas:** subbloco próprio com os atalhos da folha atual (hidratação venosa, midazolam, fentanil, SG 10%, insulina, amiodarona, noradrenalina, dobutamina, dopamina, nitroprussiato, nitroglicerina) e "+ Outra infusão". A dose é calculada quando há solução, vazão e peso.
+- **Infusões contínuas:** subbloco próprio com os atalhos da folha atual (hidratação venosa, midazolam, fentanil, SG 10%, insulina, amiodarona, noradrenalina, dobutamina, dopamina, nitroprussiato, nitroglicerina) e "+ Outra infusão" para qualquer outro medicamento. Registra só o medicamento e a vazão (mL/h).
 - **No fim de cada bloco** há o botão "Próximo" para seguir sem voltar ao topo.
 - **Ao publicar a 0.2.1**, publique de novo o `firestore.rules` (a identificação da evolução mudou de turno para dia).
 - **Finalizar e copiar ao PEP:** finalize a evolução, use "Copiar para o PEP" e, depois de colar no PEP, marque "Já colei no PEP". Se precisar corrigir uma evolução finalizada, use "Retificar". A versão anterior fica guardada.

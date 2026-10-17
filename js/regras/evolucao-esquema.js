@@ -4,7 +4,7 @@
 // ambíguas (PA, FR, EV, SC, HD, PCR, SAE…).
 
 import { GLASGOW, glasgow, RASS, camAplicavel, camIcu, BPS, dor } from './escalas.js';
-import { pam, diureseReal, debitoUrinario, FINALIDADES, MEDICAMENTOS, UNIDADES_DOSE, doseInfusao, num } from './calculos.js';
+import { pam, diureseReal, debitoUrinario, num } from './calculos.js';
 import { contagemDia } from './datas.js';
 
 const op = (...lista) => Object.fromEntries(lista.map((x) => (Array.isArray(x) ? x : [x, x])));
@@ -27,17 +27,17 @@ const viaAereaArtificial = (d) => ['vmi_tot', 'vmi_tqt', 'tqt_espontanea'].inclu
 // Atalhos do "Controle de infusão" (lista da folha atual da UTI). O texto gravado
 // usa sempre o nome genérico; o nome comercial aparece só no botão, para facilitar a transição.
 export const ATALHOS_INFUSAO = [
-  { rotulo: 'Hidratação venosa', item: { finalidade: 'hidratacao', medicamento: 'hidratação venosa' } },
-  { rotulo: 'Midazolam', item: { finalidade: 'sedacao', medicamento: 'midazolam', unidadeQtd: 'mg', unidadeDose: 'mg/h' } },
-  { rotulo: 'Fentanil', item: { finalidade: 'analgesia', medicamento: 'fentanil', unidadeQtd: 'mcg', unidadeDose: 'mcg/h' } },
-  { rotulo: 'SG 10%', item: { finalidade: 'hidratacao', medicamento: 'soro glicosado 10%' } },
-  { rotulo: 'Insulina', item: { finalidade: 'insulina', medicamento: 'insulina regular', unidadeQtd: 'UI', unidadeDose: 'UI/h' } },
-  { rotulo: 'Amiodarona (Ancoron)', item: { finalidade: 'antiarritmico', medicamento: 'amiodarona', unidadeQtd: 'mg', unidadeDose: 'mg/h' } },
-  { rotulo: 'Noradrenalina', item: { finalidade: 'vasopressor', medicamento: 'noradrenalina', unidadeQtd: 'mg', unidadeDose: 'mcg/kg/min' } },
-  { rotulo: 'Dobutamina', item: { finalidade: 'inotropico', medicamento: 'dobutamina', unidadeQtd: 'mg', unidadeDose: 'mcg/kg/min' } },
-  { rotulo: 'Dopamina', item: { finalidade: 'vasopressor', medicamento: 'dopamina', unidadeQtd: 'mg', unidadeDose: 'mcg/kg/min' } },
-  { rotulo: 'Nitroprussiato (Nipride)', item: { finalidade: 'vasodilatador', medicamento: 'nitroprussiato', unidadeQtd: 'mg', unidadeDose: 'mcg/kg/min' } },
-  { rotulo: 'Nitroglicerina (Tridil)', item: { finalidade: 'vasodilatador', medicamento: 'nitroglicerina', unidadeQtd: 'mg', unidadeDose: 'mcg/min' } },
+  { rotulo: 'Hidratação venosa', item: { medicamento: 'hidratação venosa' } },
+  { rotulo: 'Midazolam', item: { medicamento: 'midazolam' } },
+  { rotulo: 'Fentanil', item: { medicamento: 'fentanil' } },
+  { rotulo: 'SG 10%', item: { medicamento: 'soro glicosado 10%' } },
+  { rotulo: 'Insulina', item: { medicamento: 'insulina regular' } },
+  { rotulo: 'Amiodarona (Ancoron)', item: { medicamento: 'amiodarona' } },
+  { rotulo: 'Noradrenalina', item: { medicamento: 'noradrenalina' } },
+  { rotulo: 'Dobutamina', item: { medicamento: 'dobutamina' } },
+  { rotulo: 'Dopamina', item: { medicamento: 'dopamina' } },
+  { rotulo: 'Nitroprussiato (Nipride)', item: { medicamento: 'nitroprussiato' } },
+  { rotulo: 'Nitroglicerina (Tridil)', item: { medicamento: 'nitroglicerina' } },
 ];
 
 export const TIPOS_DISPOSITIVO = op(
@@ -61,7 +61,7 @@ export const BLOCOS = [
       {
         id: 'contexto', titulo: 'Peso e objetivos de cuidado', copiavel: true,
         campos: [
-          { nome: 'peso', rotulo: 'Peso', tipo: 'numero', unidade: 'kg', ajuda: 'Usado no cálculo de dose e de débito urinário.' },
+          { nome: 'peso', rotulo: 'Peso', tipo: 'numero', unidade: 'kg', ajuda: 'Usado no cálculo do débito urinário (mL/kg/h).' },
           { nome: 'pesoOrigem', rotulo: 'Origem do peso', tipo: 'escolha', opcoes: op(['aferido', 'Aferido'], ['estimado', 'Estimado'], ['referido', 'Referido']), se: (d) => num(d.peso) },
           { nome: 'limitacao', rotulo: 'Limitação de suporte documentada pela equipe', tipo: 'escolha', opcoes: simNao },
           { nome: 'limitacaoDescricao', rotulo: 'Qual limitação', tipo: 'texto', se: (d) => d.limitacao === 'sim' },
@@ -177,26 +177,16 @@ export const BLOCOS = [
       },
       {
         id: 'infusoes', titulo: 'Infusões contínuas (controle de infusão)', copiavel: true,
-        descricao: 'Toque no medicamento para incluir. Para calcular a dose, informe a solução (quantidade e volume), a vazão e o peso (bloco 1).',
+        descricao: 'Toque no medicamento para incluir e informe a vazão. Para outro medicamento, use "+ Outra infusão".',
         campos: [
           {
             nome: 'itens', rotulo: 'Infusões em uso', tipo: 'lista', rotuloItem: 'infusão',
-            tituloItem: (i) => i.medicamento ? i.medicamento.charAt(0).toUpperCase() + i.medicamento.slice(1) : '',
+            tituloItem: (i) => (i.medicamento ? i.medicamento.charAt(0).toUpperCase() + i.medicamento.slice(1) : 'Outra infusão'),
             atalhos: ATALHOS_INFUSAO,
-            textoItem: (i, ctx) => {
-              const dose = doseInfusao({ ...i, peso: ctx.peso });
-              const sol = i.quantidade && i.volume ? ` ${String(i.quantidade).replace('.', ',')} ${i.unidadeQtd || ''} em ${i.volume} mL` : '';
-              return `${i.medicamento || 'medicamento não informado'}${i.finalidade ? ` (${(FINALIDADES[i.finalidade] || '').toLowerCase()})` : ''}${sol}${i.vazao ? ` a ${String(i.vazao).replace('.', ',')} mL/h` : ''}${dose != null ? `, dose ${fmt(dose, 3)} ${i.unidadeDose} (calculada)` : ''}`;
-            },
+            textoItem: (i) => `${i.medicamento || 'medicamento não informado'}${i.vazao ? ` a ${String(i.vazao).replace('.', ',')} mL/h` : ''}`,
             campos: [
-              { nome: 'finalidade', rotulo: 'Finalidade', tipo: 'select', opcoes: FINALIDADES },
-              { nome: 'medicamento', rotulo: 'Medicamento (nome genérico)', tipo: 'texto', sugestoes: (i) => Object.keys(MEDICAMENTOS[i.finalidade] || {}) },
-              { nome: 'quantidade', rotulo: 'Quantidade na solução', tipo: 'numero' },
-              { nome: 'unidadeQtd', rotulo: 'Unidade', tipo: 'select', opcoes: op('mg', 'mcg', 'g', 'UI') },
-              { nome: 'volume', rotulo: 'Volume total', tipo: 'numero', unidade: 'mL' },
+              { nome: 'medicamento', rotulo: 'Medicamento / solução', tipo: 'texto', ajuda: 'Use o nome genérico.' },
               { nome: 'vazao', rotulo: 'Vazão', tipo: 'numero', unidade: 'mL/h' },
-              { nome: 'unidadeDose', rotulo: 'Unidade da dose', tipo: 'select', opcoes: op(...UNIDADES_DOSE), padrao: (i) => MEDICAMENTOS[i.finalidade]?.[String(i.medicamento || '').toLowerCase().trim()] || '' },
-              { nome: 'dose', rotulo: 'Dose', tipo: 'calculado', calc: (i, ctx) => { const v = doseInfusao({ ...i, peso: ctx.peso }); return v == null ? '' : `${fmt(v, 3)} ${i.unidadeDose} — calculada, conferir`; } },
             ],
           },
         ],

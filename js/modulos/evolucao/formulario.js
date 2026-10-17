@@ -210,8 +210,11 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
         (alvo()[c.nome] || []).forEach((_, k) => {
           const corpo = h('div', { class: 'item-campos' });
           for (const sc of c.campos) corpo.append(criarCampo(sc, () => (alvo()[c.nome] || [])[k] || {}, mudou, contexto, doItens, ro));
+          const tituloPadrao = `${c.rotuloItem[0].toUpperCase()}${c.rotuloItem.slice(1)} ${k + 1}`;
+          const titulo = h('strong', {}, c.tituloItem?.((alvo()[c.nome] || [])[k] || {}) || tituloPadrao);
+          if (c.tituloItem) doItens.push(() => { titulo.textContent = c.tituloItem((alvo()[c.nome] || [])[k] || {}) || tituloPadrao; });
           itensEl.append(h('div', { class: 'item-lista' },
-            h('div', { class: 'item-topo' }, h('strong', {}, c.tituloItem?.((alvo()[c.nome] || [])[k] || {}) || `${c.rotuloItem[0].toUpperCase()}${c.rotuloItem.slice(1)} ${k + 1}`),
+            h('div', { class: 'item-topo' }, titulo,
               !ro && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => {
                 const novos = [...(alvo()[c.nome] || [])];
                 novos.splice(k, 1);

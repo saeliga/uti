@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { glasgow, camIcu, bps, evn } from '../js/regras/escalas.js';
-import { pam, checarSinal, diureseReal, debitoUrinario, doseInfusao } from '../js/regras/calculos.js';
+import { pam, checarSinal, diureseReal, debitoUrinario } from '../js/regras/calculos.js';
 import { diaAssistencial, diaAnterior, turnoDe, idEvolucao } from '../js/regras/turnos.js';
 import { validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, textoParaPEP, pendenciasAbertas } from '../js/regras/evolucao.js';
 import { BLOCOS } from '../js/regras/evolucao-esquema.js';
@@ -46,19 +46,6 @@ test('PAM, faixas, diurese real e débito', () => {
   assert.equal(debitoUrinario(600, 60, 10), 1);
 });
 
-test('dose de infusão', () => {
-  // noradrenalina 4 mg em 250 mL a 15 mL/h, 70 kg → 0,057 mcg/kg/min
-  assert.equal(doseInfusao({ quantidade: 4, unidadeQtd: 'mg', volume: 250, vazao: 15, peso: 70, unidadeDose: 'mcg/kg/min' }), 0.057);
-  // fentanil 2500 mcg em 50 mL a 2 mL/h → 100 mcg/h
-  assert.equal(doseInfusao({ quantidade: 2500, unidadeQtd: 'mcg', volume: 50, vazao: 2, unidadeDose: 'mcg/h' }), 100);
-  // midazolam 150 mg em 150 mL a 5 mL/h → 5 mg/h
-  assert.equal(doseInfusao({ quantidade: 150, unidadeQtd: 'mg', volume: 150, vazao: 5, unidadeDose: 'mg/h' }), 5);
-  // insulina 100 UI em 100 mL a 3 mL/h → 3 UI/h
-  assert.equal(doseInfusao({ quantidade: 100, unidadeQtd: 'UI', volume: 100, vazao: 3, unidadeDose: 'UI/h' }), 3);
-  assert.equal(doseInfusao({ quantidade: 4, unidadeQtd: 'mg', volume: 250, vazao: 15, unidadeDose: 'mcg/kg/min' }), null, 'sem peso');
-  assert.equal(doseInfusao({ quantidade: 100, unidadeQtd: 'UI', volume: 100, vazao: 3, unidadeDose: 'mg/h' }), null, 'unidades incompatíveis');
-});
-
 test('dia assistencial: das 07h às 07h; uma evolução por dia', () => {
   assert.equal(diaAssistencial(new Date(2026, 9, 16, 7, 0)), '2026-10-16');
   assert.equal(diaAssistencial(new Date(2026, 9, 16, 22, 0)), '2026-10-16');
@@ -85,7 +72,7 @@ function evolucaoCompleta() {
       dor: { escala: 'bps', bpsFacial: '2', bpsMembros: '2', bpsVentilacao: '2', conduta: ['farmacologica'] },
       respiratorio: { suporte: 'vmi_tot', modo: 'PCV', peep: '8', fio2: '40', cuff: '25' },
       hemodinamica: { ritmo: 'sinusal' },
-      infusoes: { itens: [{ finalidade: 'vasopressor', medicamento: 'noradrenalina', quantidade: '4', unidadeQtd: 'mg', volume: '250', vazao: '15', unidadeDose: 'mcg/kg/min' }] },
+      infusoes: { itens: [{ medicamento: 'noradrenalina', vazao: '15' }, { medicamento: 'propofol', vazao: '12' }] },
       renal: { modo: 'cvd', volume: '600', horas: '6' },
       pele: { inspecao: 'Pele íntegra' },
       dispositivos: { itens: [{ tipo: 'cvc', local: 'Jugular direita', insercao: '2026-10-13', necessario: 'sim' }, { tipo: 'avp', local: 'Antebraço' }] },
@@ -111,13 +98,15 @@ test('validação para finalizar: obrigatórios e pendências automáticas', () 
   assert.ok(!validarFinalizacao(v).erros.some((e) => e.startsWith('Neurológico')), 'confirmado sem alteração dispensa os campos');
 });
 
-test('formulário: sem medidas preventivas e sem tendência; infusões com atalhos da folha', () => {
+test('formulário: sem medidas preventivas e sem tendência; infusões só com medicamento e vazão', () => {
   const ids = BLOCOS.flatMap((b) => b.subblocos.map((x) => x.id));
   assert.ok(!ids.includes('prevencao'), 'medidas preventivas ficam no Processo de Enfermagem');
   assert.ok(ids.includes('infusoes'));
   const campos = BLOCOS.flatMap((b) => b.subblocos.flatMap((x) => x.campos.map((c) => c.nome)));
   assert.ok(!campos.includes('tendencia'));
   const atalhos = BLOCOS.flatMap((b) => b.subblocos).find((x) => x.id === 'infusoes').campos[0].atalhos.map((a) => a.item.medicamento);
+  const inf = BLOCOS.flatMap((b) => b.subblocos).find((x) => x.id === 'infusoes').campos[0];
+  assert.deepEqual(inf.campos.map((c) => c.nome), ['medicamento', 'vazao']);
   for (const m of ['hidratação venosa', 'midazolam', 'fentanil', 'soro glicosado 10%', 'insulina regular', 'amiodarona', 'noradrenalina', 'dobutamina', 'dopamina', 'nitroprussiato', 'nitroglicerina']) assert.ok(atalhos.includes(m), m);
 });
 
@@ -140,11 +129,10 @@ test('texto para o PEP: seções, cálculos e só siglas do manual da Liga', () 
   assert.match(t, /pressão arterial: 96x58 mmHg/);
   assert.match(t, /PAM: 71 mmHg/);
   assert.match(t, /SINAIS VITAIS \(08:00\)/);
-  assert.match(t, /noradrenalina \(vasopressor\) 4 mg em 250 mL a 15 mL\/h, dose 0,057 mcg\/kg\/min/);
+  assert.match(t, /INFUSÕES CONTÍNUAS: 1\) noradrenalina a 15 mL\/h; 2\) propofol a 12 mL\/h\./);
   assert.match(t, /Glasgow: 5T/);
   assert.match(t, /SpO2: 94 %/);
   assert.match(t, /pupilas: isocóricas, direita 3 mm/);
-  assert.match(t, /0,057 mcg\/kg\/min/);
   assert.match(t, /DIA 16\/10\/2026 \(TURNO DA MANHÃ\)/);
   assert.match(t, /Alergias: Dipirona/);
   assert.match(t, /PENDÊNCIAS IDENTIFICADAS PELO SISTEMA/);
