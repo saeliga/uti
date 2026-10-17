@@ -44,3 +44,6 @@ export function buscaComPausa(fn, ms = 450) {
       t = setTimeout(() => fn(...args).then(resolve, reject), ms);
     });
 }
+
+/** Sugestão do Processo de Enfermagem pela IA (não usa cache: cada pedido é novo). */
+export const sugerirPE = (resumo) => chamar('ia.sugerirSAE', { resumo }, { tempoMs: 120000 });

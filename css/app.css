@@ -311,3 +311,53 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
   .impressao-assinatura { margin-top: 36px; text-align: center; }
   @page { size: A4; margin: 15mm; }
 }
+
+/* ---------- Processo de Enfermagem (blocos 3 a 5) ---------- */
+.sae { display: flex; flex-direction: column; gap: 14px; }
+.sae input[type=text], .sae input[type=search], .sae select, .sae textarea,
+.janela input[type=search], .janela textarea {
+  min-height: var(--toque); padding: 8px 10px; border: 1px solid #c5c6cb; border-radius: 8px; font: 15px var(--fonte-texto); width: 100%; background: #fff;
+}
+.sae select { width: auto; min-height: 36px; padding: 4px 8px; }
+.sae-topo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sae-topo .situacao { margin-right: auto; font-weight: 600; }
+.sae-status-concluido { color: var(--liga-verde-petroleo); }
+.sae-status-sugerido, .sae-status-pendente { color: var(--ui-ia); }
+.sae-status-em_revisao, .sae-status-nao_iniciado { color: #8a3a22; }
+.btn-ia { background: var(--ui-ia); color: #fff; }
+.btn-ia:hover { filter: brightness(1.1); }
+.etiqueta-ia { background: var(--ui-ia); color: #fff; font-size: 12px; font-weight: 600; border-radius: 4px; padding: 2px 8px; }
+.sae-sugestoes { display: flex; flex-direction: column; gap: 10px; }
+.sae-sugestao { border: 2px dashed var(--ui-ia); background: #f6f1fa; border-radius: var(--raio); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.sae-sug-topo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 15px; }
+.sae-just { margin: 0; font-style: italic; }
+.sae-decididas summary { cursor: pointer; color: #6b6b70; }
+.sae-diagnostico { background: #fff; border: 1px solid var(--ui-borda); border-left: 5px solid var(--ui-acao); border-radius: var(--raio); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--sombra); }
+.sae-diagnostico.resolvido { border-left-color: #9a9aa0; opacity: .85; }
+.sae-diagnostico.a-confirmar { border-left-color: #c77700; }
+.sae-diag-topo { display: flex; gap: 10px; align-items: flex-start; }
+.sae-prioridade { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--ui-acao); color: #fff; display: grid; place-items: center; font-weight: 700; }
+.sae-diag-titulo { flex: 1; display: flex; flex-direction: column; }
+.sae-ordem { display: flex; gap: 2px; }
+.sae-confirmar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sae-enunciado { margin: 0; font-size: 14px; }
+.sae-secao { border-top: 1px solid var(--ui-borda); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.sae-secao h4 { margin: 0; font-size: 14px; color: var(--ui-texto-forte); }
+.sae-noc, .sae-nic { background: var(--ui-superficie); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+.sae-noc-topo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sae-indicador, .sae-atividade { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px dashed var(--ui-borda); font-size: 14px; }
+.sae-ind-linha { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.sae-ind-linha .mini { display: flex; gap: 6px; align-items: center; font-size: 13px; color: #6b6b70; }
+.sae-concluir { display: flex; justify-content: flex-end; }
+.sae-subtitulo { font-weight: 600; font-size: 13px; margin-top: 6px; color: #6b6b70; }
+.sae-item { align-items: flex-start; min-height: 36px; font-size: 14px; }
+.sae-item input { flex: none; margin-top: 2px; }
+.sae-sugerido { color: var(--ui-ia); font-size: 12px; }
+.sae-lista-marcar { display: flex; flex-direction: column; max-height: 50vh; overflow: auto; }
+.sae-resultados { display: flex; flex-direction: column; gap: 6px; max-height: 55vh; overflow: auto; }
+.sae-resultado { text-align: left; background: #fff; border: 1px solid var(--ui-borda); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; font: 14px var(--fonte-texto); }
+.sae-resultado:hover:not(:disabled) { border-color: var(--ui-acao); }
+.sae-resultado:disabled { cursor: default; opacity: .6; }
+.sae-resultado span { color: #6b6b70; font-size: 13px; }
+.leito-pe { font-weight: 600; }
+.secao:has(> .sae-item) { gap: 0; }

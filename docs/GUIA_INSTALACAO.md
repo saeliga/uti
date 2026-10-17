@@ -98,7 +98,7 @@ Por isso:
 3. Volte ao **Editor**:
    - abra `appsscript.json`, apague tudo e cole o conteúdo de `apps-script/appsscript.json`;
    - renomeie `Código.gs` para `Codigo` e cole o conteúdo de `apps-script/Codigo.gs`;
-   - crie os arquivos `Catalogo` e `Groq` (**+ → Script**) e cole os conteúdos correspondentes;
+   - crie os arquivos `Catalogo`, `Groq` e `SAE` (**+ → Script**) e cole os conteúdos correspondentes;
    - do pacote restrito, crie um arquivo para cada `Dados_*.gs`, com o mesmo nome sem o `.gs`, e cole cada conteúdo. São seis: `Dados_Indice`, `Dados_nanda_1`, `Dados_noc_1`, `Dados_nic_1`, `Dados_nic_2` e `Dados_ligacoes_1`. Os de dados são uma linha enorme de letras: é o catálogo comprimido, e é assim mesmo.
 4. **Configurações do projeto → Propriedades do script → Adicionar propriedade**:
    - `FIREBASE_PROJECT_ID` = o ID do passo 1;
@@ -159,6 +159,25 @@ Como funciona a evolução:
 - **Isolamento:** toque na etiqueta de precaução no topo da evolução para alterar o tipo e o motivo. A mudança vale para a internação e aparece no painel.
 - **Ao publicar a 0.2.1**, publique de novo o `firestore.rules` (a identificação da evolução mudou de turno para dia).
 - **Finalizar e copiar ao PEP:** finalize a evolução, use "Copiar para o PEP" e, depois de colar no PEP, marque "Já colei no PEP". Se precisar corrigir uma evolução finalizada, use "Retificar". A versão anterior fica guardada.
+
+## 11.1 Ao publicar a versão 0.3.0 (Processo de Enfermagem)
+
+**Antes do merge**, atualize o Apps Script (não precisa mexer nas regras do Firestore):
+
+1. No editor do Apps Script, crie o arquivo `SAE` (**+ → Script**) e cole o conteúdo de `apps-script/SAE.gs`.
+2. Abra `Codigo` e cole de novo o conteúdo de `apps-script/Codigo.gs` (ganhou a ação `ia.sugerirSAE`).
+3. **Implantar → Gerenciar implantações → lápis → Versão: Nova versão → Implantar.** A URL continua a mesma.
+
+Como funciona o Processo de Enfermagem (aba "3 a 5" da evolução):
+
+- **Sugerir PE com IA:** envia à IA um resumo da avaliação **sem nome, registro, data de nascimento nem leito** (a narrativa e as pendências, que são texto livre, também ficam de fora). Leva até 1 a 2 minutos; dá para continuar a evolução enquanto isso. Quando chega, o sistema pergunta: **Revisar agora** ou **Deixar para depois** (o painel mostra "PE pendente").
+- **A IA só sugere:** escolhe diagnósticos da lista com ligações aprovadas e marca evidências pelos itens oficiais. Nada entra no plano sem o enfermeiro tocar em **Aceitar**, **Revisar evidências e aceitar** ou **Descartar**. O sistema guarda se cada diagnóstico veio da IA sem edição, da IA com edição ou do enfermeiro (dado para a pesquisa).
+- **Biblioteca NANDA-I:** busca por título ou código. Diagnósticos sem NOC/NIC na tabela de ligações aparecem, mas não podem ser escolhidos.
+- **Evidências:** mínimo de 1 característica definidora e 1 fator relacionado (foco no problema) ou 1 fator de risco (risco). Diagnóstico de risco não aceita característica definidora.
+- **NOC e NIC:** só os ligados ao diagnóstico. Os indicadores sugeridos pela tabela vêm marcados. Cada indicador recebe meta e a pontuação de hoje (1 a 5 ou "não avaliado"); cada atividade recebe Realizado, Não realizado (com justificativa) ou Não se aplica.
+- **Dia seguinte:** os diagnósticos ativos passam para a evolução do dia seguinte com os mesmos NOC/NIC. É preciso confirmar cada um ("Continua ativo" ou "Resolvido") e pontuar de novo; a pontuação de ontem aparece como "anterior".
+- **Concluir PE** confere tudo. A evolução só pode ser finalizada com o PE concluído, e o texto do PE entra no "Copiar para o PEP" logo depois da avaliação.
+- **Sem internet:** a sugestão da IA e a biblioteca precisam de conexão; o restante da evolução continua salvando no aparelho.
 
 ## 12. Publicar uma versão nova
 

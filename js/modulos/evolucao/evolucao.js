@@ -1,4 +1,4 @@
-// Tela da evolução de enfermagem (blocos 1, 2 e 6; blocos 3 a 5 chegam com a SAE).
+// Tela da evolução de enfermagem: bloco 2 (avaliação), blocos 3 a 5 (Processo de Enfermagem) e bloco 6.
 // Um rascunho por paciente e turno, salvo por subbloco enquanto se digita.
 
 import { backend } from '../../dados/backend.js';
@@ -13,6 +13,8 @@ import { diaAssistencial, diaAnterior, rotuloDia, idEvolucao, turnoDe, TURNOS } 
 import { agoraLocalISO, formatarData, formatarDataHora, idade, contagemDia } from '../../regras/datas.js';
 import { ISOLAMENTOS } from '../../regras/opcoes.js';
 import { formularioSubbloco } from './formulario.js';
+import { painelSAE } from '../sae/sae.js';
+import { planoParaNovoDia, resumoParaIA } from '../../regras/sae.js';
 
 const horaAgora = () => agoraLocalISO().slice(11, 16);
 // Redesenha a tela pelo roteador (sem recarregar a página: no modo demonstração, recarregar apagaria tudo).
@@ -45,9 +47,12 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     if (!ev) {
       if (internacao.status !== 'ativa' || !podeEditar()) throw new Error('Não há evolução registrada neste dia.');
       const herdadas = pendenciasAbertas(anterior).map((p) => ({ ...p, herdada: true }));
+      const dados = {};
+      if (herdadas.length) dados.pendencias = { itens: herdadas };
+      // O plano de cuidados do dia anterior continua, para ser confirmado e pontuado de novo.
+      if (anterior?.dados?.sae?.diagnosticos?.length) dados.sae = planoParaNovoDia(anterior.dados.sae);
       ev = await backend.abrirEvolucao(id, {
-        internacaoId, unidade: internacao.unidade, leitoId: internacao.leitoId, data: dia, turnoInicio: turnoDe(),
-        dados: herdadas.length ? { pendencias: { itens: herdadas } } : {},
+        internacaoId, unidade: internacao.unidade, leitoId: internacao.leitoId, data: dia, turnoInicio: turnoDe(), dados,
       });
     }
   } catch (e) {
@@ -141,6 +146,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     for (const b of navegacao.children) b.setAttribute('aria-current', String(b.dataset.id === bid));
     for (const s of corpo.children) s.hidden = s.dataset.bloco !== bid;
     if (bid === 'fim') desenharFim();
+    if (bid === 'b345') formularios.sae?.atualizar();
     window.scrollTo({ top: 0 });
   }
   for (const [bid, t] of ABAS) navegacao.append(h('button', { type: 'button', class: 'evo-aba', dataset: { id: bid }, onclick: () => abrirBloco(bid) }, t));
@@ -249,10 +255,35 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
       h('h2', {}, b.titulo), b.descricao && h('p', { class: 'ajuda' }, b.descricao),
       ...b.subblocos.map(cartaoSubbloco), navegacaoRodape(b.id)));
   }
+  // Blocos 3 a 5: Processo de Enfermagem. Fica em dados.sae, salvo como mais um "subbloco".
+  const textoParaIA = () => {
+    const dados = evolucaoAtual().dados;
+    const partes = BLOCOS.flatMap((b) => b.subblocos)
+      .filter((s) => !['narrativa', 'pendencias'].includes(s.id)) // texto livre pode conter nomes
+      .map((s) => [s.titulo, resumoSubbloco(s.id, dados, ev.data)])
+      .filter(([, t]) => t)
+      .map(([t, r]) => `${t}: ${r}.`);
+    const iso = internacao.isolamento?.tipo;
+    return resumoParaIA({
+      idade: idade(p.dataNascimento, ev.data),
+      diagnosticoMedico: internacao.diagnosticoMedico,
+      comorbidades: internacao.comorbidades,
+      isolamento: iso && iso !== 'padrao' ? ISOLAMENTOS[iso] : '',
+      textoSubblocos: partes.join('\n'),
+    });
+  };
+  const sae = painelSAE({
+    dados: ev.dados?.sae,
+    somenteLeitura: ro(),
+    dadosEvolucao: () => evolucaoAtual().dados,
+    resumoIA: textoParaIA,
+    aoMudar: (_, { imediato }) => agendarSalvar('sae', imediato),
+  });
+  formularios.sae = sae;
   corpo.append(h('section', { class: 'evo-bloco', dataset: { bloco: 'b345' }, hidden: true },
-    h('h2', {}, '3 a 5. Problemas, cuidados e resposta'),
-    h('div', { class: 'detalhe-proximos' },
-      h('p', {}, 'Diagnósticos de enfermagem, NIC realizadas e indicadores NOC entram na próxima entrega, junto com a sugestão do Processo de Enfermagem pela IA e a biblioteca NANDA-I.')),
+    h('h2', {}, '3 a 5. Processo de Enfermagem'),
+    h('p', { class: 'ajuda' }, 'Diagnósticos (NANDA-I), resultados (NOC) e intervenções (NIC) somente das ligações aprovadas. A IA sugere; o enfermeiro decide cada item.'),
+    h('div', { dataset: { sub: 'sae' } }, sae.el),
     navegacaoRodape('b345')));
   const fim = h('section', { class: 'evo-bloco', dataset: { bloco: 'fim' }, hidden: true });
   corpo.append(fim);
