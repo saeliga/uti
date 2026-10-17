@@ -361,3 +361,6 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .sae-resultado span { color: #6b6b70; font-size: 13px; }
 .leito-pe { font-weight: 600; }
 .secao:has(> .sae-item) { gap: 0; }
+.sae-preenchendo { display: flex; align-items: center; gap: 8px; color: var(--ui-ia); font-size: 14px; margin: 0; }
+.sae-preenchendo .giro { width: 14px; height: 14px; border-width: 2px; border-top-color: var(--ui-ia); }
+.etiqueta-mini { font-size: 10px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }

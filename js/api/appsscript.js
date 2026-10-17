@@ -22,6 +22,9 @@ const MENSAGENS = {
   tempo_esgotado: 'O servidor demorou para responder. Tente de novo.',
   sem_conexao: 'Sem conexão com o servidor. Confira o Wi-Fi.',
   nao_configurado: 'O endereço do Apps Script ainda não foi configurado.',
+  resumo_insuficiente: 'A avaliação ainda tem poucos dados para a IA.',
+  ia_resposta_invalida: 'A IA respondeu fora do formato. Tente de novo.',
+  fora_das_ligacoes: 'Esta intervenção não está ligada ao diagnóstico.',
 };
 
 export async function chamar(acao, dados = {}, { tempoMs = 30000 } = {}) {

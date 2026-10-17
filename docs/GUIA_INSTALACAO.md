@@ -174,10 +174,13 @@ Como funciona o Processo de Enfermagem (aba "3 a 5" da evolução):
 - **A IA só sugere:** escolhe diagnósticos da lista com ligações aprovadas e marca evidências pelos itens oficiais. Nada entra no plano sem o enfermeiro tocar em **Aceitar**, **Revisar evidências e aceitar** ou **Descartar**. O sistema guarda se cada diagnóstico veio da IA sem edição, da IA com edição ou do enfermeiro (dado para a pesquisa).
 - **Biblioteca NANDA-I:** busca por título ou código. Diagnósticos sem NOC/NIC na tabela de ligações aparecem, mas não podem ser escolhidos.
 - **Evidências:** mínimo de 1 característica definidora e 1 fator relacionado (foco no problema) ou 1 fator de risco (risco). Diagnóstico de risco não aceita característica definidora.
+- **Resultados e intervenções por padrão (desde a 0.3.1):** ao entrar no plano, o diagnóstico já traz o NOC principal da tabela de ligações, com os indicadores sugeridos, e a NIC principal, com 3 a 6 atividades escolhidas pela IA entre as oficiais (marcadas com a etiqueta "IA"). O enfermeiro só ajusta: retira, acrescenta os complementares ou troca atividades. Se a IA não responder, a lista de atividades fica para escolher à mão.
 - **NOC e NIC:** só os ligados ao diagnóstico. Os indicadores sugeridos pela tabela vêm marcados. Cada indicador recebe meta e a pontuação de hoje (1 a 5 ou "não avaliado"); cada atividade recebe Realizado, Não realizado (com justificativa) ou Não se aplica.
 - **Dia seguinte:** os diagnósticos ativos passam para a evolução do dia seguinte com os mesmos NOC/NIC. É preciso confirmar cada um ("Continua ativo" ou "Resolvido") e pontuar de novo; a pontuação de ontem aparece como "anterior".
 - **Concluir PE** confere tudo. A evolução só pode ser finalizada com o PE concluído, e o texto do PE entra no "Copiar para o PEP" logo depois da avaliação.
 - **Sem internet:** a sugestão da IA e a biblioteca precisam de conexão; o restante da evolução continua salvando no aparelho.
+
+**Ao publicar a 0.3.1:** cole de novo `SAE.gs` e `Codigo.gs` no Apps Script (nova ação `ia.sugerirAtividades`) e publique **Nova versão** em Gerenciar implantações, antes do merge.
 
 ## 12. Publicar uma versão nova
 

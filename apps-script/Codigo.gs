@@ -41,7 +41,8 @@ function acoes_() {
     'catalogo.noc.detalhe': { fn: catalogoDetalheNoc_, perfis: CLINICOS },
     'catalogo.nic.detalhe': { fn: catalogoDetalheNic_, perfis: CLINICOS },
     'ia.teste': { fn: iaTeste_, perfis: ADMIN },
-    'ia.sugerirSAE': { fn: iaSugerirSAE_, perfis: CLINICOS }
+    'ia.sugerirSAE': { fn: iaSugerirSAE_, perfis: CLINICOS },
+    'ia.sugerirAtividades': { fn: iaSugerirAtividades_, perfis: CLINICOS }
   };
 }
 
