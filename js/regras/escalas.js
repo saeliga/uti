@@ -30,11 +30,13 @@ export const camAplicavel = (rass) => rass !== '' && rass != null && Number(rass
  * curso flutuante E (2) desatenção E [(3) nível de consciência alterado (RASS ≠ 0)
  * OU (4) pensamento desorganizado]. Só se aplica com RASS ≥ −3.
  */
-export function camIcu({ rass, agudo, desatencao, desorganizado } = {}) {
-  if (!camAplicavel(rass)) return { aplicavel: false, resultado: 'nao_aplicavel' };
+export function camIcu({ rass, agudo, desatencao, desorganizado, aplicavel, nivelAlterado } = {}) {
+  // Sem sedação, o RASS não é registrado: quem informa aplicabilidade e o nível
+  // de consciência (critério 3) é o campo "Nível de consciência".
+  if (!(aplicavel ?? camAplicavel(rass))) return { aplicavel: false, resultado: 'nao_aplicavel' };
   if (agudo === 'nao' || desatencao === 'nao') return { aplicavel: true, resultado: 'negativo' };
   if (!agudo || !desatencao) return { aplicavel: true, resultado: '' };
-  const nivel = Number(rass) !== 0;
+  const nivel = nivelAlterado ?? Number(rass) !== 0;
   if (nivel || desorganizado === 'sim') return { aplicavel: true, resultado: 'positivo' };
   if (desorganizado === 'nao') return { aplicavel: true, resultado: 'negativo' };
   return { aplicavel: true, resultado: '' };

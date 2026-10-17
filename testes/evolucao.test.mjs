@@ -6,7 +6,7 @@ import { glasgow, camIcu, bps, evn } from '../js/regras/escalas.js';
 import { pam, checarSinal, diureseReal, debitoUrinario } from '../js/regras/calculos.js';
 import { diaAssistencial, diaAnterior, turnoDe, idEvolucao } from '../js/regras/turnos.js';
 import { validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, textoParaPEP, pendenciasAbertas } from '../js/regras/evolucao.js';
-import { BLOCOS } from '../js/regras/evolucao-esquema.js';
+import { BLOCOS, camDe, visivel, contextoEvolucao } from '../js/regras/evolucao-esquema.js';
 
 test('Glasgow com verbal não testável (T)', () => {
   assert.deepEqual(glasgow({ ocular: 4, verbal: 5, motora: 6 }).texto, '15');
@@ -66,14 +66,14 @@ function evolucaoCompleta() {
   return {
     data: '2026-10-16', turnoInicio: 'M', status: 'rascunho', versao: 1,
     dados: {
-      contexto: { peso: '70' },
+      cuidado: { limitacao: 'nao', objetivos: 'curativo' },
       sinais: { horario: '08:00', estadoGeral: 'grave', t: '37,8', fc: '112', fr: '24', pas: '96', pad: '58', spo2: '94', hgt: '180' },
-      neuro: { consciencia: 'sedado', gOcular: '1', gVerbal: 'T', gMotora: '4', rass: '-4', metaRass: '-3', pupilaD: '3', pupilaE: '3', fotoD: 'presente', fotoE: 'presente' },
+      neuro: { consciencia: 'sedado', rass: '-4', metaRass: '-3', pupilas: 'isocoricas', fotoD: 'presente', fotoE: 'presente' },
       dor: { escala: 'bps', bpsFacial: '2', bpsMembros: '2', bpsVentilacao: '2', conduta: ['farmacologica'] },
       respiratorio: { suporte: 'vmi_tot', modo: 'PCV', peep: '8', fio2: '40', cuff: '25' },
       hemodinamica: { ritmo: 'sinusal' },
       infusoes: { itens: [{ medicamento: 'noradrenalina', vazao: '15' }, { medicamento: 'propofol', vazao: '12' }] },
-      renal: { modo: 'cvd', volume: '600', horas: '6' },
+      renal: { modo: 'cvd', volume: '600', horas: '6', peso: '70' },
       pele: { inspecao: 'Pele íntegra' },
       dispositivos: { itens: [{ tipo: 'cvc', local: 'Jugular direita', insercao: '2026-10-13', necessario: 'sim' }, { tipo: 'avp', local: 'Antebraço' }] },
       pendencias: { itens: [{ descricao: 'Coletar hemocultura', situacao: 'aberta' }, { descricao: 'Trocar curativo', situacao: 'resolvida' }] },
@@ -110,6 +110,28 @@ test('formulário: sem medidas preventivas e sem tendência; infusões só com m
   for (const m of ['hidratação venosa', 'midazolam', 'fentanil', 'soro glicosado 10%', 'insulina regular', 'amiodarona', 'noradrenalina', 'dobutamina', 'dopamina', 'nitroprussiato', 'nitroglicerina']) assert.ok(atalhos.includes(m), m);
 });
 
+test('neurológico: RASS só sob sedação, Glasgow nos demais; delirium também sem sedação', () => {
+  const neuro = BLOCOS.flatMap((b) => b.subblocos).find((x) => x.id === 'neuro');
+  const campo = (n) => neuro.campos.find((c) => c.nome === n);
+  const ctx = contextoEvolucao({}, '2026-10-16');
+  assert.ok(visivel(campo('rass'), { consciencia: 'sedado' }, ctx));
+  assert.ok(!visivel(campo('gOcular'), { consciencia: 'sedado' }, ctx));
+  assert.ok(visivel(campo('gOcular'), { consciencia: 'alerta' }, ctx));
+  assert.ok(!visivel(campo('rass'), { consciencia: 'alerta' }, ctx));
+  assert.ok(!neuro.campos.some((c) => ['pupilaD', 'pupilaE', 'suporte'].includes(c.nome)));
+  assert.equal(camDe({ consciencia: 'alerta', camAgudo: 'sim', camDesatencao: 'sim', camDesorganizado: 'sim' }).resultado, 'positivo');
+  assert.equal(camDe({ consciencia: 'sonolento', camAgudo: 'sim', camDesatencao: 'sim' }).resultado, 'positivo', 'sonolento = nível alterado');
+  assert.equal(camDe({ consciencia: 'comatoso' }).resultado, 'nao_aplicavel');
+  assert.equal(camDe({ consciencia: 'sedado', rass: '-4' }).resultado, 'nao_aplicavel');
+});
+
+test('sem bloco 1; limitação de suporte e objetivo de cuidado na avaliação', () => {
+  assert.ok(!BLOCOS.some((b) => b.id === 'b1'));
+  const ids = BLOCOS.flatMap((b) => b.subblocos.map((x) => x.id));
+  assert.equal(ids[0], 'cuidado');
+  assert.ok(!ids.includes('oncologico'));
+});
+
 test('situação no painel', () => {
   assert.equal(situacaoEvolucao(null), 'sem_evolucao');
   assert.equal(situacaoEvolucao({ status: 'rascunho', versao: 1 }), 'rascunho');
@@ -130,9 +152,11 @@ test('texto para o PEP: seções, cálculos e só siglas do manual da Liga', () 
   assert.match(t, /PAM: 71 mmHg/);
   assert.match(t, /SINAIS VITAIS \(08:00\)/);
   assert.match(t, /INFUSÕES CONTÍNUAS: 1\) noradrenalina a 15 mL\/h; 2\) propofol a 12 mL\/h\./);
-  assert.match(t, /Glasgow: 5T/);
+  assert.doesNotMatch(t, /Glasgow/, 'sedado: Glasgow não é registrado');
+  assert.match(t, /RASS: -4 Sedação profunda/);
+  assert.match(t, /débito urinário: 1,43 mL\/kg\/h/);
   assert.match(t, /SpO2: 94 %/);
-  assert.match(t, /pupilas: isocóricas, direita 3 mm/);
+  assert.match(t, /pupilas: isocóricas, fotorreação direita presente, esquerda presente/);
   assert.match(t, /DIA 16\/10\/2026 \(TURNO DA MANHÃ\)/);
   assert.match(t, /Alergias: Dipirona/);
   assert.match(t, /PENDÊNCIAS IDENTIFICADAS PELO SISTEMA/);
