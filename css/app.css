@@ -407,3 +407,23 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .disp-retirados summary { cursor: pointer; color: #6b6b70; }
 .sub-estado.herdado { background: #ece6f6; color: #4b2a7a; }
 .sub-herdado { padding: 0 14px 10px; }
+
+/* ---------- Impressos (painel) e check-list de IRAS ---------- */
+.barra-impressos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
+.barra-rotulo { font-size: 13px; font-weight: 600; color: #6b6b70; margin-right: 4px; }
+.lista-leitos-imp { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 12px; max-height: 50vh; overflow: auto; }
+.iras-topo { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
+.iras-topo .campo { min-width: 160px; }
+.iras-tabela-caixa { overflow-x: auto; background: #fff; border: 1px solid var(--ui-borda); border-radius: var(--raio); }
+.iras-tabela { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14px; }
+.iras-tabela th, .iras-tabela td { border: 1px solid var(--ui-borda); padding: 4px; text-align: center; }
+.iras-tabela td.iras-item { text-align: left; min-width: 260px; font-size: 13px; }
+.iras-tabela td.iras-item small { color: #6b6b70; }
+.iras-tabela tr.iras-sec td { background: var(--ui-superficie); font-weight: 700; text-align: left; font-size: 13px; }
+.iras-tabela tr.iras-adesao td { background: #f4f7f8; font-weight: 700; }
+.iras-cel { min-width: 44px; min-height: 40px; border-radius: 6px; border: 1px solid #c5c6cb; background: #fff; font: 700 15px var(--fonte-texto); cursor: pointer; }
+.iras-cel[data-v="1"] { background: #e7f3ef; border-color: var(--liga-verde-petroleo); color: #0b5345; }
+.iras-cel[data-v="0"] { background: var(--alerta-fundo); border-color: #b3202d; color: #9b1c27; }
+.iras-cel[data-v="NA"] { background: var(--ui-superficie); color: #6b6b70; }
+.iras-vago { color: #9a9aa0; font-weight: 700; letter-spacing: .1em; }
+.iras-resumo { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 10px 0; font-size: 14px; }

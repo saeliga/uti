@@ -327,3 +327,14 @@ export async function marcarTranscrita(id, { versao, autor, emTexto }) {
   notificarEvol();
   for (const [f, i] of obsUma) if (i === id) f();
 }
+
+// --------------------------------------------------------------------------- check-list diário de IRAS
+const checklistsIras = {};
+export async function lerChecklistIras(id) {
+  await espera(60);
+  return checklistsIras[id] ? { id, ...clone(checklistsIras[id]) } : null;
+}
+export async function salvarChecklistIras(id, dados) {
+  checklistsIras[id] = { ...clone(dados), atualizadoPor: USUARIO.uid };
+  return espera(120);
+}

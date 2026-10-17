@@ -234,6 +234,21 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------ auditoria
+    // ------------------------------------------------------------------ check-list diário de IRAS
+    // Um documento por unidade, dia assistencial e turno (marcações 1, 0 ou NA por leito).
+    match /checklistsIras/{id} {
+      function d() { return request.resource.data; }
+      allow read: if ativo() && (resource == null || naUnidade(resource.data.unidade));
+      allow create, update: if clinico() && naUnidade(d().unidade)
+        && id == d().unidade + '_' + d().data + '_' + d().turno
+        && d().data is string && d().data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d().turno in ['M', 'T', 'N']
+        && d().respostas is map
+        && d().keys().hasOnly(['unidade', 'data', 'turno', 'respostas', 'enfermeiro', 'atualizadoPor', 'atualizadoEm', 'atualizadoNo'])
+        && autoria();
+      allow delete: if false;
+    }
+
     match /auditoria/{registro} {
       allow create: if ativo()
         && request.resource.data.por == request.auth.uid

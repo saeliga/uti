@@ -2,7 +2,7 @@
 
 Sistema web para os enfermeiros das UTI 1 e 2 da Liga Contra o Câncer (Natal/RN), desenvolvido no mestrado em Enfermagem da UFRN.
 
-- **Versão atual:** 0.4.0 (exame físico ajustado, dispositivos por tipo e herança automática do dia anterior). Inclui a Entrega 3 (Processo de Enfermagem): blocos 3 a 5 com sugestão da IA (Groq) restrita às ligações NANDA-I/NOC/NIC aprovadas, biblioteca de diagnósticos, pontuação NOC, registro das atividades NIC e plano que passa para o dia seguinte.
+- **Versão atual:** 0.5.0: impressos da UTI no padrão da Liga (capa da ocorrência, ocorrências por leito na transição, balanço hídrico, check-list diário de IRAS com marcação 1/0/NA e check-lists de inserção de CVC e CVD). Versão 0.4.0: exame físico ajustado, dispositivos por tipo e herança automática do dia anterior. Inclui a Entrega 3 (Processo de Enfermagem): blocos 3 a 5 com sugestão da IA (Groq) restrita às ligações NANDA-I/NOC/NIC aprovadas, biblioteca de diagnósticos, pontuação NOC, registro das atividades NIC e plano que passa para o dia seguinte.
 - **Entrega 2 (evolução):** blocos 2 e 6 da evolução diária (07h às 07h, feita por qualquer turno), com escalas calculadas, infusões por vazão, rascunho salvo também sem Wi-Fi, finalização com retificação, "Copiar para o PEP" e impressão. Inclui a Entrega 1 (login Google com aprovação, painel de leitos, internação, administração).
 - **Próximas entregas:** prescrição de enfermagem impressa, folha de balanço hídrico, checklists e, ao final, exportador de casos anonimizados para a pesquisa.
 
@@ -32,6 +32,7 @@ js/nucleo/            interface, sessão, bloqueio por inatividade, aviso de ver
 js/dados/             acesso ao Firebase e modo demonstração
 js/api/               Apps Script e catálogos sob demanda
 js/regras/            regras clínicas puras (datas, escalas, cálculos, turnos, esquema e texto da evolução), testáveis
+js/impressos/         folhas para imprimir (modelos gerados das planilhas da Liga)
 js/modulos/           painel de leitos, internação, evolução, Processo de Enfermagem, administração
 apps-script/          código do Apps Script (sem os catálogos)
 testes/               testes automáticos (opcional; precisa de Node 20+)

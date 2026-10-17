@@ -117,6 +117,15 @@ async function rotear() {
     desmontarAtual = await telaEvolucao(conteudo, { internacaoId, data });
     return;
   }
+  if (rota.startsWith('iras/')) {
+    const unidade = unidadesPermitidas().find((u) => u.id === rota.split('/')[1]);
+    if (unidade) {
+      for (const a of document.querySelectorAll('[data-rota]')) a.classList.toggle('ativa', a.dataset.rota === unidade.id);
+      const { telaIras } = await import('./modulos/iras/iras.js');
+      desmontarAtual = await telaIras(conteudo, unidade);
+      return;
+    }
+  }
   if (rota === 'admin' && p.perfil === 'admin') {
     const { telaAdmin } = await import('./modulos/admin/admin.js');
     desmontarAtual = await telaAdmin(conteudo, { aoMudarUnidades: recarregarUnidades });
