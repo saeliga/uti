@@ -2,7 +2,7 @@
 
 Sistema web para os enfermeiros das UTI 1 e 2 da Liga Contra o Câncer (Natal/RN), desenvolvido no mestrado em Enfermagem da UFRN.
 
-- **Versão atual:** 0.2.0, Entrega 2 (evolução): blocos 1, 2 e 6 da evolução por turno, com escalas calculadas, rascunho salvo também sem Wi-Fi, finalização com retificação, "Copiar para o PEP" e impressão. Inclui a Entrega 1 (login Google com aprovação, painel de leitos, internação, administração).
+- **Versão atual:** 0.2.1, Entrega 2 (evolução): blocos 1, 2 e 6 da evolução diária (07h às 07h, feita por qualquer turno), com escalas calculadas, rascunho salvo também sem Wi-Fi, finalização com retificação, "Copiar para o PEP" e impressão. Inclui a Entrega 1 (login Google com aprovação, painel de leitos, internação, administração).
 - **Próximas entregas:** Processo de Enfermagem com IA (blocos 3 a 5), prescrição de enfermagem impressa, folha de balanço hídrico, checklists e, ao final, exportador de casos anonimizados para a pesquisa.
 
 ## Como funciona

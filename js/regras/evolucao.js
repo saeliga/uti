@@ -4,7 +4,7 @@
 import { BLOCOS, SUBBLOCOS, contextoEvolucao, visivel, dorDe, ESTADOS_MEDIDA, TIPOS_DISPOSITIVO } from './evolucao-esquema.js';
 import { checarSinal, num } from './calculos.js';
 import { formatarData, formatarDataHora, idade, contagemDia } from './datas.js';
-import { rotuloTurno } from './turnos.js';
+import { rotuloDia, TURNOS } from './turnos.js';
 import { ISOLAMENTOS } from './opcoes.js';
 
 const vazio = (v) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
@@ -70,7 +70,7 @@ export function situacaoEvolucao(ev) {
 }
 
 export const ROTULO_SITUACAO = {
-  sem_evolucao: 'Evolução não iniciada',
+  sem_evolucao: 'Evolução do dia não iniciada',
   rascunho: 'Evolução em andamento',
   finalizada: 'Finalizada · falta copiar ao PEP',
   transcrita: 'Transcrita ao PEP',
@@ -102,7 +102,7 @@ function valorCampo(c, d, ctx) {
 }
 
 /** Rótulo no meio da frase: primeira letra minúscula, mas siglas ficam como estão (FC, SpO2, RASS). */
-const NOMES_PROPRIOS = /^(Glasgow|Braden|Morse)\b/;
+const NOMES_PROPRIOS = /^(Glasgow)\b/;
 const rotuloMin = (r) => {
   const primeira = r.split(/[\s—-]/)[0];
   if (NOMES_PROPRIOS.test(r) || /[A-Z0-9]/.test(primeira.slice(1))) return r; // sigla (FC, SpO2, RASS) ou nome de escala
@@ -123,7 +123,7 @@ function partesSubbloco(s, d, ctx) {
     partes.push(`pupilas: ${sim}direita ${d.pupilaD || '?'} mm (fotorreação ${d.fotoD || 'não registrada'}), esquerda ${d.pupilaE || '?'} mm (fotorreação ${d.fotoE || 'não registrada'})`);
   }
   for (const c of s.campos) {
-    if (OMITIR.has(c.nome) || c.nome.startsWith('br_') || c.nome.startsWith('mo_')) continue;
+    if (OMITIR.has(c.nome)) continue;
     if (!visivel(c, d, ctx)) continue;
     const t = limpar(valorCampo(c, d, ctx)).replace(/\.$/, '');
     if (t) partes.push(unico ? t : `${rotuloMin(c.rotulo)}: ${t}`);
@@ -142,7 +142,7 @@ function textoSubbloco(s, ev, ctx) {
   const d = ev.dados?.[s.id] || {};
   const partes = partesSubbloco(s, d, ctx);
   const conf = ev.confirmados?.[s.id];
-  if (conf && !partes.length) partes.push('sem alteração em relação ao turno anterior');
+  if (conf && !partes.length) partes.push('sem alteração em relação à evolução anterior');
   if (conf) partes.push(`confirmado sem alteração às ${conf.hora}`);
   const titulo = s.titulo.toUpperCase().replace(/ \(.*\)$/, '') + (s.id === 'sinais' && d.horario ? ` (${d.horario})` : '');
   return partes.length ? `${titulo}: ${limpar(partes.join('; '))}.` : '';
@@ -156,7 +156,7 @@ export function textoParaPEP(ev, internacao, { unidadeNome = '', autor } = {}) {
   const ctx = contextoEvolucao(ev.dados, ev.data);
   const p = internacao.paciente;
   const linhas = [];
-  linhas.push(`EVOLUÇÃO DE ENFERMAGEM - ${unidadeNome} - LEITO ${String(internacao.leitoId).split('_')[1]} - ${rotuloTurno(ev).toUpperCase()}`);
+  linhas.push(`EVOLUÇÃO DE ENFERMAGEM - ${unidadeNome} - LEITO ${String(ev.leitoId || internacao.leitoId).split('_')[1]} - ${rotuloDia(ev.data).toUpperCase()}${ev.turnoInicio ? ` (TURNO DA ${TURNOS[ev.turnoInicio].nome.toUpperCase()})` : ''}`);
   linhas.push(`Paciente: ${p.nome}. Nascimento: ${formatarData(p.dataNascimento)} (${idade(p.dataNascimento, ev.data)} anos). Registro: ${p.registro}.`);
   const al = internacao.alergias;
   linhas.push(`Alergias: ${al?.situacao === 'possui' ? al.descricao : al?.situacao === 'nega' ? 'nega' : 'sem informação'}. Precaução: ${limpar(ISOLAMENTOS[internacao.isolamento?.tipo] || '')}${internacao.isolamento?.motivo ? ` (${internacao.isolamento.motivo})` : ''}.`);
@@ -177,7 +177,7 @@ export function textoParaPEP(ev, internacao, { unidadeNome = '', autor } = {}) {
   return linhas.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
-/** Pendências abertas de uma evolução (para levar ao turno seguinte). */
+/** Pendências abertas de uma evolução (para levar à evolução seguinte). */
 export function pendenciasAbertas(ev) {
   return (ev?.dados?.pendencias?.itens || []).filter((i) => i.descricao && i.situacao !== 'resolvida');
 }

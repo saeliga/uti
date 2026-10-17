@@ -146,10 +146,12 @@ Esta versão traz regras novas para as evoluções. **Antes do merge**, publique
 
 Como funciona a evolução:
 
-- **Abrir:** no painel, cada leito ocupado mostra a situação da evolução do turno. Toque na faixa de baixo do cartão para abrir.
-- **Turnos:** manhã das 7h às 13h, tarde das 13h às 19h e noite das 19h às 7h. Há um rascunho por paciente e turno, o mesmo no tablet e no PC.
+- **Abrir:** no painel, cada leito ocupado mostra a situação da evolução do dia. Toque na faixa de baixo do cartão para abrir.
+- **Uma evolução por dia (desde a 0.2.1):** o dia vai das 07h às 07h. Qualquer turno pode fazer a evolução; o painel mostra quantas ainda faltam (ex.: se a manhã fez 6 de 10, a tarde vê 4 pendentes). É o mesmo rascunho no tablet e no PC.
 - **Salvamento:** é automático a cada campo. Sem Wi-Fi, aparece "Salvo neste aparelho · ainda não sincronizado", e o envio acontece sozinho quando a conexão volta. Só a abertura de uma evolução nova e a retificação precisam de conexão.
-- **Turno anterior:** aparece em cada subbloco. Para reaproveitar, use "Sem alteração desde o turno anterior". Sinais vitais, dor e medidas preventivas sempre pedem valores novos.
+- **Evolução anterior:** aparece em cada subbloco. Para reaproveitar, use "Sem alteração desde a evolução anterior". Sinais vitais, dor e medidas preventivas sempre pedem valores novos.
+- **Braden e Morse** não ficam no sistema: são preenchidos e acompanhados no PEP oficial.
+- **Ao publicar a 0.2.1**, publique de novo o `firestore.rules` (a identificação da evolução mudou de turno para dia).
 - **Finalizar e copiar ao PEP:** finalize a evolução, use "Copiar para o PEP" e, depois de colar no PEP, marque "Já colei no PEP". Se precisar corrigir uma evolução finalizada, use "Retificar". A versão anterior fica guardada.
 
 ## 12. Publicar uma versão nova

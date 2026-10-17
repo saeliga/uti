@@ -9,7 +9,7 @@ import {
   validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP,
   pendenciasAbertas, resumoSubbloco, subblocoRegistrado,
 } from '../../regras/evolucao.js';
-import { turnoDe, turnoAnterior, rotuloTurno, idEvolucao, TURNOS } from '../../regras/turnos.js';
+import { diaAssistencial, diaAnterior, rotuloDia, idEvolucao, turnoDe, TURNOS } from '../../regras/turnos.js';
 import { agoraLocalISO, formatarData, formatarDataHora, idade, contagemDia } from '../../regras/datas.js';
 import { ISOLAMENTOS } from '../../regras/opcoes.js';
 import { formularioSubbloco } from './formulario.js';
@@ -19,34 +19,34 @@ const horaAgora = () => agoraLocalISO().slice(11, 16);
 const redesenhar = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
 const autor = () => ({ nome: estado.perfil.nome, coren: estado.perfil.coren });
 
-/** Procura a evolução mais recente antes do turno informado (até 2 dias para trás). */
-async function buscarAnterior(internacaoId, chave) {
-  let k = chave;
-  for (let i = 0; i < 6; i++) {
-    k = turnoAnterior(k);
-    const ev = await backend.lerEvolucao(idEvolucao(internacaoId, k)).catch(() => null);
+/** Procura a evolução mais recente antes do dia informado (até 3 dias para trás). */
+async function buscarAnterior(internacaoId, data) {
+  let d = data;
+  for (let i = 0; i < 3; i++) {
+    d = diaAnterior(d);
+    const ev = await backend.lerEvolucao(idEvolucao(internacaoId, d)).catch(() => null);
     if (ev) return ev;
   }
   return null;
 }
 
-export async function telaEvolucao(conteudo, { internacaoId, data, turno }) {
+export async function telaEvolucao(conteudo, { internacaoId, data }) {
   carregando(conteudo, 'Abrindo a evolução…');
-  const chave = data && turno ? { data, turno } : turnoDe();
-  const id = idEvolucao(internacaoId, chave);
+  const dia = data || diaAssistencial();
+  const id = idEvolucao(internacaoId, dia);
   let internacao;
   let anterior;
   let ev;
   try {
     internacao = await backend.lerInternacao(internacaoId);
     if (!internacao) throw new Error('Internação não encontrada.');
-    anterior = await buscarAnterior(internacaoId, chave);
+    anterior = await buscarAnterior(internacaoId, dia);
     ev = await backend.lerEvolucao(id);
     if (!ev) {
-      if (internacao.status !== 'ativa' || !podeEditar()) throw new Error('Não há evolução registrada neste turno.');
+      if (internacao.status !== 'ativa' || !podeEditar()) throw new Error('Não há evolução registrada neste dia.');
       const herdadas = pendenciasAbertas(anterior).map((p) => ({ ...p, herdada: true }));
       ev = await backend.abrirEvolucao(id, {
-        internacaoId, unidade: internacao.unidade, leitoId: internacao.leitoId, ...chave,
+        internacaoId, unidade: internacao.unidade, leitoId: internacao.leitoId, data: dia, turnoInicio: turnoDe(),
         dados: herdadas.length ? { pendencias: { itens: herdadas } } : {},
       });
     }
@@ -81,7 +81,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data, turno }) {
       h('div', { class: 'evo-alertas' },
         al?.situacao === 'possui' ? h('span', { class: 'chip chip-alerta' }, '⚠ ALERGIA: ', al.descricao) : h('span', { class: 'chip' }, al?.situacao === 'nega' ? 'Nega alergias' : 'Alergias: sem informação'),
         internacao.isolamento?.tipo !== 'padrao' && h('span', { class: 'chip chip-isolamento' }, ISOLAMENTOS[internacao.isolamento?.tipo]?.replace(/ \(.*\)$/, '')))),
-    h('div', { class: 'evo-turno' }, h('strong', {}, rotuloTurno(ev)), situacaoEl, indicador),
+    h('div', { class: 'evo-turno' }, h('strong', {}, rotuloDia(ev.data)), ev.turnoInicio && h('span', { class: 'ajuda' }, `iniciada no turno da ${TURNOS[ev.turnoInicio].nome.toLowerCase()}`), situacaoEl, indicador),
     avisoOutro);
 
   // ------------------------------------------------------------------ navegação por blocos
@@ -172,22 +172,22 @@ export async function telaEvolucao(conteudo, { internacaoId, data, turno }) {
       type: 'button', class: 'btn btn-secundario btn-pequeno',
       onclick: async () => {
         if (subblocoRegistrado({ dados: { [s.id]: form.dados() } }, s.id)
-          && !(await confirmar('Substituir o que já foi preenchido neste subbloco pelos dados do turno anterior?', { sim: 'Substituir' }))) return;
+          && !(await confirmar('Substituir o que já foi preenchido neste subbloco pelos dados da evolução anterior?', { sim: 'Substituir' }))) return;
         form.definirDados(anterior.dados[s.id]);
         ev.confirmados = { ...(ev.confirmados || {}), [s.id]: { hora: horaAgora(), por: estado.perfil.uid, porNome: estado.perfil.nome } };
         atualizarEstadoSub(s.id);
         for (const f of Object.values(formularios)) f.atualizar();
         agendarSalvar(s.id, true);
       },
-    }, 'Sem alteração desde o turno anterior');
+    }, 'Sem alteração desde a evolução anterior');
 
     const det = h('details', { class: 'subbloco', open: true, dataset: { sub: s.id } },
       h('summary', {}, h('span', { class: 'sub-titulo' }, s.titulo, s.obrigatorio && h('span', { class: 'obrigatorio', title: 'Obrigatório para finalizar' }, ' *')), estadosSub[s.id]),
       s.descricao && h('p', { class: 'sub-descricao' }, s.descricao),
       anterior && h('div', { class: 'sub-anterior' },
-        h('div', { class: 'sub-anterior-titulo' }, `Turno anterior (${rotuloTurno(anterior)})`),
+        h('div', { class: 'sub-anterior-titulo' }, `Evolução anterior (${rotuloDia(anterior.data)})`),
         h('div', { class: 'sub-anterior-texto' }, anteriorTexto || 'Sem registro.'),
-        s.copiavel === false && anteriorTexto && h('div', { class: 'campo-ajuda' }, 'Este subbloco precisa de valores novos a cada turno.'),
+        s.copiavel === false && anteriorTexto && h('div', { class: 'campo-ajuda' }, 'Este subbloco precisa de valores novos a cada evolução.'),
         semAlteracao),
       form.el);
     atualizarEstadoSub(s.id);

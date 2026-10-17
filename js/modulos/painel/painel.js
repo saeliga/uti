@@ -5,7 +5,7 @@ import { estado, podeEditar } from '../../nucleo/estado.js';
 import { h, limpar, carregando, aviso, confirmar, abrirJanela, campo, lerFormulario } from '../../nucleo/ui.js';
 import { contagemDia, idade, hojeISO } from '../../regras/datas.js';
 import { ISOLAMENTOS, MOTIVOS_BLOQUEIO } from '../../regras/opcoes.js';
-import { turnoDe, rotuloTurno } from '../../regras/turnos.js';
+import { diaAssistencial, rotuloDia } from '../../regras/turnos.js';
 import { situacaoEvolucao, ROTULO_SITUACAO } from '../../regras/evolucao.js';
 
 const ordenar = (a, b) => a.numero.localeCompare(b.numero, 'pt', { numeric: true });
@@ -14,8 +14,8 @@ export function telaPainel(conteudo, unidade) {
   carregando(conteudo, `Carregando leitos da ${unidade.nome}…`);
   let leitos = null;
   let evolucoes = {};
-  let turno = turnoDe();
-  const redesenhar = () => leitos && desenhar(conteudo, unidade, leitos, evolucoes, turno);
+  let dia = diaAssistencial();
+  const redesenhar = () => leitos && desenhar(conteudo, unidade, leitos, evolucoes, dia);
   const pararLeitos = backend.observarLeitos(
     unidade.id,
     (ls, meta) => {
@@ -26,21 +26,21 @@ export function telaPainel(conteudo, unidade) {
     (erro) => limpar(conteudo).append(h('p', { class: 'vazio' }, erro.message)),
   );
   let pararEvol = null;
-  const observarTurno = () => {
+  const observarDia = () => {
     pararEvol?.();
-    pararEvol = backend.observarEvolucoesTurno(unidade.id, turno, (lista) => {
+    pararEvol = backend.observarEvolucoesDia(unidade.id, dia, (lista) => {
       evolucoes = Object.fromEntries(lista.map((e) => [e.internacaoId, e]));
       redesenhar();
     });
   };
-  observarTurno();
-  // Na virada do turno, passa a mostrar a situação do novo turno.
+  observarDia();
+  // Na virada do dia assistencial (07h), passa a mostrar o novo dia.
   const relogio = setInterval(() => {
-    const t = turnoDe();
-    if (t.turno !== turno.turno || t.data !== turno.data) {
-      turno = t;
+    const d = diaAssistencial();
+    if (d !== dia) {
+      dia = d;
       evolucoes = {};
-      observarTurno();
+      observarDia();
     }
   }, 60000);
   return () => {
@@ -50,7 +50,7 @@ export function telaPainel(conteudo, unidade) {
   };
 }
 
-function desenhar(conteudo, unidade, leitos, evolucoes, turno) {
+function desenhar(conteudo, unidade, leitos, evolucoes, dia) {
   const ocupados = leitos.filter((l) => l.internacaoId);
   const bloqueados = leitos.filter((l) => l.bloqueado).length;
   const livres = leitos.length - ocupados.length - bloqueados;
@@ -66,8 +66,8 @@ function desenhar(conteudo, unidade, leitos, evolucoes, turno) {
         h('span', {}, h('strong', {}, livres), ' livres'),
         bloqueados ? h('span', {}, h('strong', {}, bloqueados), ' bloqueados') : null)),
     ocupados.length ? h('div', { class: 'painel-turno' },
-      h('strong', {}, rotuloTurno(turno)), ': ',
-      faltam ? `${faltam} evolução(ões) a concluir` : 'todas as evoluções finalizadas',
+      h('strong', {}, `Evoluções do ${rotuloDia(dia).toLowerCase()}`), ' (07h às 07h): ',
+      faltam ? `${faltam} de ${ocupados.length} a concluir` : 'todas finalizadas',
       semPEP ? ` · ${semPEP} a copiar ao PEP` : '') : null,
     h('div', { class: 'grade-leitos' }, leitos.map((l) => cartao(l, unidade, evolucoes[l.internacaoId]))));
   window.scrollTo(0, rolagem);

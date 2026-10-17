@@ -111,9 +111,9 @@ async function rotear() {
 
   const p = estado.perfil;
   if (rota.startsWith('evolucao/')) {
-    const [, internacaoId, data, turno] = rota.split('/');
+    const [, internacaoId, data] = rota.split('/');
     const { telaEvolucao } = await import('./modulos/evolucao/evolucao.js');
-    desmontarAtual = await telaEvolucao(conteudo, { internacaoId, data, turno });
+    desmontarAtual = await telaEvolucao(conteudo, { internacaoId, data });
     return;
   }
   if (rota === 'admin' && p.perfil === 'admin') {
