@@ -5,7 +5,9 @@
 
 import { GLASGOW, glasgow, RASS, camAplicavel, camIcu, BPS, dor } from './escalas.js';
 import { pam, diureseReal, debitoUrinario, num } from './calculos.js';
-import { contagemDia } from './datas.js';
+import { contagemDia, diasEntre, formatarData } from './datas.js';
+import { CATALOGO_DISPOSITIVOS, textoDispositivos, dispositivosParaNovoDia, ativo as dispositivoAtivo } from './dispositivos.js';
+import { GRUPOS_INFUSAO, textoInfusoes } from './infusoes.js';
 
 const op = (...lista) => Object.fromEntries(lista.map((x) => (Array.isArray(x) ? x : [x, x])));
 const simNao = op(['sim', 'Sim'], ['nao', 'Não']);
@@ -31,36 +33,31 @@ const comFluxo = (d) => ['cn', 'venturi', 'nao_reinalante', 'cnaf', 'tqt_esponta
 const comFio2 = (d) => ['venturi', 'cnaf', 'vni', 'vmi_tot', 'vmi_tqt', 'tqt_espontanea'].includes(d.suporte);
 const ventilado = (d) => ['vmi_tot', 'vmi_tqt'].includes(d.suporte);
 const comPressao = (d) => ventilado(d) || d.suporte === 'vni';
-const viaAereaArtificial = (d) => ['vmi_tot', 'vmi_tqt', 'tqt_espontanea'].includes(d.suporte);
 
-// Atalhos do "Controle de infusão" (lista da folha atual da UTI). O texto gravado
-// usa sempre o nome genérico; o nome comercial aparece só no botão, para facilitar a transição.
-export const ATALHOS_INFUSAO = [
-  { rotulo: 'Hidratação venosa', item: { medicamento: 'hidratação venosa' } },
-  { rotulo: 'Midazolam', item: { medicamento: 'midazolam' } },
-  { rotulo: 'Fentanil', item: { medicamento: 'fentanil' } },
-  { rotulo: 'SG 10%', item: { medicamento: 'soro glicosado 10%' } },
-  { rotulo: 'Insulina', item: { medicamento: 'insulina regular' } },
-  { rotulo: 'Amiodarona (Ancoron)', item: { medicamento: 'amiodarona' } },
-  { rotulo: 'Noradrenalina', item: { medicamento: 'noradrenalina' } },
-  { rotulo: 'Dobutamina', item: { medicamento: 'dobutamina' } },
-  { rotulo: 'Dopamina', item: { medicamento: 'dopamina' } },
-  { rotulo: 'Nitroprussiato (Nipride)', item: { medicamento: 'nitroprussiato' } },
-  { rotulo: 'Nitroglicerina (Tridil)', item: { medicamento: 'nitroglicerina' } },
-];
+export const TIPOS_DISPOSITIVO = Object.fromEntries(Object.entries(CATALOGO_DISPOSITIVOS).map(([k, v]) => [k, v.nome]));
 
-export const TIPOS_DISPOSITIVO = op(
-  ['cvc', 'CVC'], ['picc', 'PICC'], ['cti', 'Cateter venoso totalmente implantado'], ['cateter_dialise', 'Cateter de hemodiálise'],
-  ['avp', 'Acesso venoso periférico'], ['pai', 'Cateter de pressão arterial invasiva'], ['tot', 'TOT'], ['tqt', 'TQT'],
-  ['cvd', 'CVD'], ['sne', 'SNE'], ['sng', 'SNG'], ['soe', 'SOE'], ['gtm', 'GTM'], ['outro', 'Outro'],
+// Locais para MV diminuídos/abolidos (texto por extenso no PEP).
+const CAMPOS_PULMONARES = op(['apice_d', 'Ápice direito'], ['apice_e', 'Ápice esquerdo'], ['medio_d', 'Terço médio direito'], ['medio_e', 'Terço médio esquerdo'],
+  ['base_d', 'Base direita'], ['base_e', 'Base esquerda'], ['difuso', 'Difusamente']);
+const temEdema = (d) => (d.edemaLocais || []).some((v) => v !== 'sem');
+
+// Escala de Bristol (consistência das fezes).
+export const BRISTOL = op(
+  ['1', 'Tipo 1 — caroços duros e separados'], ['2', 'Tipo 2 — formato de salsicha, encaroçada'], ['3', 'Tipo 3 — salsicha com fissuras na superfície'],
+  ['4', 'Tipo 4 — salsicha ou cobra, lisa e macia'], ['5', 'Tipo 5 — pedaços macios com bordas definidas'], ['6', 'Tipo 6 — pedaços moles, bordas irregulares, pastosa'],
+  ['7', 'Tipo 7 — totalmente líquida'],
 );
 
 /**
  * Tipos de campo: texto, numero, area, hora, data, datahora, escolha (uma opção),
- * multipla (várias), select, escala (opções com pontos), calculado (somente
- * leitura), medidas (lista fixa com 4 estados), lista (itens repetíveis; `atalhos`
- * incluem itens prontos com um toque).
+ * multipla (várias, em botões), marcar (várias, em caixas de marcar; `excludentes`
+ * são grupos em que só um vale e `exclusivos` desmarcam todo o resto), select,
+ * escala (opções com pontos), calculado (somente leitura), medidas (lista fixa com
+ * 4 estados), lista (itens repetíveis), infusoes e dispositivos (componentes
+ * próprios; o texto vem de `texto(valor, ctx)`).
  * `se(dados, contexto)` mostra o campo só quando se aplica.
+ * Subbloco `herdavel`: ao abrir o dia, vem preenchido com a evolução anterior
+ * (`aoHerdar` ajusta o que recomeça a cada dia).
  */
 export const BLOCOS = [
   {
@@ -68,7 +65,7 @@ export const BLOCOS = [
     descricao: 'Valores de hoje. A evolução anterior aparece para consulta; para reaproveitar, confirme "sem alteração".',
     subblocos: [
       {
-        id: 'cuidado', titulo: 'Limitação de suporte e objetivo de cuidado', copiavel: true,
+        id: 'cuidado', titulo: 'Limitação de suporte e objetivo de cuidado', copiavel: true, herdavel: true,
         campos: [
           { nome: 'limitacao', rotulo: 'Limitação de suporte documentada pela equipe', tipo: 'escolha', opcoes: simNao },
           { nome: 'limitacaoDescricao', rotulo: 'Qual limitação', tipo: 'texto', se: (d) => d.limitacao === 'sim' },
@@ -116,7 +113,7 @@ export const BLOCOS = [
         id: 'dor', titulo: 'Dor', copiavel: false, obrigatorio: true,
         campos: [
           { nome: 'escala', rotulo: 'Escala (conforme a comunicação do paciente)', tipo: 'escolha', obrigatorio: true,
-            opcoes: op(['evn', 'EVN (comunica)'], ['eva', 'EVA (comunica)'], ['bps', 'BPS (sedado/intubado)'], ['nao_avaliavel', 'Não avaliável']) },
+            opcoes: op(['evn', 'EVN (comunica)'], ['bps', 'BPS (sedado/intubado)'], ['nao_avaliavel', 'Não avaliável']) },
           { nome: 'escore', rotulo: 'Escore (0 a 10)', tipo: 'escala', opcoes: op(...Array.from({ length: 11 }, (_, i) => String(i))), se: (d) => d.escala === 'evn' || d.escala === 'eva' },
           { nome: 'bpsFacial', rotulo: 'BPS — expressão facial', tipo: 'escala', opcoes: BPS.facial, se: (d) => d.escala === 'bps' },
           { nome: 'bpsMembros', rotulo: 'BPS — membros superiores', tipo: 'escala', opcoes: BPS.membros, se: (d) => d.escala === 'bps' },
@@ -139,38 +136,49 @@ export const BLOCOS = [
           { nome: 'pSuporte', rotulo: 'Pressão de suporte', tipo: 'numero', unidade: 'cmH2O', se: comPressao },
           { nome: 'vc', rotulo: 'VC', tipo: 'numero', unidade: 'mL', se: ventilado },
           { nome: 'frProgramada', rotulo: 'Frequência programada', tipo: 'numero', unidade: 'irpm', se: ventilado },
-          { nome: 'cuff', rotulo: 'Pressão do cuff', tipo: 'numero', unidade: 'cmH2O', se: viaAereaArtificial },
-          { nome: 'fixacao', rotulo: 'Fixação do TOT (rima labial, cm)', tipo: 'texto', se: (d) => d.suporte === 'vmi_tot' },
           { nome: 'padrao', rotulo: 'Padrão respiratório', tipo: 'multipla', opcoes: op(['eupneico', 'Eupneico'], ['taquipneico', 'Taquipneico'], ['bradipneico', 'Bradipneico'], ['dispneico', 'Dispneico'], ['acessoria', 'Uso de musculatura acessória'], ['assincronia', 'Assincronia com o ventilador']) },
-          { nome: 'ausculta', rotulo: 'Ausculta', tipo: 'multipla', opcoes: op(['mv_presentes', 'MV presentes'], ['mv_diminuidos', 'MV diminuídos'], ['roncos', 'Roncos'], ['sibilos', 'Sibilos'], ['estertores', 'Estertores']) },
+          { nome: 'ausculta', rotulo: 'Ausculta pulmonar', tipo: 'marcar',
+            opcoes: op(['mv_presentes', 'MV presentes'], ['mv_diminuidos', 'MV diminuídos'], ['mv_abolidos', 'MV abolidos'], ['roncos', 'Roncos'], ['sibilos', 'Sibilos'], ['estertores', 'Estertores crepitantes']),
+            excludentes: [['mv_presentes', 'mv_diminuidos'], ['mv_presentes', 'mv_abolidos']] },
+          { nome: 'mvDiminuidosLocal', rotulo: 'MV diminuídos em', tipo: 'marcar', opcoes: CAMPOS_PULMONARES, exclusivos: ['difuso'], se: (d) => (d.ausculta || []).includes('mv_diminuidos') },
+          { nome: 'mvAbolidosLocal', rotulo: 'MV abolidos em', tipo: 'marcar', opcoes: CAMPOS_PULMONARES, exclusivos: ['difuso'], se: (d) => (d.ausculta || []).includes('mv_abolidos') },
           { nome: 'secrecao', rotulo: 'Secreção — quantidade', tipo: 'escolha', opcoes: op(['ausente', 'Ausente'], ['pequena', 'Pequena'], ['moderada', 'Moderada'], ['grande', 'Grande']) },
           { nome: 'secrecaoAspecto', rotulo: 'Secreção — aspecto', tipo: 'texto', se: (d) => d.secrecao && d.secrecao !== 'ausente' },
         ],
       },
       {
-        id: 'hemodinamica', titulo: 'Hemodinâmica', copiavel: true,
+        id: 'hemodinamica', titulo: 'Cardiovascular e hemodinâmica', copiavel: true,
         campos: [
           { nome: 'ritmo', rotulo: 'Ritmo', tipo: 'escolha', opcoes: op(['sinusal', 'Sinusal'], ['fibrilacao', 'Fibrilação atrial'], ['marcapasso', 'Marca-passo'], ['outro', 'Outro']) },
           { nome: 'ritmoOutro', rotulo: 'Qual ritmo', tipo: 'texto', se: (d) => d.ritmo === 'outro' },
+          { nome: 'auscultaCardiaca', rotulo: 'Ausculta cardíaca', tipo: 'marcar',
+            opcoes: op(['bnf2t', 'BNF em 2T'], ['hipofoneticas', 'Bulhas hipofonéticas'], ['arritmicas', 'Bulhas arrítmicas'], ['sopro', 'Sopro'], ['acessorias', 'Bulhas acessórias']),
+            excludentes: [['bnf2t', 'hipofoneticas']] },
           { nome: 'tec', rotulo: 'TEC', tipo: 'escolha', opcoes: op(['ate3', 'Até 3 s'], ['mais3', 'Mais de 3 s']) },
           { nome: 'pulsos', rotulo: 'Pulsos periféricos', tipo: 'escolha', opcoes: op(['presentes', 'Presentes e cheios'], ['finos', 'Finos'], ['ausentes', 'Ausentes']) },
           { nome: 'extremidades', rotulo: 'Extremidades', tipo: 'escolha', opcoes: op(['aquecidas', 'Aquecidas'], ['frias', 'Frias'], ['cianoticas', 'Cianóticas']) },
+          { nome: 'edemaLocais', rotulo: 'Edema', tipo: 'marcar',
+            opcoes: op(['sem', 'Sem edema'], ['mmii', 'MMII'], ['mmss', 'MMSS'], ['sacral', 'Sacral'], ['facial', 'Facial'], ['anasarca', 'Anasarca']), exclusivos: ['sem'] },
+          { nome: 'edemaGrau', rotulo: 'Grau do edema (cacifo)', tipo: 'escolha', opcoes: op(['1', '+1'], ['2', '+2'], ['3', '+3'], ['4', '+4'], ['na', 'Não se aplica']), se: temEdema },
+        ],
+      },
+      {
+        id: 'abdome', titulo: 'Abdome', copiavel: true,
+        campos: [
+          { nome: 'exame', rotulo: 'Inspeção, palpação e percussão', tipo: 'marcar',
+            opcoes: op(['plano', 'Plano'], ['globoso', 'Globoso'], ['escavado', 'Escavado'], ['distendido', 'Distendido'], ['flacido', 'Flácido'], ['tenso', 'Tenso / rígido'],
+              ['doloroso', 'Doloroso à palpação'], ['indolor', 'Indolor à palpação'], ['timpanico', 'Timpânico'], ['macico', 'Maciço']),
+            excludentes: [['plano', 'globoso', 'escavado'], ['flacido', 'tenso'], ['doloroso', 'indolor'], ['timpanico', 'macico']] },
+          { nome: 'rha', rotulo: 'Ruídos hidroaéreos (RHA)', tipo: 'escolha', opcoes: op(['presentes', 'Presentes'], ['aumentados', 'Aumentados'], ['diminuidos', 'Diminuídos'], ['ausentes', 'Ausentes']) },
+          { nome: 'ascite', rotulo: 'Ascite', tipo: 'escolha', opcoes: op(['nao', 'Sem ascite'], ['sim', 'Com ascite']) },
+          { nome: 'observacao', rotulo: 'Outros achados', tipo: 'texto' },
         ],
       },
       {
         id: 'infusoes', titulo: 'Infusões contínuas (controle de infusão)', copiavel: true,
-        descricao: 'Toque no medicamento para incluir e informe a vazão. Para outro medicamento, use "+ Outra infusão".',
+        descricao: 'Marque o medicamento e informe a vazão. Nomes pelo princípio ativo; para outro medicamento, use o botão "+ Outra" do grupo.',
         campos: [
-          {
-            nome: 'itens', rotulo: 'Infusões em uso', tipo: 'lista', rotuloItem: 'infusão',
-            tituloItem: (i) => (i.medicamento ? i.medicamento.charAt(0).toUpperCase() + i.medicamento.slice(1) : 'Outra infusão'),
-            atalhos: ATALHOS_INFUSAO,
-            textoItem: (i) => `${i.medicamento || 'medicamento não informado'}${i.vazao ? ` a ${String(i.vazao).replace('.', ',')} mL/h` : ''}`,
-            campos: [
-              { nome: 'medicamento', rotulo: 'Medicamento / solução', tipo: 'texto', ajuda: 'Use o nome genérico.' },
-              { nome: 'vazao', rotulo: 'Vazão', tipo: 'numero', unidade: 'mL/h' },
-            ],
-          },
+          { nome: 'itens', rotulo: 'Infusões em uso', tipo: 'infusoes', grupos: GRUPOS_INFUSAO, texto: (v) => textoInfusoes(v) },
         ],
       },
       {
@@ -187,6 +195,10 @@ export const BLOCOS = [
           { nome: 'diureseReal', rotulo: 'Diurese real', tipo: 'calculado', se: (d) => d.irrigacao === 'sim', calc: (d) => { const v = diureseReal(d.drenado, d.infundido); return v == null ? '' : `${v} mL (drenado − infundido)`; } },
           { nome: 'debito', rotulo: 'Débito urinário', tipo: 'calculado', calc: (d, ctx) => { const vol = d.irrigacao === 'sim' ? diureseReal(d.drenado, d.infundido) : num(d.volume); const v = debitoUrinario(vol, ctx.peso, d.horas); return v == null ? '' : `${fmt(v, 2)} mL/kg/h`; } },
           { nome: 'terapiaRenal', rotulo: 'Terapia renal substitutiva', tipo: 'escolha', opcoes: op(['nao', 'Não'], ['hemodialise', 'Hemodiálise'], ['continua', 'Terapia contínua']) },
+          { nome: 'hdUf', rotulo: 'Hemodiálise — ultrafiltração (UF)', tipo: 'numero', unidade: 'mL', se: (d) => d.terapiaRenal === 'hemodialise' },
+          { nome: 'hdDuracao', rotulo: 'Hemodiálise — duração', tipo: 'numero', unidade: 'h', se: (d) => d.terapiaRenal === 'hemodialise' },
+          { nome: 'hdHeparina', rotulo: 'Hemodiálise — heparina', tipo: 'escolha', opcoes: op(['com', 'Com heparina'], ['sem', 'Sem heparina']), se: (d) => d.terapiaRenal === 'hemodialise' },
+          { nome: 'hdIntercorrencias', rotulo: 'Hemodiálise — intercorrências', tipo: 'texto', se: (d) => d.terapiaRenal === 'hemodialise' },
         ],
       },
       {
@@ -196,28 +208,49 @@ export const BLOCOS = [
           { nome: 'jejumMotivo', rotulo: 'Motivo do jejum', tipo: 'texto', se: (d) => (d.via || []).includes('jejum') },
           { nome: 'dieta', rotulo: 'Tipo de dieta e vazão', tipo: 'texto', se: (d) => (d.via || []).some((v) => v !== 'jejum') },
           { nome: 'pausas', rotulo: 'Pausas e motivo', tipo: 'texto', se: (d) => (d.via || []).some((v) => ['sne', 'soe', 'sng', 'gtm'].includes(v)) },
-          { nome: 'abdome', rotulo: 'Abdome', tipo: 'multipla', opcoes: op(['flacido', 'Flácido'], ['globoso', 'Globoso'], ['distendido', 'Distendido'], ['doloroso', 'Doloroso à palpação'], ['timpanico', 'Timpânico']) },
           { nome: 'nausea', rotulo: 'Náusea / vômito', tipo: 'escolha', opcoes: op(['nao', 'Não'], ['nausea', 'Náusea'], ['vomito', 'Vômito']) },
-          { nome: 'ultimaEvacuacao', rotulo: 'Data da última evacuação', tipo: 'data' },
-          { nome: 'diasSemEvacuar', rotulo: 'Dias sem evacuar', tipo: 'calculado', calc: (d, ctx) => (d.ultimaEvacuacao ? contagemDia(d.ultimaEvacuacao, ctx.dataTurno).replace('D', '') + ' dia(s)' : '') },
-          { nome: 'fezes', rotulo: 'Aspecto das fezes', tipo: 'texto' },
-          { nome: 'estomias', rotulo: 'Estomias', tipo: 'texto' },
+          { nome: 'evacuou', rotulo: 'Evacuou nas últimas 24 horas?', tipo: 'escolha', opcoes: simNao },
+          { nome: 'ultimaEvacuacao', rotulo: 'Última evacuação registrada', tipo: 'calculado', se: (d) => d.evacuou !== 'sim',
+            calc: (d, ctx) => (ctx.ultimaEvacuacao ? `${formatarData(ctx.ultimaEvacuacao)} (há ${diasEntre(ctx.ultimaEvacuacao, ctx.dataTurno)} dia(s))` : 'sem registro anterior no sistema') },
+          { nome: 'episodios', rotulo: 'Número de episódios', tipo: 'numero', se: (d) => d.evacuou === 'sim' },
+          { nome: 'bristol', rotulo: 'Consistência (escala de Bristol)', tipo: 'escala', opcoes: BRISTOL, se: (d) => d.evacuou === 'sim' },
+          { nome: 'fezesAspecto', rotulo: 'Aspecto das fezes', tipo: 'marcar', se: (d) => d.evacuou === 'sim',
+            opcoes: op(['habitual', 'Coloração habitual'], ['melena', 'Melena'], ['sangue', 'Com sangue vivo'], ['acolica', 'Acólica'], ['muco', 'Com muco'], ['restos', 'Com restos alimentares']),
+            excludentes: [['habitual', 'melena', 'acolica']] },
+          {
+            nome: 'estomias', rotulo: 'Estomias', tipo: 'lista', rotuloItem: 'estomia',
+            tituloItem: (i) => ({ colostomia: 'Colostomia', ileostomia: 'Ileostomia', jejunostomia: 'Jejunostomia', gastrostomia: 'Gastrostomia', outra: 'Outra estomia' })[i.tipo] || '',
+            textoItem: (i) => [({ colostomia: 'colostomia', ileostomia: 'ileostomia', jejunostomia: 'jejunostomia', gastrostomia: 'gastrostomia' })[i.tipo] || i.outra || 'estomia',
+              i.estoma && `estoma ${i.estoma}`, i.efluente && `efluente ${i.efluente}`, i.volume && `${String(i.volume).replace('.', ',')} mL`].filter(Boolean).join(', '),
+            campos: [
+              { nome: 'tipo', rotulo: 'Tipo', tipo: 'select', opcoes: op(['colostomia', 'Colostomia'], ['ileostomia', 'Ileostomia'], ['jejunostomia', 'Jejunostomia'], ['gastrostomia', 'Gastrostomia'], ['outra', 'Outra']) },
+              { nome: 'outra', rotulo: 'Qual', tipo: 'texto', se: (i) => i.tipo === 'outra' },
+              { nome: 'estoma', rotulo: 'Aspecto do estoma', tipo: 'texto', sugestoes: () => ['vermelho vivo, úmido', 'edemaciado', 'pálido', 'arroxeado', 'com sangramento'] },
+              { nome: 'efluente', rotulo: 'Aspecto do efluente', tipo: 'texto' },
+              { nome: 'volume', rotulo: 'Volume no período', tipo: 'numero', unidade: 'mL' },
+            ],
+          },
         ],
       },
       {
-        id: 'pele', titulo: 'Pele, feridas e LPP', copiavel: true,
+        id: 'pele', titulo: 'Pele, lesões e LPP', copiavel: true, herdavel: true,
         descricao: 'Braden e Morse não são registrados aqui: são preenchidos e acompanhados no PEP oficial.',
         campos: [
-          { nome: 'inspecao', rotulo: 'Inspeção da pele', tipo: 'texto' },
+          { nome: 'inspecao', rotulo: 'Inspeção da pele', tipo: 'marcar',
+            opcoes: op(['normocorada', 'Normocorada'], ['hipocorada', 'Hipocorada'], ['acianotica', 'Acianótica'], ['cianotica', 'Cianótica'], ['anicterica', 'Anictérica'], ['icterica', 'Ictérica'],
+              ['hidratada', 'Hidratada'], ['desidratada', 'Desidratada'], ['integra', 'Íntegra'], ['nao_integra', 'Não íntegra']),
+            excludentes: [['normocorada', 'hipocorada'], ['acianotica', 'cianotica'], ['anicterica', 'icterica'], ['hidratada', 'desidratada'], ['integra', 'nao_integra']] },
           { nome: 'mucosas', rotulo: 'Mucosas', tipo: 'escolha', opcoes: op(['integras', 'Íntegras'], ['ressecadas', 'Ressecadas'], ['mucosite', 'Com mucosite']) },
           {
-            nome: 'lesoes', rotulo: 'Lesões e feridas', tipo: 'lista', rotuloItem: 'lesão',
+            nome: 'lesoes', rotulo: 'Lesões e curativos', tipo: 'lista', rotuloItem: 'lesão',
+            tituloItem: (i) => [({ lpp: 'LPP', cirurgica: 'Incisão cirúrgica', oncologica: 'Lesão oncológica', dermatite: 'Dermatite associada à incontinência', friccao: 'Lesão por fricção', outra: 'Outra lesão' })[i.tipo], i.local].filter(Boolean).join(' — '),
             campos: [
-              { nome: 'tipo', rotulo: 'Tipo', tipo: 'select', opcoes: op(['lpp', 'LPP'], ['cirurgica', 'Ferida cirúrgica'], ['oncologica', 'Ferida oncológica'], ['dermatite', 'Dermatite associada à incontinência'], ['outra', 'Outra']) },
-              { nome: 'local', rotulo: 'Local', tipo: 'texto' },
-              { nome: 'estagio', rotulo: 'Estágio / categoria', tipo: 'texto' },
+              { nome: 'tipo', rotulo: 'Tipo', tipo: 'select', opcoes: op(['lpp', 'LPP'], ['cirurgica', 'Incisão cirúrgica'], ['oncologica', 'Lesão oncológica'], ['dermatite', 'Dermatite associada à incontinência'], ['friccao', 'Lesão por fricção'], ['outra', 'Outra']) },
+              { nome: 'local', rotulo: 'Local', tipo: 'texto', sugestoes: () => ['sacral', 'calcâneo direito', 'calcâneo esquerdo', 'trocânter direito', 'trocânter esquerdo', 'occipital', 'orelha direita', 'orelha esquerda', 'glúteo'] },
+              { nome: 'estagio', rotulo: 'Estágio (LPP)', tipo: 'select', se: (i) => i.tipo === 'lpp',
+                opcoes: op(['1', 'Estágio 1'], ['2', 'Estágio 2'], ['3', 'Estágio 3'], ['4', 'Estágio 4'], ['nc', 'Não classificável'], ['tp', 'Lesão tissular profunda'], ['dispositivo', 'Relacionada a dispositivo médico'], ['mucosa', 'Em membrana mucosa']) },
               { nome: 'medidas', rotulo: 'Medidas (cm)', tipo: 'texto' },
-              { nome: 'leito', rotulo: 'Leito da ferida e exsudato', tipo: 'texto' },
+              { nome: 'leito', rotulo: 'Leito da lesão e exsudato', tipo: 'texto' },
               { nome: 'cobertura', rotulo: 'Cobertura', tipo: 'texto' },
               { nome: 'troca', rotulo: 'Data da troca', tipo: 'data' },
               { nome: 'evolucao', rotulo: 'Evolução', tipo: 'escolha', opcoes: op(['melhora', 'Melhora'], ['estavel', 'Estável'], ['piora', 'Piora']) },
@@ -226,31 +259,11 @@ export const BLOCOS = [
         ],
       },
       {
-        id: 'dispositivos', titulo: 'Dispositivos', copiavel: true,
+        id: 'dispositivos', titulo: 'Dispositivos', copiavel: true, herdavel: true,
+        descricao: 'Os dispositivos ativos passam para o dia seguinte; a avaliação do sítio e da necessidade recomeça a cada dia. Drenos também ficam aqui.',
+        aoHerdar: (d) => ({ ...d, itens: dispositivosParaNovoDia(d.itens) }),
         campos: [
-          {
-            nome: 'itens', rotulo: 'Dispositivos em uso', tipo: 'lista', rotuloItem: 'dispositivo',
-            textoItem: (i, ctx) => [TIPOS_DISPOSITIVO[i.tipo] || i.tipo, i.local, i.insercao && `inserção ${i.insercao.split('-').reverse().join('/')} (${contagemDia(i.insercao, ctx.dataTurno)})`,
-              i.sitio && `sítio: ${i.sitio}`, i.curativo && `curativo: ${i.curativo}`, i.necessario && `necessário: ${i.necessario === 'sim' ? 'sim' : 'não'}`].filter(Boolean).join(', '),
-            campos: [
-              { nome: 'tipo', rotulo: 'Tipo', tipo: 'select', opcoes: TIPOS_DISPOSITIVO },
-              { nome: 'local', rotulo: 'Local', tipo: 'texto' },
-              { nome: 'insercao', rotulo: 'Data de inserção', tipo: 'data' },
-              { nome: 'dias', rotulo: 'Dias', tipo: 'calculado', calc: (i, ctx) => contagemDia(i.insercao, ctx.dataTurno) },
-              { nome: 'sitio', rotulo: 'Condições do sítio', tipo: 'texto' },
-              { nome: 'curativo', rotulo: 'Curativo (tipo e data da troca)', tipo: 'texto' },
-              { nome: 'necessario', rotulo: 'Ainda é necessário?', tipo: 'escolha', opcoes: simNao },
-            ],
-          },
-          {
-            nome: 'drenos', rotulo: 'Drenos', tipo: 'lista', rotuloItem: 'dreno',
-            campos: [
-              { nome: 'tipo', rotulo: 'Tipo', tipo: 'texto' },
-              { nome: 'local', rotulo: 'Local', tipo: 'texto' },
-              { nome: 'volume', rotulo: 'Volume no período', tipo: 'numero', unidade: 'mL' },
-              { nome: 'aspecto', rotulo: 'Aspecto', tipo: 'texto' },
-            ],
-          },
+          { nome: 'itens', rotulo: 'Dispositivos em uso', tipo: 'dispositivos', texto: (v, ctx) => textoDispositivos(v, ctx.dataTurno) },
         ],
       },
       {
@@ -266,7 +279,7 @@ export const BLOCOS = [
         ],
       },
       {
-        id: 'antimicrobianos', titulo: 'Antimicrobianos e culturas', copiavel: true,
+        id: 'antimicrobianos', titulo: 'Antimicrobianos e culturas', copiavel: true, herdavel: true,
         campos: [
           {
             nome: 'itens', rotulo: 'Antimicrobianos', tipo: 'lista', rotuloItem: 'antimicrobiano',
@@ -337,7 +350,7 @@ export const SUBBLOCOS = Object.fromEntries(BLOCOS.flatMap((b) => b.subblocos.ma
 
 /** Contexto usado por campos condicionais e cálculos (peso, via aérea, dispositivos). */
 export function contextoEvolucao(dados = {}, dataTurno) {
-  const disp = dados.dispositivos?.itens || [];
+  const disp = (dados.dispositivos?.itens || []).filter(dispositivoAtivo);
   const sup = dados.respiratorio?.suporte;
   return {
     dataTurno,
@@ -345,6 +358,8 @@ export function contextoEvolucao(dados = {}, dataTurno) {
     ventilado: ['vmi_tot', 'vmi_tqt'].includes(sup) || disp.some((i) => i.tipo === 'tot' || i.tipo === 'tqt'),
     temCvd: dados.renal?.modo === 'cvd' || disp.some((i) => i.tipo === 'cvd'),
     temCvc: disp.some((i) => ['cvc', 'picc', 'cti', 'cateter_dialise'].includes(i.tipo)),
+    // Data da última evacuação registrada nas evoluções anteriores (vem ao abrir o dia).
+    ultimaEvacuacao: dados.herdado?.ultimaEvacuacao || '',
   };
 }
 

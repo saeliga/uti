@@ -259,7 +259,7 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .sub-anterior-titulo { font-weight: 700; color: #55555a; }
 .sub-anterior .btn { justify-self: start; }
 .campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px 16px; padding: 0 14px 14px; }
-.campo-escolha, .campo-escala, .campo-multipla, .campo-area, .campo-medidas, .campo-lista { grid-column: 1 / -1; }
+.campo-escolha, .campo-escala, .campo-multipla, .campo-area, .campo-medidas, .campo-lista, .campo-marcar, .campo-infusoes, .campo-dispositivos { grid-column: 1 / -1; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-op { min-height: 40px; padding: 4px 12px; border-radius: 8px; border: 1px solid #c5c6cb; background: #fff; font: 14px var(--fonte-texto); color: var(--ui-texto-forte); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-align: left; }
 .chip-op strong { background: var(--ui-superficie); border-radius: 4px; padding: 0 6px; }
@@ -364,3 +364,46 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .sae-preenchendo { display: flex; align-items: center; gap: 8px; color: var(--ui-ia); font-size: 14px; margin: 0; }
 .sae-preenchendo .giro { width: 14px; height: 14px; border-width: 2px; border-top-color: var(--ui-ia); }
 .etiqueta-mini { font-size: 10px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+
+/* ---------- Caixas de marcar em grade (exame físico) ---------- */
+.marcar-grade { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 16px; }
+@media (max-width: 900px) { .marcar-grade { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.marcar-op { display: flex; align-items: center; gap: 10px; min-height: var(--toque); cursor: pointer; font-size: 15px; }
+.marcar-op input { width: 22px; height: 22px; accent-color: var(--ui-acao); margin: 0; flex: none; }
+.marcar-op.on span { font-weight: 600; color: var(--ui-texto-forte); }
+@media (max-width: 640px) { .marcar-grade { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Infusões por finalidade ---------- */
+.infusoes { display: flex; flex-direction: column; gap: 14px; }
+.inf-grupo { display: flex; flex-direction: column; gap: 4px; }
+.inf-titulo { font-family: var(--fonte-titulo); font-weight: 700; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--ui-texto-forte); margin-bottom: 2px; }
+.inf-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: var(--toque); }
+.inf-nome { display: flex; align-items: center; gap: 10px; min-width: 210px; cursor: pointer; font-weight: 500; letter-spacing: .02em; }
+.inf-nome input { width: 22px; height: 22px; accent-color: var(--ui-acao); margin: 0; }
+.inf-linha.on .inf-nome span { font-weight: 700; color: var(--ui-texto-forte); }
+.campo .infusoes .inf-linha select, .campo .infusoes .inf-linha input.inf-livre, .campo .infusoes .inf-linha input.inf-vazao { width: auto; min-height: 40px; padding: 6px 10px; border: 1px solid #c5c6cb; border-radius: 8px; font: 15px var(--fonte-texto); background: #fff; }
+.campo .infusoes .inf-linha select { min-width: 240px; }
+.campo .infusoes .inf-linha input.inf-livre { width: 230px; text-transform: uppercase; }
+.campo .infusoes .inf-linha input.inf-vazao { width: 90px; }
+.campo .infusoes .inf-linha input.inf-vazao:disabled { background: var(--ui-superficie); }
+.inf-vazao-caixa { flex: none; }
+.inf-mais { align-self: flex-start; margin-top: 4px; }
+
+/* ---------- Dispositivos ---------- */
+.dispositivos { display: flex; flex-direction: column; gap: 10px; }
+.disp-lista { display: flex; flex-direction: column; gap: 10px; }
+.disp-card { border: 1px solid var(--ui-borda); border-left: 5px solid var(--ui-acao); border-radius: var(--raio); background: #fff; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.disp-card.com-alerta { border-left-color: #b3202d; }
+.disp-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.disp-nome { color: var(--ui-texto-forte); }
+.disp-meta { font-size: 13px; color: #6b6b70; }
+.disp-acoes { margin-left: auto; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.disp-dia { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; border-top: 1px dashed var(--ui-borda); padding-top: 6px; }
+.disp-dia-rotulo { font-size: 13px; font-weight: 600; min-width: 150px; }
+.disp-debito { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+.campo .disp-debito input.x, .campo .disp-card .disp-debito input { width: auto; min-height: 40px; padding: 6px 10px; border: 1px solid #c5c6cb; border-radius: 8px; font: 15px var(--fonte-texto); }
+.campo .disp-card .disp-debito input[inputmode=decimal] { width: 90px; }
+.campo .disp-card .disp-debito input:not([inputmode]) { flex: 1; min-width: 200px; }
+.disp-retirados summary { cursor: pointer; color: #6b6b70; }
+.sub-estado.herdado { background: #ece6f6; color: #4b2a7a; }
+.sub-herdado { padding: 0 14px 10px; }

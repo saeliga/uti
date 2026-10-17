@@ -7,14 +7,14 @@ import { h, limpar, carregando, aviso, abrirJanela, confirmar, campo, lerFormula
 import { BLOCOS, contextoEvolucao } from '../../regras/evolucao-esquema.js';
 import {
   validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP,
-  pendenciasAbertas, resumoSubbloco, subblocoRegistrado,
+  resumoSubbloco, subblocoRegistrado, dadosIniciais,
 } from '../../regras/evolucao.js';
 import { diaAssistencial, diaAnterior, rotuloDia, idEvolucao, turnoDe, TURNOS } from '../../regras/turnos.js';
-import { agoraLocalISO, formatarData, formatarDataHora, idade, contagemDia } from '../../regras/datas.js';
+import { agoraLocalISO, formatarData, formatarDataHora, idade, contagemDia, somarDias } from '../../regras/datas.js';
 import { ISOLAMENTOS } from '../../regras/opcoes.js';
 import { formularioSubbloco } from './formulario.js';
 import { painelSAE } from '../sae/sae.js';
-import { planoParaNovoDia, resumoParaIA } from '../../regras/sae.js';
+import { resumoParaIA } from '../../regras/sae.js';
 
 const horaAgora = () => agoraLocalISO().slice(11, 16);
 // Redesenha a tela pelo roteador (sem recarregar a página: no modo demonstração, recarregar apagaria tudo).
@@ -46,11 +46,9 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     ev = await backend.lerEvolucao(id);
     if (!ev) {
       if (internacao.status !== 'ativa' || !podeEditar()) throw new Error('Não há evolução registrada neste dia.');
-      const herdadas = pendenciasAbertas(anterior).map((p) => ({ ...p, herdada: true }));
-      const dados = {};
-      if (herdadas.length) dados.pendencias = { itens: herdadas };
-      // O plano de cuidados do dia anterior continua, para ser confirmado e pontuado de novo.
-      if (anterior?.dados?.sae?.diagnosticos?.length) dados.sae = planoParaNovoDia(anterior.dados.sae);
+      // Já nasce com o que continua do dia anterior: pendências abertas, limitação e objetivo
+      // de cuidado, pele e lesões, dispositivos ativos, antimicrobianos, plano do PE e última evacuação.
+      const dados = dadosIniciais(anterior);
       ev = await backend.abrirEvolucao(id, {
         internacaoId, unidade: internacao.unidade, leitoId: internacao.leitoId, data: dia, turnoInicio: turnoDe(), dados,
       });
@@ -69,7 +67,10 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   let blocoAtual = sessionStorage.getItem(`bloco_${id}`) || 'b2';
 
   const ro = () => ev.status === 'finalizada' || !podeEditar();
-  const ctx = () => contextoEvolucao(Object.fromEntries(Object.entries(formularios).map(([k, f]) => [k, f.dados()])), ev.data);
+  const dadosDosFormularios = () => Object.fromEntries(Object.entries(formularios).map(([k, f]) => [k, f.dados()]));
+  // `herdado` (data da última evacuação, subblocos que vieram da anterior) não é formulário.
+  const ctx = () => contextoEvolucao({ herdado: ev.dados?.herdado, ...dadosDosFormularios() }, ev.data);
+  const herdadoDe = (sid) => (ev.dados?.herdado?.subblocos || []).includes(sid);
 
   // ------------------------------------------------------------------ cabeçalho fixo
   const indicador = h('span', { class: 'salvamento', 'aria-live': 'polite' });
@@ -129,6 +130,32 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         chipIsolamento)),
     h('div', { class: 'evo-turno' }, h('strong', {}, rotuloDia(ev.data)), ev.turnoInicio && h('span', { class: 'ajuda' }, `iniciada no turno da ${TURNOS[ev.turnoInicio].nome.toLowerCase()}`), situacaoEl, indicador),
     avisoOutro);
+
+  // Evolução da admissão: sempre disponível para consulta.
+  (async () => {
+    if (!internacao.admissaoUti) return;
+    let d = diaAssistencial(new Date(internacao.admissaoUti));
+    for (let k = 0; k < 4 && d <= ev.data; k++, d = somarDias(d, 1)) {
+      const primeira = d === ev.data ? ev : await backend.lerEvolucao(idEvolucao(internacaoId, d)).catch(() => null);
+      if (primeira) {
+        if (primeira.id === ev.id || d === ev.data) return;
+        const botao = h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => {
+          const area = h('textarea', { class: 'texto-pep', readonly: true, rows: 20 });
+          area.value = textoParaPEP(primeira, internacao, { unidadeNome });
+          abrirJanela({
+            titulo: `Evolução da admissão (${rotuloDia(primeira.data)})`,
+            conteudo: h('div', {}, h('p', { class: 'ajuda' }, `Situação: ${ROTULO_SITUACAO[situacaoEvolucao(primeira)]}. Somente consulta.`), area),
+            acoes: [
+              { texto: 'Abrir a evolução completa', classe: 'btn-secundario', aoClicar: () => { location.hash = `#/evolucao/${internacaoId}/${primeira.data}`; } },
+              { texto: 'Fechar', classe: 'btn-primario' },
+            ],
+          });
+        } }, 'Evolução da admissão');
+        cabecalho.querySelector('.evo-turno').append(botao);
+        return;
+      }
+    }
+  })();
 
   // ------------------------------------------------------------------ navegação por blocos
   const navegacao = h('nav', { class: 'evo-nav', 'aria-label': 'Blocos da evolução' });
@@ -190,6 +217,11 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     if (!el) return;
     const conf = ev.confirmados?.[sid];
     const atual = { ...ev, dados: { ...(ev.dados || {}), [sid]: formularios[sid].dados() } };
+    if (herdadoDe(sid)) {
+      el.className = 'sub-estado herdado';
+      el.textContent = `↻ Herdado de ${formatarData(ev.dados.herdado.de)} · confira`;
+      return;
+    }
     el.className = `sub-estado ${conf ? 'confirmado' : subblocoRegistrado(atual, sid) ? 'preenchido' : 'vazio'}`;
     el.textContent = conf ? `Sem alteração · confirmado às ${conf.hora}` : subblocoRegistrado(atual, sid) ? 'Registrado' : 'Sem registro';
   }
@@ -206,6 +238,12 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
           ev.confirmados = { ...ev.confirmados };
           delete ev.confirmados[s.id];
         }
+        if (herdadoDe(s.id)) {
+          // Editou um subbloco herdado: passa a ser registro deste dia.
+          ev.dados = { ...ev.dados, herdado: { ...ev.dados.herdado, subblocos: ev.dados.herdado.subblocos.filter((x) => x !== s.id) } };
+          backend.salvarSubbloco(id, 'herdado', ev.dados.herdado, null).catch(() => {});
+          corpo.querySelector(`[data-sub="${s.id}"] .sub-herdado`)?.remove();
+        }
         atualizarEstadoSub(s.id);
         // Peso e dispositivos mudam cálculos de outros subblocos.
         if (['dispositivos', 'respiratorio', 'renal'].includes(s.id)) for (const f of Object.values(formularios)) f.atualizar();
@@ -215,7 +253,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     formularios[s.id] = form;
     estadosSub[s.id] = h('span', { class: 'sub-estado' });
 
-    const semAlteracao = s.copiavel && anterior?.dados?.[s.id] && !ro() && h('button', {
+    const semAlteracao = s.copiavel && !herdadoDe(s.id) && anterior?.dados?.[s.id] && !ro() && h('button', {
       type: 'button', class: 'btn btn-secundario btn-pequeno',
       onclick: async () => {
         if (subblocoRegistrado({ dados: { [s.id]: form.dados() } }, s.id)
@@ -236,6 +274,16 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         h('div', { class: 'sub-anterior-texto' }, anteriorTexto || 'Sem registro.'),
         s.copiavel === false && anteriorTexto && h('div', { class: 'campo-ajuda' }, 'Este subbloco precisa de valores novos a cada evolução.'),
         semAlteracao),
+      herdadoDe(s.id) && !ro() && h('div', { class: 'linha-acoes sub-herdado' },
+        h('span', { class: 'ajuda' }, 'Veio preenchido da evolução anterior. Altere o que mudou ou confirme.'),
+        h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: (e) => {
+          ev.dados = { ...ev.dados, herdado: { ...ev.dados.herdado, subblocos: ev.dados.herdado.subblocos.filter((x) => x !== s.id) } };
+          ev.confirmados = { ...(ev.confirmados || {}), [s.id]: { hora: horaAgora(), por: estado.perfil.uid, porNome: estado.perfil.nome } };
+          backend.salvarSubbloco(id, 'herdado', ev.dados.herdado, null).catch(() => {});
+          agendarSalvar(s.id, true);
+          atualizarEstadoSub(s.id);
+          e.currentTarget.parentElement.remove();
+        } }, 'Conferido, sem alteração')),
       form.el);
     atualizarEstadoSub(s.id);
     return det;
@@ -314,7 +362,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   }
 
   function evolucaoAtual() {
-    return { ...ev, dados: Object.fromEntries(Object.entries(formularios).map(([k, f]) => [k, f.dados()])) };
+    return { ...ev, dados: { herdado: ev.dados?.herdado, ...dadosDosFormularios() } };
   }
 
   async function finalizar() {

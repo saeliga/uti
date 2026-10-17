@@ -1,12 +1,13 @@
 // Regras da evolução: validação para finalizar, pendências automáticas,
 // situação do registro e texto para o PEP. Funções puras (testáveis no Node).
 
-import { BLOCOS, SUBBLOCOS, contextoEvolucao, visivel, dorDe, ESTADOS_MEDIDA, TIPOS_DISPOSITIVO } from './evolucao-esquema.js';
+import { BLOCOS, SUBBLOCOS, contextoEvolucao, visivel, dorDe, ESTADOS_MEDIDA } from './evolucao-esquema.js';
 import { checarSinal, num } from './calculos.js';
 import { formatarData, formatarDataHora, idade, contagemDia } from './datas.js';
 import { rotuloDia, TURNOS } from './turnos.js';
 import { ISOLAMENTOS } from './opcoes.js';
-import { textoSAE } from './sae.js';
+import { textoSAE, planoParaNovoDia } from './sae.js';
+import { ativo as dispositivoAtivo, alertasDispositivo, rotuloDispositivo } from './dispositivos.js';
 
 const vazio = (v) => v == null || v === '' || (Array.isArray(v) && v.length === 0);
 
@@ -24,8 +25,8 @@ export function pendenciasAutomaticas(ev) {
   if (dorDe(dor).comDor && !dor.reavHora) p.push('Dor sem reavaliação registrada');
   const c = ev.dados?.contencao || {};
   if (c.emUso === 'sim' && !c.reavHora) p.push('Contenção mecânica sem reavaliação da necessidade');
-  const disp = ev.dados?.dispositivos?.itens || [];
-  for (const i of disp) if (i.tipo && !i.necessario) p.push(`Avaliar necessidade de permanência: ${TIPOS_DISPOSITIVO[i.tipo] || i.tipo}`);
+  const disp = (ev.dados?.dispositivos?.itens || []).filter(dispositivoAtivo);
+  for (const i of disp) if (!i.necessario) p.push(`Avaliar necessidade de permanência: ${rotuloDispositivo(i)}`);
   return p;
 }
 
@@ -56,6 +57,8 @@ export function validarFinalizacao(ev) {
       }
     }
   }
+  for (const i of (ev.dados?.dispositivos?.itens || []).filter(dispositivoAtivo))
+    for (const a of alertasDispositivo(i, ev.data)) avisos.push(`Dispositivo ${rotuloDispositivo(i)}: ${a.texto}`);
   if (ev.dados?.sae?.status !== 'concluido') erros.push('Processo de Enfermagem (blocos 3 a 5): conclua o PE antes de finalizar');
   for (const pa of pendenciasAutomaticas(ev)) avisos.push(`Pendência: ${pa}`);
   return { erros, avisos };
@@ -84,10 +87,13 @@ const limpar = (s) => String(s ?? '').replace(/[–—]/g, '-').replace(/[−]/g
 
 function valorCampo(c, d, ctx) {
   const v = d[c.nome];
+  if (c.texto) return vazio(v) ? '' : c.texto(v, ctx, d);
   switch (c.tipo) {
     case 'calculado': return c.calc(d, ctx);
     case 'escolha': case 'select': case 'escala': return vazio(v) ? '' : (c.opcoes[v] ?? v);
-    case 'multipla': return vazio(v) ? '' : v.map((x) => c.opcoes[x] ?? x).join(', ');
+    case 'multipla': case 'marcar':
+      if (typeof v === 'string') return v; // registro anterior em texto livre
+      return vazio(v) ? '' : v.map((x) => c.opcoes[x] ?? x).join(', ');
     case 'data': return v ? formatarData(v) : '';
     case 'datahora': return v ? formatarDataHora(v) : '';
     case 'numero': return vazio(v) ? '' : `${String(v).replace('.', ',')}${c.unidade ? ` ${c.unidade}` : ''}`;
@@ -105,7 +111,8 @@ function valorCampo(c, d, ctx) {
 
 /** Rótulo no meio da frase: primeira letra minúscula, mas siglas ficam como estão (FC, SpO2, RASS). */
 const NOMES_PROPRIOS = /^(Glasgow)\b/;
-const rotuloMin = (r) => {
+const rotuloMin = (rotulo) => {
+  const r = rotulo.replace(/\?$/, '');
   const primeira = r.split(/[\s—-]/)[0];
   if (NOMES_PROPRIOS.test(r) || /[A-Z0-9]/.test(primeira.slice(1))) return r; // sigla (FC, SpO2, RASS) ou nome de escala
   return r.charAt(0).toLowerCase() + r.slice(1);
@@ -182,6 +189,31 @@ export function textoParaPEP(ev, internacao, { unidadeNome = '', autor } = {}) {
   if (a) linhas.push(`Enfermeiro(a): ${a.nome}, Coren ${a.coren}.${ev.finalizadoEmTexto ? ` Finalizado em ${ev.finalizadoEmTexto}.` : ''}`);
   if (ev.versao > 1 && ev.retificacao?.motivo) linhas.push(`Retificação (versão ${ev.versao}): ${limpar(ev.retificacao.motivo)}.`);
   return linhas.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+/**
+ * Dados com que uma evolução nova já nasce, a partir da evolução anterior:
+ * pendências abertas, subblocos herdáveis (limitação/objetivo de cuidado, pele,
+ * dispositivos ativos, antimicrobianos), o plano do PE e a data da última evacuação.
+ * `dados.herdado` registra o que veio da anterior (o aviso "herdado · confira").
+ */
+export function dadosIniciais(anterior) {
+  const dados = {};
+  if (!anterior) return dados;
+  const pend = pendenciasAbertas(anterior).map((p) => ({ ...p, herdada: true }));
+  if (pend.length) dados.pendencias = { itens: pend };
+  const subblocos = [];
+  for (const s of Object.values(SUBBLOCOS)) {
+    const d = anterior.dados?.[s.id];
+    if (!s.herdavel || !d || !subblocoRegistrado({ dados: { [s.id]: d } }, s.id)) continue;
+    dados[s.id] = s.aoHerdar ? s.aoHerdar(JSON.parse(JSON.stringify(d))) : JSON.parse(JSON.stringify(d));
+    subblocos.push(s.id);
+  }
+  if (anterior.dados?.sae?.diagnosticos?.length) dados.sae = planoParaNovoDia(anterior.dados.sae);
+  const gi = anterior.dados?.gi || {};
+  const ultimaEvacuacao = gi.evacuou === 'sim' ? anterior.data : (anterior.dados?.herdado?.ultimaEvacuacao || (/^\d{4}-\d{2}-\d{2}$/.test(gi.ultimaEvacuacao || '') ? gi.ultimaEvacuacao : ''));
+  dados.herdado = { de: anterior.data, subblocos, ultimaEvacuacao };
+  return dados;
 }
 
 /** Pendências abertas de uma evolução (para levar à evolução seguinte). */

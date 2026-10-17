@@ -5,6 +5,8 @@
 import { h, limpar } from '../../nucleo/ui.js';
 import { visivel, ESTADOS_MEDIDA } from '../../regras/evolucao-esquema.js';
 import { checarSinal, SINAIS } from '../../regras/calculos.js';
+import { campoInfusoes } from './infusoes.js';
+import { campoDispositivos } from './dispositivos.js';
 
 let seq = 0;
 const clone = (o) => (o == null ? o : JSON.parse(JSON.stringify(o)));
@@ -153,6 +155,40 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
       wrap.append(h('div', { class: 'campo-rotulo', id: `${id}-r` }, c.rotulo), grupo);
       break;
     }
+    case 'marcar': {
+      // Caixas de marcar em grade. excludentes: grupos em que só um vale;
+      // exclusivos: opções que desmarcam todas as outras (ex.: "sem edema").
+      const grade = h('div', { class: 'marcar-grade', role: 'group', 'aria-labelledby': `${id}-r` });
+      const chaves = Object.keys(c.opcoes);
+      const caixas = Object.entries(c.opcoes).map(([v, t]) => {
+        const inp = h('input', { type: 'checkbox', disabled: ro, value: v });
+        inp.addEventListener('change', () => {
+          let atual = new Set(Array.isArray(alvo()[c.nome]) ? alvo()[c.nome] : []);
+          if (inp.checked) {
+            if ((c.exclusivos || []).includes(v)) atual = new Set();
+            else for (const x of c.exclusivos || []) atual.delete(x);
+            for (const g of c.excludentes || []) if (g.includes(v)) for (const x of g) atual.delete(x);
+            atual.add(v);
+          } else atual.delete(v);
+          definir(chaves.filter((k) => atual.has(k)));
+        });
+        return { v, inp, el: h('label', { class: 'marcar-op' }, inp, h('span', {}, t)) };
+      });
+      grade.append(...caixas.map((x) => x.el));
+      atualizadores.push(() => {
+        const atual = new Set(Array.isArray(alvo()[c.nome]) ? alvo()[c.nome] : []);
+        for (const x of caixas) { x.inp.checked = atual.has(x.v); x.el.classList.toggle('on', x.inp.checked); }
+      });
+      const antigo = typeof alvo()[c.nome] === 'string' && alvo()[c.nome] ? h('div', { class: 'campo-ajuda' }, `Registro anterior: ${alvo()[c.nome]}`) : null;
+      wrap.append(...[h('div', { class: 'campo-rotulo', id: `${id}-r` }, c.rotulo), grade, antigo].filter(Boolean));
+      break;
+    }
+    case 'infusoes':
+      wrap.append(campoInfusoes(c, { obter: alvo, definir, ro, atualizadores }));
+      break;
+    case 'dispositivos':
+      wrap.append(campoDispositivos(c, { obter: alvo, definir, ro, contexto, atualizadores }));
+      break;
     case 'calculado': {
       const saida = h('output', { class: 'calculado', id });
       wrap.append(h('div', { class: 'campo-rotulo' }, c.rotulo, h('span', { class: 'etiqueta-calc' }, 'calculado')), saida);
@@ -258,7 +294,7 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
           desenhar();
           mudou();
           itensEl.lastElementChild?.querySelector('input, select, textarea')?.focus();
-        } }, c.atalhos ? '+ Outra infusão' : `+ Adicionar ${c.rotuloItem}`)].filter(Boolean));
+        } }, `+ Adicionar ${c.rotuloItem}`)].filter(Boolean));
       break;
     }
     default:
