@@ -505,3 +505,6 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
   .campos { padding: 0 10px 12px; gap: 10px 12px; }
   .sub-anterior, .sub-descricao { margin-left: 10px; margin-right: 10px; }
 }
+
+/* capa da ocorrência: reservas (um paciente por linha) */
+.capa-reservas-texto { font-size: 14px; line-height: 1.45; }
