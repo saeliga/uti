@@ -2,7 +2,7 @@
 
 import { MODO_DEMO, VERSAO } from './config.js';
 import { backend } from './dados/backend.js';
-import { h, limpar, carregando, aviso } from './nucleo/ui.js';
+import { h, limpar, carregando, aviso, anexar } from './nucleo/ui.js';
 import { telaEntrada, telaAguardando, telaSolicitarAcesso, sairComSeguranca } from './nucleo/sessao.js';
 import { iniciarBloqueio, bloquear } from './nucleo/bloqueio.js';
 import { iniciarVerificacaoVersao } from './nucleo/versao.js';
@@ -68,7 +68,7 @@ function montarEstrutura() {
     p.perfil === 'admin' && h('a', { href: '#/admin', class: 'btn btn-secundario btn-pequeno', dataset: { rota: 'admin' } }, 'Administração'),
     h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onclick: bloquear }, 'Bloquear tela'),
     h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onclick: sairComSeguranca }, 'Sair'));
-  limpar(raiz).append(
+  anexar(limpar(raiz), 
     MODO_DEMO ? h('div', { class: 'faixa-demo' }, 'MODO DEMONSTRAÇÃO — dados fictícios, nada é salvo. Ao recarregar a página, tudo volta ao início.') : null,
     h('header', { class: 'topo' },
       h('a', { href: '#/', class: 'topo-marca', 'aria-label': 'Início' },

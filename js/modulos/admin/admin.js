@@ -2,7 +2,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado } from '../../nucleo/estado.js';
-import { h, limpar, carregando, aviso, confirmar } from '../../nucleo/ui.js';
+import { h, limpar, carregando, aviso, confirmar, anexar } from '../../nucleo/ui.js';
 import { PERFIS } from '../../regras/opcoes.js';
 import { UNIDADES_PADRAO } from '../../config.js';
 import { chamar } from '../../api/appsscript.js';
@@ -35,7 +35,7 @@ async function secaoUsuarios(corpo) {
   }
   const pendentes = lista.filter((u) => u.perfil === 'pendente');
   const ordenar = (a, b) => a.nome.localeCompare(b.nome, 'pt');
-  limpar(corpo).append(
+  anexar(limpar(corpo), 
     h('p', { class: 'ajuda' }, 'Novos cadastros chegam como "Aguardando aprovação". Confira nome e Coren, escolha o perfil e as unidades, marque "Ativo" e salve.'),
     pendentes.length ? h('h2', {}, `Aguardando aprovação (${pendentes.length})`) : null,
     ...pendentes.sort(ordenar).map(linhaUsuario),

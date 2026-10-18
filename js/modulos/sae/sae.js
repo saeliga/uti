@@ -3,7 +3,7 @@
 // NANDA-I permite acrescentar diagnósticos, e NOC/NIC são escolhidos SOMENTE
 // entre os ligados a cada diagnóstico na tabela de ligações.
 
-import { h, limpar, aviso, abrirJanela, confirmar } from '../../nucleo/ui.js';
+import { h, limpar, aviso, abrirJanela, confirmar, trocarFilhos } from '../../nucleo/ui.js';
 import * as cat from '../../api/catalogo.js';
 import {
   CATEGORIA, ORIGEM, STATUS_ATIVIDADE, DECISOES, ROTULO_STATUS_PE,
@@ -213,7 +213,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
     };
     const risco = d.categoria === CATEGORIA.risco;
     const erroEl = h('div', { class: 'campo-erro' });
-    corpo.replaceChildren(
+    trocarFilhos(corpo, 
       h('p', { class: 'ajuda' }, h('strong', {}, `${d.codigo} · ${ROT_CAT[d.categoria] || d.categoria}`), ` — ${d.definicao}`),
       !d.temLigacoes && h('p', { class: 'caixa caixa-atencao' }, 'Este diagnóstico não tem NOC/NIC na tabela de ligações; não será possível planejar resultados e intervenções.'),
       risco ? grupo('ri', 'Fatores de risco', d.fatoresRisco) : grupo('cd', 'Características definidoras', d.caracteristicasDefinidoras),
@@ -287,7 +287,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
       const sugeridos = new Set(lig?.noc?.find((x) => x.codigo === r.codigo)?.indicadores_sugeridos || []);
       const atuais = new Map((r.indicadores || []).map((i) => [i.codigo, i]));
       const marcados = new Set(atuais.size ? atuais.keys() : sugeridos);
-      corpo.replaceChildren(
+      trocarFilhos(corpo, 
         h('p', { class: 'ajuda' }, det.definicao),
         !atuais.size && sugeridos.size ? h('p', { class: 'ajuda' }, 'Os indicadores sugeridos pela tabela de ligações vêm marcados; ajuste como quiser.') : null,
         h('div', { class: 'sae-lista-marcar' }, det.indicadores.map((i) => h('label', { class: 'opcao sae-item' },
@@ -323,7 +323,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
         const t = filtro.value.toLowerCase();
         for (const l of lista.children) l.hidden = t && !l.dataset.texto.includes(t);
       });
-      corpo.replaceChildren(
+      trocarFilhos(corpo, 
         h('p', { class: 'ajuda' }, det.definicao, ' ', h('strong', {}, `Responsável mínimo: ${responsavel(det.nivel_formacao)}.`)),
         filtro, lista,
         h('div', { class: 'linha-acoes' },
