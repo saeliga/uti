@@ -67,9 +67,26 @@ export function barraImpressos(unidade, leitos) {
   const ocupados = leitos.filter((l) => l.internacaoId);
   const semPacientes = () => { aviso('Não há pacientes internados nesta unidade.', 'atencao'); };
 
-  const capa = async () => {
-    const m = await carregarImpressos();
-    m.imprimirFolhas([m.folhaCapa(unidade, hojeISO())]);
+  // Campo de data para os impressos (padrão: hoje).
+  const campoData = (rotulo, ajuda) => {
+    const input = h('input', { type: 'date', value: hojeISO(), required: true });
+    return { input, el: h('div', { class: 'campo' }, h('label', { class: 'campo-rotulo' }, rotulo), input, ajuda && h('p', { class: 'ajuda' }, ajuda)) };
+  };
+
+  const capa = () => {
+    const d = campoData('Data da capa');
+    abrirJanela({
+      titulo: `Capa da ocorrência — ${unidade.nome}`,
+      conteudo: h('div', { class: 'formulario' }, d.el),
+      acoes: [
+        { texto: 'Cancelar', classe: 'btn-secundario' },
+        { texto: 'Imprimir', classe: 'btn-primario', aoClicar: async () => {
+          if (!d.input.value) { aviso('Escolha a data.', 'atencao'); return false; }
+          const m = await carregarImpressos();
+          m.imprimirFolhas([m.folhaCapa(unidade, d.input.value)]);
+        } },
+      ],
+    });
   };
 
   const ocorrencias = () => {
@@ -77,10 +94,14 @@ export function barraImpressos(unidade, leitos) {
     escolherLeitos({
       titulo: 'Ocorrências de enfermagem (fase de transição)',
       leitos: ocupados,
-      extra: { el: h('p', { class: 'ajuda' }, `Uma folha por leito, com data de hoje (${formatarData(hojeISO())}). Identificação, dispositivos, infusões, antimicrobianos, dieta, eliminações e lesões vêm da evolução mais recente.`) },
-      aoConfirmar: async (escolhidos) => {
+      extra: (() => {
+        const d = campoData('Data da ocorrência', 'Uma folha por leito. Os dias de UTI e de antimicrobianos são contados para esta data. Identificação, dispositivos, infusões, antimicrobianos, dieta, eliminações e lesões vêm da evolução mais recente.');
+        return { el: d.el, valor: () => d.input.value };
+      })(),
+      aoConfirmar: async (escolhidos, data) => {
+        if (!data) throw new Error('escolha a data');
         const [m, dados] = await Promise.all([carregarImpressos(), dadosDosLeitos(escolhidos)]);
-        m.imprimirFolhas(dados.map(({ leito, internacao, ev }) => m.folhaOcorrencia(internacao, ev, { leitoNum: leito.numero, data: hojeISO() })));
+        m.imprimirFolhas(dados.map(({ leito, internacao, ev }) => m.folhaOcorrencia(internacao, ev, { leitoNum: leito.numero, data })));
       },
     });
   };
