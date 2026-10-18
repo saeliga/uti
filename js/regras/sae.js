@@ -78,7 +78,11 @@ export function planoParaNovoDia(saeAnterior) {
       confirmado: false,
       decisao: '', decisaoMotivo: '',
       noc: (d.noc || []).map((r) => ({ ...r, indicadores: (r.indicadores || []).map((i) => ({ ...i, anterior: i.pontuacao || i.anterior || '', pontuacao: '' })) })),
-      nic: (d.nic || []).map((x) => ({ ...x, atividades: (x.atividades || []).map((a) => ({ id: a.id, texto: a.texto, status: '', justificativa: '' })) })),
+      nic: (d.nic || []).map((x) => ({ ...x, atividades: (x.atividades || []).map((a) => ({
+        id: a.id, texto: a.texto, status: '', justificativa: '',
+        // O aprazamento (prescrição) continua no dia seguinte.
+        ...(a.freq ? { freq: a.freq } : {}), ...(a.horarios?.length ? { horarios: a.horarios } : {}), ...(a.obsPrescricao ? { obsPrescricao: a.obsPrescricao } : {}),
+      })) })),
     }));
   return { status: 'nao_iniciado', sugestao: null, diagnosticos, versaoLigacoes: saeAnterior?.versaoLigacoes || '' };
 }

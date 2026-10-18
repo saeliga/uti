@@ -447,6 +447,22 @@ export function salvarChecklistIras(id, { unidade, data, turno, respostas, enfer
   }).catch((e) => { throw traduzirErro(e); });
 }
 
+// --------------------------------------------------------------------------- capa da ocorrência (observações)
+/** Observações administrativas da capa (reservas cirúrgicas etc.), uma por unidade e dia. */
+export async function lerCapaOcorrencia(id) {
+  return executar(async () => {
+    const s = await F.getDoc(F.doc(db, 'capasOcorrencia', id));
+    return s.exists() ? { id, ...s.data() } : null;
+  });
+}
+
+export function salvarCapaOcorrencia(id, { unidade, data, observacoes }) {
+  return F.setDoc(F.doc(db, 'capasOcorrencia', id), {
+    unidade, data, observacoes: String(observacoes || '').slice(0, 4000),
+    atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
+  }).catch((e) => { throw traduzirErro(e); });
+}
+
 // --------------------------------------------------------------------------- check-lists de inserção (CVC e CVD)
 export async function lerChecklistInsercao(id) {
   return executar(async () => {

@@ -270,6 +270,23 @@ function notificarEvol() {
         antimicrobianos: { itens: [{ nome: 'Meropeném', inicio: somarDias(hoje, -2), previsto: '7' }], culturas: [{ material: 'Hemocultura', coleta: somarDias(hoje, -2), resultado: 'Em andamento' }] },
         pendencias: { itens: [{ descricao: 'Resultado da hemocultura de ontem', comunicado: 'Plantonista', situacao: 'aberta' }] },
         narrativa: { texto: 'Piora hemodinâmica no fim do turno, com aumento da noradrenalina. Febre persistente.' },
+        // Processo de Enfermagem concluído, com aprazamento (catálogo fictício da demonstração).
+        sae: { status: 'concluido', sugestao: null, versaoLigacoes: 'demo', diagnosticos: [
+          { codigo: '90003', titulo: 'Risco de lesão por pressão (exemplo fictício)', categoria: 'Potencial para deteriorar', dominio: 'Exemplo — Pele', origem: 'enfermeiro', situacao: 'ativo', confirmado: true,
+            evidencias: { cd: [], fr: [], ri: [{ id: 'RI1', texto: 'Imobilidade no leito (exemplo)' }, { id: 'RI2', texto: 'Sedação contínua (exemplo)' }], pr: [], ca: [] }, observacao: '',
+            noc: [{ codigo: '9103', titulo: 'Integridade da pele (exemplo)', indicadores: [{ codigo: '910301', texto: 'Pele íntegra em proeminências (exemplo)', niveis: ['Gravemente comprometido', 'Muito comprometido', 'Moderadamente comprometido', 'Levemente comprometido', 'Não comprometido'], meta: '4', pontuacao: '3', anterior: '' }] }],
+            nic: [{ codigo: '9203', titulo: 'Prevenção de lesão por pressão (exemplo)', nivel: 'Técnico de enfermagem', atividades: [
+              { id: 'A1', texto: 'Mudar o decúbito a cada 2 horas (exemplo)', status: 'realizado', justificativa: '', freq: '02/02H', horarios: ['08', '10', '12', '14', '16', '18', '20', '22', '00', '02', '04', '06'], obsPrescricao: 'D → DD → E' },
+              { id: 'A3', texto: 'Manter a pele limpa e seca (exemplo)', status: 'realizado', justificativa: '', freq: 'TURNO', horarios: ['08', '14', '20'] }] }],
+            decisao: 'manter', decisaoMotivo: '' },
+          { codigo: '90001', titulo: 'Risco de infecção (exemplo fictício)', categoria: 'Potencial para deteriorar', dominio: 'Exemplo — Segurança', origem: 'enfermeiro', situacao: 'ativo', confirmado: true,
+            evidencias: { cd: [], fr: [], ri: [{ id: 'RI1', texto: 'Uso de cateter venoso central (exemplo)' }], pr: [], ca: [] }, observacao: '',
+            noc: [{ codigo: '9101', titulo: 'Controle de infecção (exemplo)', indicadores: [{ codigo: '910101', texto: 'Febre (exemplo)', niveis: ['Grave', 'Substancial', 'Moderado', 'Leve', 'Nenhum'], meta: '4', pontuacao: '2', anterior: '' }] }],
+            nic: [{ codigo: '9201', titulo: 'Cuidados com dispositivos invasivos (exemplo)', nivel: 'Enfermeiro registrado', atividades: [
+              { id: 'A1', texto: 'Avaliar diariamente a necessidade de cada dispositivo (exemplo)', status: 'realizado', justificativa: '', freq: '24/24H', horarios: ['08'] },
+              { id: 'A2', texto: 'Manter curativo íntegro e datado (exemplo)', status: 'realizado', justificativa: '', freq: 'SN', horarios: [], obsPrescricao: 'Filme transparente: trocar a cada 7 dias ou se sujo/descolado' }] }],
+            decisao: 'manter', decisaoMotivo: '' },
+        ] },
       },
       confirmados: {}, finalizadoPorNome: { nome: 'ENFERMEIRA DEMONSTRAÇÃO', coren: '000000-RN' }, finalizadoEmTexto: 'dia anterior',
     };
@@ -337,6 +354,17 @@ export async function lerChecklistIras(id) {
 export async function salvarChecklistIras(id, dados) {
   checklistsIras[id] = { ...clone(dados), atualizadoPor: USUARIO.uid };
   return espera(120);
+}
+
+// --------------------------------------------------------------------------- capa da ocorrência (observações)
+const capas = {};
+export async function lerCapaOcorrencia(id) {
+  await espera(40);
+  return capas[id] ? { id, ...clone(capas[id]) } : null;
+}
+export async function salvarCapaOcorrencia(id, dados) {
+  capas[id] = { ...clone(dados), atualizadoPor: USUARIO.uid };
+  return espera(80);
 }
 
 // --------------------------------------------------------------------------- check-lists de inserção (CVC e CVD)
