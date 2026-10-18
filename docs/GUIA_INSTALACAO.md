@@ -225,6 +225,10 @@ Na janela de impressão do navegador, deixe **Margens: padrão** e **Escala: pad
 - **Ocorrência:** o boneco (frente e costas) voltou ao espaço de lesões/curativos; a lista de lesões registradas sai logo abaixo dele.
 - **Balanço hídrico (verso):** as figuras de prato e garrafa (0%, 50%, 75% e 100%) para o técnico registrar à mão a aceitação da dieta via oral.
 
+## 11.5 Versão 0.6.1 (celular e tablet em pé)
+
+Sem nada a publicar além do merge. Em telas de até 900 px de largura (celular e tablet em pé), a evolução usa um cabeçalho compacto: nome, leito, dias de UTI e idade, alergia, isolamento e situação do dia ocupam cerca de um terço do espaço anterior. Os detalhes (nascimento, registro, turno em que começou, evolução da admissão) abrem no botão ▾. Ao rolar para baixo, o cabeçalho se recolhe (fica nome, leito e alergia); ao subir, volta. A barra superior deixa de ficar fixa nessas telas. No computador e no tablet deitado nada muda.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

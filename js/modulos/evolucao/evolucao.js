@@ -123,16 +123,24 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
       ],
     });
   }
+  const leitoNum = String(ev.leitoId).split('_')[1];
+  // Celular e tablet em pé: cabeçalho compacto, com os detalhes num toque (ver CSS).
+  const botaoMais = h('button', { type: 'button', class: 'btn-icone evo-mais', 'aria-expanded': 'false', 'aria-label': 'Mostrar detalhes do paciente', onclick: () => {
+    const aberto = cabecalho.classList.toggle('aberto');
+    botaoMais.setAttribute('aria-expanded', String(aberto));
+    botaoMais.textContent = aberto ? '▴' : '▾';
+  } }, '▾');
   const cabecalho = h('div', { class: 'evo-cabecalho' },
     h('div', { class: 'evo-paciente' },
-      h('a', { href: `#/${ev.unidade}`, class: 'btn btn-link btn-pequeno evo-voltar' }, '← Painel'),
-      h('div', {},
-        h('div', { class: 'evo-nome' }, p.nome),
+      h('a', { href: `#/${ev.unidade}`, class: 'btn btn-link btn-pequeno evo-voltar', 'aria-label': 'Voltar ao painel' }, h('span', { class: 'evo-voltar-seta' }, '←'), h('span', { class: 'evo-voltar-texto' }, ' Painel')),
+      h('div', { class: 'evo-quem' },
+        h('div', { class: 'evo-nome' }, p.nome, h('span', { class: 'evo-curto' }, ` Leito ${leitoNum} · UTI ${contagemDia(internacao.admissaoUti, ev.data)} · ${idade(p.dataNascimento, ev.data)} anos`)),
         h('div', { class: 'evo-ident' }, `${idade(p.dataNascimento, ev.data)} anos · nasc. ${formatarData(p.dataNascimento)} · Reg. ${p.registro} · ${unidadeNome} leito ${String(ev.leitoId).split('_')[1]} · UTI ${contagemDia(internacao.admissaoUti, ev.data)}`)),
       h('div', { class: 'evo-alertas' },
         al?.situacao === 'possui' ? h('span', { class: 'chip chip-alerta' }, '⚠ ALERGIA: ', al.descricao) : h('span', { class: 'chip' }, al?.situacao === 'nega' ? 'Nega alergias' : 'Alergias: sem informação'),
-        chipIsolamento)),
-    h('div', { class: 'evo-turno' }, h('strong', {}, rotuloDia(ev.data)), ev.turnoInicio && h('span', { class: 'ajuda' }, `iniciada no turno da ${TURNOS[ev.turnoInicio].nome.toLowerCase()}`), situacaoEl, indicador),
+        chipIsolamento),
+      botaoMais),
+    h('div', { class: 'evo-turno' }, h('strong', {}, rotuloDia(ev.data)), ev.turnoInicio && h('span', { class: 'ajuda evo-iniciada' }, `iniciada no turno da ${TURNOS[ev.turnoInicio].nome.toLowerCase()}`), situacaoEl, indicador),
     avisoOutro);
 
   // Evolução da admissão: sempre disponível para consulta.
@@ -155,6 +163,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
             ],
           });
         } }, 'Evolução da admissão');
+        botao.classList.add('evo-admissao');
         cabecalho.querySelector('.evo-turno').append(botao);
         return;
       }
@@ -507,7 +516,29 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   });
 
   // O cabeçalho do paciente fica fixo logo abaixo da barra superior (que muda de altura no tablet).
-  const ajustarTopo = () => { cabecalho.style.top = `${document.querySelector('.topo')?.offsetHeight || 0}px`; };
+  const ajustarTopo = () => {
+    const topo = document.querySelector('.topo');
+    // No celular a barra superior não fica fixa (ver CSS): o cabeçalho cola no topo da tela.
+    cabecalho.style.top = `${topo && getComputedStyle(topo).position === 'sticky' ? topo.offsetHeight : 0}px`;
+  };
+  // Ao rolar para baixo, o cabeçalho compacto se recolhe (fica só o nome e a alergia); ao subir, volta.
+  // A mudança de altura mexe na rolagem (o navegador compensa): depois de recolher ou
+  // abrir, espera a página assentar antes de olhar a rolagem de novo, para não "piscar".
+  let ultimaRolagem = window.scrollY;
+  let travado = false;
+  const aoRolar = () => {
+    if (travado) return;
+    const y = window.scrollY;
+    const dy = y - ultimaRolagem;
+    if (Math.abs(dy) < 30) return;
+    ultimaRolagem = y;
+    const recolher = dy > 0 && y > 160 && !cabecalho.classList.contains('aberto');
+    if (recolher === cabecalho.classList.contains('recolhido')) return;
+    cabecalho.classList.toggle('recolhido', recolher);
+    travado = true;
+    setTimeout(() => { travado = false; ultimaRolagem = window.scrollY; }, 400);
+  };
+  window.addEventListener('scroll', aoRolar, { passive: true });
   ajustarTopo();
   window.addEventListener('resize', ajustarTopo);
 
@@ -524,6 +555,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     parar?.();
     window.removeEventListener('beforeunload', antesDeSair);
     window.removeEventListener('resize', ajustarTopo);
+    window.removeEventListener('scroll', aoRolar);
   };
 }
 
