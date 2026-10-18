@@ -3,7 +3,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, abrirJanela, campo, lerFormulario, mostrarErros, aviso, carregando, confirmar } from '../../nucleo/ui.js';
+import { h, abrirJanela, campo, lerFormulario, mostrarErros, aviso, carregando, confirmar, trocarFilhos } from '../../nucleo/ui.js';
 import { validarPaciente, validarInternacao, validarDesfecho, montarInternacao } from '../../regras/validacao.js';
 import { agoraLocalISO, contagemDia, formatarData, formatarDataHora, hojeISO, idade } from '../../regras/datas.js';
 import { ISOLAMENTOS, ALERGIA_SITUACAO, TIPOS_INTERNACAO, DESFECHOS } from '../../regras/opcoes.js';
@@ -126,7 +126,7 @@ export async function detalheInternacao({ leito, unidade }) {
   }
   const hoje = hojeISO();
   const al = i.alergias;
-  corpo.replaceChildren(
+  trocarFilhos(corpo, 
     h('div', { class: 'detalhe-ident' },
       h('div', { class: 'detalhe-nome' }, i.paciente.nome),
       h('div', {}, `${idade(i.paciente.dataNascimento, hoje)} anos · nascimento ${formatarData(i.paciente.dataNascimento)} · Reg. ${i.paciente.registro}`)),

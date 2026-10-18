@@ -19,6 +19,18 @@ export function h(tag, attrs = {}, ...filhos) {
   return el;
 }
 
+// append/replaceChildren nativos escrevem "null" e "false" na tela; estes ignoram
+// filhos vazios (como o h()), para trechos condicionais (cond && h(...), cond ? h(...) : null).
+const validos = (filhos) => filhos.flat(Infinity).filter((f) => f != null && f !== false);
+export function anexar(el, ...filhos) {
+  el.append(...validos(filhos));
+  return el;
+}
+export function trocarFilhos(el, ...filhos) {
+  el.replaceChildren(...validos(filhos));
+  return el;
+}
+
 export function limpar(el) {
   while (el.firstChild) el.firstChild.remove();
   return el;
