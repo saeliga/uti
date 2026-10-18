@@ -338,3 +338,20 @@ export async function salvarChecklistIras(id, dados) {
   checklistsIras[id] = { ...clone(dados), atualizadoPor: USUARIO.uid };
   return espera(120);
 }
+
+// --------------------------------------------------------------------------- check-lists de inserção (CVC e CVD)
+const checklistsInsercao = {};
+export async function lerChecklistInsercao(id) {
+  await espera(60);
+  return checklistsInsercao[id] ? { id, ...clone(checklistsInsercao[id]) } : null;
+}
+export async function listarChecklistsInsercao(unidade, internacaoId) {
+  await espera(80);
+  return Object.entries(checklistsInsercao).filter(([, c]) => c.unidade === unidade && c.internacaoId === internacaoId)
+    .map(([id, c]) => ({ id, ...clone(c) })).sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
+}
+export async function salvarChecklistInsercao(id, dados) {
+  const { id: _ignorar, ...resto } = clone(dados);
+  checklistsInsercao[id] = { ...resto, atualizadoPor: USUARIO.uid };
+  return espera(120);
+}

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   BUNDLES_IRAS, adesaoBundle, irasInicial, resumoIras, bundlesAplicaveis, camposBH, camposOcorrencia, preencherModelo,
   dataExtenso, diaDaSemana, juntarEvolucoes, CHECKLISTS_INSERCAO,
+  itensInsercao, tipoChecklistDe, novoChecklistInsercao, avaliarInsercao, validarInsercao,
 } from '../js/regras/impressos.js';
 import { BH_PAGINA_1, BH_PAGINA_2, OCORRENCIA } from '../js/impressos/modelos.js';
 
@@ -104,11 +105,11 @@ test('modelos: todo marcador é preenchido e o texto é escapado', () => {
   const marcadores = (m) => [...new Set([...m.matchAll(/\{\{(\w+)\}\}/g)].map((x) => x[1]))];
   const bh = camposBH(internacao, ev, { leitoNum: '01', dataFolha: '2026-10-18' });
   const oc = camposOcorrencia(internacao, ev, { leitoNum: '01', data: '2026-10-17' });
-  const semValorPossivel = new Set(['logo', 'outraInf1', 'outraInf2', 'atb1', 'atb2', 'atb3', 'atb4', 'atbDias1', 'atbDias2', 'atbDias3', 'atbDias4']);
+  const semValorPossivel = new Set(['logo', 'boneco', 'prato0', 'prato50', 'prato75', 'prato100', 'garrafa0', 'garrafa50', 'garrafa75', 'garrafa100', 'outraInf1', 'outraInf2', 'atb1', 'atb2', 'atb3', 'atb4', 'atbDias1', 'atbDias2', 'atbDias3', 'atbDias4']);
   for (const k of marcadores(BH_PAGINA_1 + BH_PAGINA_2)) assert.ok(k in bh || semValorPossivel.has(k), `BH: ${k}`);
   for (const k of marcadores(OCORRENCIA)) assert.ok(k in oc || semValorPossivel.has(k), `ocorrência: ${k}`);
   assert.equal(preencherModelo('<td>{{a}}</td><td>{{logo}}</td>', { a: '<b>&' }, { logo: '<img>' }), '<td>&lt;b&gt;&amp;</td><td><img></td>');
-  assert.ok(!/\{\{/.test(preencherModelo(BH_PAGINA_2, bh, { logo: '' })), 'nada sobra sem preencher');
+  assert.ok(!/\{\{/.test(preencherModelo(BH_PAGINA_2, bh, { logo: '', prato0: '', prato50: '', prato75: '', prato100: '', garrafa0: '', garrafa50: '', garrafa75: '', garrafa100: '' })), 'nada sobra sem preencher');
 });
 
 test('datas por extenso e dia da semana', () => {
@@ -126,8 +127,27 @@ test('dados mais recentes: cada subbloco vem da evolução mais nova que o regis
   assert.equal(juntarEvolucoes([]), null);
 });
 
-test('check-lists de inserção de CVC e CVD', () => {
+test('check-lists de inserção: modelo atual da Liga, preenchimento a partir do dispositivo e conformidade', () => {
   assert.deepEqual(Object.keys(CHECKLISTS_INSERCAO), ['cvc', 'cvd']);
-  assert.ok(CHECKLISTS_INSERCAO.cvc.secoes.flatMap((s) => s[1]).some((t) => /CLOREXIDINA ALCOÓLICA/.test(t)));
-  assert.ok(CHECKLISTS_INSERCAO.cvd.secoes[0][1].some((t) => /SISTEMA FECHADO/.test(t)));
+  assert.equal(itensInsercao('cvc').length, 15);
+  assert.equal(itensInsercao('cvd').length, 17);
+  assert.equal(tipoChecklistDe('cateter_dialise'), 'cvc');
+  assert.equal(tipoChecklistDe('cvd'), 'cvd');
+  assert.equal(tipoChecklistDe('avp'), null);
+  const r = novoChecklistInsercao('cvc', { dispositivo: { tipo: 'cateter_dialise', local: 'FEMORAL', lado: 'D', lumens: '2', insercao: '2026-10-16', implantadoUti: 'sim' }, data: '2026-10-17' });
+  assert.deepEqual([r.cateter, r.lumens, r.local, r.lado, r.naUti, r.data], ['hd', 'duplo', 'femoral', 'D', 'sim', '2026-10-16']);
+  // Tudo SIM, menos as perguntas de falha (quebra de técnica, mais de uma punção, mudou o sítio), que são conformes com NÃO.
+  r.respostas = Object.fromEntries(itensInsercao('cvc').map((i) => [i.id, i.esperado || 'sim']));
+  assert.equal(avaliarInsercao(r).status, 'conforme');
+  r.respostas.maisPuncao = 'sim';
+  assert.equal(avaliarInsercao(r).status, 'nao_conforme');
+  r.respostas.quebra = 'sim';
+  r.situacao = 'nova'; r.responsavel = 'Enf. Teste';
+  assert.ok(validarInsercao(r).some((e) => /Especifique/.test(e)), 'quebra de técnica pede especificação');
+  r.detalhes = { quebra: 'contaminação do fio-guia' };
+  assert.deepEqual(validarInsercao(r), []);
+  const cvd = novoChecklistInsercao('cvd', { setor: 'UTI 1', data: '2026-10-17' });
+  assert.ok(validarInsercao(cvd).some((e) => /indicação/.test(e)));
+  delete r.respostas.raioX;
+  assert.equal(avaliarInsercao(r).status, 'incompleto');
 });

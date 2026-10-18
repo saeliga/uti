@@ -4,11 +4,13 @@
 // Baseado no modal do piloto do Hospital dos Pescadores.
 
 import { h, limpar, abrirJanela, confirmar, campo, lerFormulario, mostrarErros } from '../../nucleo/ui.js';
+import { backend } from '../../dados/backend.js';
 import {
   CATALOGO_DISPOSITIVOS, ROTULOS_CAMPO, LADOS, LUMENS, CURATIVOS, SITIO,
   ativo, definicao, rotuloDispositivo, alertasDispositivo,
 } from '../../regras/dispositivos.js';
 import { contagemDia, formatarData } from '../../regras/datas.js';
+import { tipoChecklistDe } from '../../regras/impressos.js';
 
 const GRUPOS_TIPO = [
   ['Acessos vasculares', ['cvc', 'cateter_dialise', 'picc', 'cti', 'avp', 'pai']],
@@ -67,6 +69,7 @@ export function campoDispositivos(c, { obter, definir, ro, contexto, atualizador
         h('strong', { class: 'disp-nome' }, rotuloDispositivo(i)),
         h('span', { class: 'disp-meta' }, i.insercao ? `inserido em ${formatarData(i.insercao)} · ${contagemDia(i.insercao, hoje())}` : 'sem data de inserção'),
         i.implantadoUti === 'nao' && h('span', { class: 'chip' }, 'implantado fora da UTI'),
+        botaoChecklist(i),
         !ro && h('span', { class: 'disp-acoes' },
           h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => abrirModal(i) }, 'Editar'),
           def.curativo && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => {
@@ -85,6 +88,23 @@ export function campoDispositivos(c, { obter, definir, ro, contexto, atualizador
         h('span', { class: 'entrada-com-unidade' }, entrada('volume', { inputmode: 'decimal', placeholder: 'volume', 'aria-label': 'Volume drenado' }), h('span', { class: 'unidade' }, 'mL')),
         entrada('aspecto', { placeholder: 'aspecto (ex.: seroso, serossanguinolento)', 'aria-label': 'Aspecto' }))),
       linhaDia('Ainda é necessário?', chipsDia(i, 'necessario', { sim: 'Sim', nao: 'Não' })));
+  }
+
+  // Check-list de inserção (CVC/HD/PICC e CVD implantados na UTI): preencher ou abrir o já salvo.
+  function botaoChecklist(i) {
+    const tipoCk = tipoChecklistDe(i.tipo);
+    const ctx = contexto();
+    if (!tipoCk || i.implantadoUti === 'nao' || !ctx.internacao) return null;
+    const feito = !!i.checklistInsercao;
+    if (ro && !feito) return null;
+    return h('button', { type: 'button', class: `chip chip-botao ${feito ? 'chip-ok' : 'chip-atencao'}`, title: 'Check-list de inserção', onclick: async () => {
+      const { abrirChecklistInsercao } = await import('../insercao/insercao.js');
+      const existente = feito ? await backend.lerChecklistInsercao(i.checklistInsercao).catch(() => null) : null;
+      abrirChecklistInsercao({
+        tipo: tipoCk, internacao: ctx.internacao, unidade: ctx.unidade, leitoNum: ctx.leitoNum, dispositivo: i, existente,
+        aoSalvar: (reg) => atualizarItem(i.id, { checklistInsercao: reg.id, checklistStatus: reg.avaliacao }, true),
+      });
+    } }, feito ? `✓ Check-list de inserção${i.checklistStatus === 'nao_conforme' ? ' (não conforme)' : i.checklistStatus === 'incompleto' ? ' (incompleto)' : ''}` : '⏳ Check-list de inserção pendente');
   }
 
   function desenhar() {

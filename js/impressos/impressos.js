@@ -3,13 +3,19 @@
 
 import { BH_PAGINA_1, BH_PAGINA_2, OCORRENCIA, ESTILOS_PLANILHA } from './modelos.js';
 import {
-  camposBH, camposOcorrencia, camposIdentificacao, preencherModelo, diaDaSemana, BUNDLES_IRAS, adesaoBundle, CHECKLISTS_INSERCAO,
+  camposBH, camposOcorrencia, preencherModelo, diaDaSemana, BUNDLES_IRAS, adesaoBundle,
+  CHECKLISTS_INSERCAO, OPCOES_SITUACAO, OPCOES_LUMENS, INDICACOES_CVD, avaliarInsercao,
 } from '../regras/impressos.js';
-import { formatarData, idade } from '../regras/datas.js';
+import { formatarData } from '../regras/datas.js';
 import { TURNOS } from '../regras/turnos.js';
-import { LUMENS } from '../regras/dispositivos.js';
 
 const LOGO = '<img class="folha-logo" src="assets/logo/logo_liga_cor.png" alt="Liga Contra o Câncer">';
+// Figuras da planilha da Liga: aceitação da dieta (prato e garrafa) e o boneco das lesões.
+const ACEITACAO = Object.fromEntries(['0', '50', '75', '100'].flatMap((p) => [
+  [`prato${p}`, `<img class="aceitacao" src="assets/impressos/prato_${p}.png" alt="prato ${p}%">`],
+  [`garrafa${p}`, `<img class="aceitacao" src="assets/impressos/garrafa_${p}.png" alt="garrafa ${p}%">`],
+]));
+const BONECO = '<img class="oc-boneco" src="assets/impressos/boneco.png" alt="Figura do corpo, frente e costas">';
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const CSS = `
@@ -31,7 +37,10 @@ const CSS = `
 .folha-bh .planilha td{font-size:6.5pt}
 .folha-oc .planilha tr{height:4.86mm!important}
 .folha-oc .planilha td{font-size:7.5pt}
-.folha-oc td[data-c="E12"]{white-space:normal;vertical-align:top;font-size:8pt;padding:3px}
+.folha-oc td[data-c="E12"]{white-space:normal;vertical-align:top;font-size:7pt;padding:2px;text-align:center}
+.oc-boneco{height:58mm;max-width:100%;display:block;margin:0 auto}
+.oc-lesoes{text-align:left;font-size:6.5pt;line-height:1.2}
+.aceitacao{height:8mm;display:block;margin:auto}
 .folha-logo{height:13mm;display:block;margin:auto}
 .planilha td[data-c="A2"] .folha-logo,.planilha td[data-c="A43"] .folha-logo{height:11mm;margin:0 0 0 2mm}
 /* tabelas desenhadas (capa, IRAS, inserção) */
@@ -52,11 +61,26 @@ const CSS = `
 .iras .item{font-weight:700;font-size:8pt}
 .iras .item small{font-size:6.5pt}
 .folha-capa .ft td,.folha-capa .ft th{padding:.8mm 1.5mm;font-size:8pt;line-height:1.25}
-.folha-insercao .ft td,.folha-insercao .ft th{padding:.8mm 1.5mm}
 .legenda{display:flex;justify-content:space-between;font-size:8pt;margin-top:2mm}
-.ins-opcoes{display:flex;flex-wrap:wrap;gap:1mm 5mm;font-size:8pt}
-.ins-assin{display:flex;gap:8mm;margin-top:10mm;font-size:7.5pt;text-align:center}
-.ins-assin div{flex:1;border-top:0.6pt solid #000;padding-top:1mm}
+.folha-insercao{font-family:"Gotham Pro",Arial,sans-serif;font-size:8.5pt}
+.ins-topo{display:flex;justify-content:space-between;align-items:flex-start;margin:2mm 0 5mm}
+.ins-topo h1{font-family:"Zona Pro","Gotham Pro",Arial,sans-serif;font-weight:700;font-size:16pt;line-height:1.25;margin:0;color:#3c3c3b}
+.ins-topo .folha-logo{height:17mm;margin:0}
+.ins-caixa{width:100%;border-collapse:collapse;margin-bottom:2.5mm;font-size:8pt}
+.ins-caixa td{border:0.6pt solid #555;padding:1.3mm 1.6mm;vertical-align:top;color:#333}
+.ins-caixa td.c{text-align:center;vertical-align:middle}
+.ins-caixa small{font-size:6.5pt}
+.ins-itens td{padding:.9mm 1.6mm}
+.ins-sec td{font-weight:700}
+.ins-op{white-space:nowrap;margin-right:3.5mm}
+.cx{font-size:10pt;line-height:1}
+.ins-val{font-weight:700;color:#000}
+.ins-grade{display:flex;gap:4mm;justify-content:space-between;margin:.8mm 0}
+.ins-lista div{margin:.5mm 0}
+.ins-rodape-campos{font-size:8pt;color:#333;display:flex;flex-direction:column;gap:2.5mm;margin-top:3mm}
+.ins-rodape-campos .linha{display:inline-block;border-bottom:0.6pt solid #333;width:70%;height:3mm;vertical-align:bottom}
+.ins-resultado{font-size:7pt;color:#555}
+.ins-pe{display:flex;justify-content:space-between;align-items:flex-end;font-size:6.5pt;color:#444;margin-top:6mm;text-align:right}
 `;
 
 function garantirEstilos() {
@@ -90,13 +114,13 @@ export function folhasBH(internacao, ev, { leitoNum, dataFolha }) {
   const c = camposBH(internacao, ev, { leitoNum, dataFolha });
   return [
     { html: preencherModelo(BH_PAGINA_1, c, { logo: LOGO }), orientacao: 'paisagem', classe: 'folha-bh' },
-    { html: preencherModelo(BH_PAGINA_2, c, { logo: LOGO }), orientacao: 'paisagem', classe: 'folha-bh' },
+    { html: preencherModelo(BH_PAGINA_2, c, { logo: LOGO, ...ACEITACAO }), orientacao: 'paisagem', classe: 'folha-bh' },
   ];
 }
 
 export function folhaOcorrencia(internacao, ev, { leitoNum, data }) {
   const c = camposOcorrencia(internacao, ev, { leitoNum, data });
-  return { html: preencherModelo(OCORRENCIA, c), orientacao: 'retrato', classe: 'folha-oc' };
+  return { html: preencherModelo(OCORRENCIA, c, { boneco: BONECO }), orientacao: 'retrato', classe: 'folha-oc' };
 }
 
 const EQUIPAMENTOS = ['AMBÚ', 'TESOURA', 'TERMÔMETRO', 'ESTETOSCÓPIO', 'OXÍMETRO e PNI', 'ÓCULOS', 'TENSIÔMETRO', 'BALA DE O2', 'CARRO URGÊNCIA', 'FIO GUIA',
@@ -163,35 +187,60 @@ export function folhaIras(unidade, leitos, doc) {
   return { html, orientacao: 'retrato', classe: 'folha-iras' };
 }
 
-/** Check-list de inserção (CVC ou CVD) com a identificação do paciente já preenchida. */
-export function folhaInsercao(tipo, internacao, { leitoNum, unidadeNome, data, dispositivo }) {
-  const ck = CHECKLISTS_INSERCAO[tipo];
-  const id = camposIdentificacao(internacao, leitoNum);
-  const marcado = (campo, opcao) => {
-    if (!dispositivo || !campo) return false;
-    if (campo === 'local') return (dispositivo.local || '').startsWith(opcao.split(' ')[0]) || (opcao.startsWith('PERIFÉRICA') && dispositivo.tipo === 'picc');
-    if (campo === 'lado') return (opcao === 'DIREITO' && dispositivo.lado === 'D') || (opcao === 'ESQUERDO' && dispositivo.lado === 'E');
-    if (campo === 'lumens') return opcao.startsWith(`${dispositivo.lumens} `) || (opcao.startsWith('CATETER DE HEMODIÁLISE') && dispositivo.tipo === 'cateter_dialise');
-    return false;
+/**
+ * Check-list de inserção de CVC ou CVD no leiaute atual da Liga (Versão 2, 07/04/2026).
+ * `reg` é o registro preenchido no sistema (ou vazio, para imprimir em branco).
+ */
+export function folhaInsercao(internacao, reg) {
+  const ck = CHECKLISTS_INSERCAO[reg.tipo];
+  const p = internacao?.paciente || {};
+  const cx = (on) => `<span class="cx">${on ? '&#9746;' : '&#9744;'}</span>`;
+  const op = (on, texto) => `<span class="ins-op">${cx(on)} ${texto}</span>`;
+  const val = (t) => `<span class="ins-val">${esc(t || '')}</span>`;
+  const linhaResp = (i) => {
+    const r = reg.respostas?.[i.id] || '';
+    const det = i.detalhe && reg.detalhes?.[i.id] ? ` <span class="ins-val">${esc(reg.detalhes[i.id])}</span>` : '';
+    return `<tr><td>${esc(i.texto)}${i.nota ? `<br><small>${esc(i.nota)}</small>` : ''}${det}</td><td class="c">${r === 'sim' ? 'SIM' : ''}</td><td class="c">${r === 'nao' ? 'NÃO' : ''}</td></tr>`;
   };
-  const cab = ck.cabecalho.map(([rot, opcoes, campo]) => `<tr><td style="width:30%"><strong>${rot}</strong></td><td><div class="ins-opcoes">${opcoes.map((o) => {
-    if (campo === 'numero') return `<span>Nº ${esc(dispositivo?.numero || '______')}</span>`;
-    return `<span>(${marcado(campo, o) ? ' X ' : '&nbsp;&nbsp;&nbsp;'}) ${o}</span>`;
-  }).join('')}</div></td></tr>`).join('');
-  const secoes = ck.secoes.map(([titulo, itens]) => `<tr><td class="titulo-sec">${titulo}</td><th>SIM</th><th>SIM, APÓS LEMBRAR</th><th>NÃO</th><th>NA</th></tr>
-    ${itens.map((t) => `<tr><td>${t}</td><td></td><td></td><td></td><td></td></tr>`).join('')}`).join('');
-  const html = `${cabecalhoProtocolo(`${ck.titulo}<br><span style="font-weight:400;font-size:8pt">${ck.subtitulo}</span>`)}
-    <table class="ft" style="font-size:8.5pt">
-      <tr><td colspan="3"><strong>PACIENTE:</strong> ${esc(id.nome)}</td><td><strong>REG.:</strong> ${esc(id.registro)}</td></tr>
-      <tr><td><strong>NASC.:</strong> ${esc(id.nascimento)}${internacao.paciente?.dataNascimento ? ` (${idade(internacao.paciente.dataNascimento, data)} anos)` : ''}</td><td><strong>SETOR:</strong> ${esc(unidadeNome)}</td><td><strong>LEITO:</strong> ${esc(leitoNum)}</td>
-        <td><strong>DATA:</strong> ${dispositivo?.insercao ? formatarData(dispositivo.insercao) : formatarData(data)}&nbsp;&nbsp;<strong>HORA:</strong> ____:____</td></tr>
-    </table>
-    <table class="ft" style="margin-top:2mm;font-size:8.5pt">${cab}</table>
-    <table class="ft" style="margin-top:2mm;font-size:8.5pt"><colgroup><col style="width:58%"><col><col><col><col></colgroup>${secoes}
-      <tr><td colspan="5" style="height:14mm;vertical-align:top"><strong>OBSERVAÇÕES:</strong></td></tr></table>
-    <div class="ins-assin">${ck.assinaturas.map((a) => `<div>${a}</div>`).join('')}</div>
-    <p style="font-size:7pt;margin-top:4mm">Procedimento só é considerado conforme quando todos os itens forem cumpridos (ou não se aplicarem). Em caso de não conformidade, interromper e corrigir antes de prosseguir.</p>`;
+  const tabelaItens = ck.secoes.map((s) => `<tr class="ins-sec"><td>${esc(s.titulo)}</td><td class="c">SIM</td><td class="c">NÃO</td></tr>${s.itens.map(linhaResp).join('')}`).join('');
+  let meio;
+  if (reg.tipo === 'cvc') {
+    const lado = (l, fem = true) => `${op(reg.lado === 'D' && l, fem ? 'Direita' : 'Direito')} ${op(reg.lado === 'E' && l, fem ? 'Esquerda' : 'Esquerdo')}`;
+    meio = `
+    <table class="ins-caixa"><tr><td style="width:37%"><strong>O CATETER FOI PASSADO NA UTI/ UCI?</strong><br>${op(reg.naUti === 'sim', '<strong>SIM</strong>')} &nbsp; ${op(reg.naUti === 'nao', '<strong>NÃO</strong>')}</td>
+      <td><strong>SE NÃO FOI NA UTI, EM QUAL SETOR FOI PASSADO?</strong> ${val(reg.naUti === 'nao' ? reg.setor : '')}</td></tr></table>
+    <table class="ins-caixa">
+      <tr><td><strong>Situação de inserção?</strong> ${Object.entries(OPCOES_SITUACAO).map(([k, t]) => op(reg.situacao === k, t)).join(' ')} Motivo: ${val(reg.situacao === 'reinsercao' ? reg.situacaoMotivo : '') || '________________________'}</td></tr>
+      <tr><td><strong>Tipo de cateter</strong><br>
+        <span class="ins-grade">${op(reg.cateter === 'cvc', 'Cateter venoso central')}<span>${Object.entries(OPCOES_LUMENS).map(([k, t]) => op(reg.cateter === 'cvc' && reg.lumens === k, t)).join(' ')}</span></span>
+        <span class="ins-grade">${op(reg.cateter === 'hd', 'Cateter venoso central de HD')}<span>${['duplo', 'triplo'].map((k) => op(reg.cateter === 'hd' && reg.lumens === k, OPCOES_LUMENS[k])).join(' ')}</span></span>
+        Outros: ${val(reg.cateterOutro)}</td></tr></table>
+    <table class="ins-caixa">
+      <tr><td colspan="3"><strong>Indicação:</strong> ${Object.entries(OPCOES_SITUACAO).map(([k, t]) => op(reg.indicacao === k, t)).join(' ')} Motivo: ${val(reg.indicacao === 'reinsercao' ? reg.indicacaoMotivo : '') || '________________________'}</td></tr>
+      <tr><td colspan="3"><strong>Local de inserção do cateter</strong></td></tr>
+      <tr><td>${op(reg.local === 'jugular', 'Jugular')} ${lado(reg.local === 'jugular')}</td><td>${op(reg.local === 'subclavia', 'Subclávia')} ${lado(reg.local === 'subclavia')}</td><td>${op(reg.local === 'femoral', 'Femoral')} ${lado(reg.local === 'femoral')}</td></tr>
+      <tr><td>${op(reg.local === 'mmss', 'MMSS')} ${lado(reg.local === 'mmss', false)}</td><td>${op(reg.local === 'mmii', 'MMII')} ${lado(reg.local === 'mmii', false)}</td><td>Outro: ${val(reg.localOutro)}</td></tr></table>`;
+  } else {
+    meio = `
+    <table class="ins-caixa"><tr><td><strong>O cateter foi passado em qual SETOR?</strong> ${val(reg.setor)}</td></tr>
+      <tr><td><strong>Indicação de inserção</strong></td></tr>
+      <tr><td class="ins-lista">${Object.entries(INDICACOES_CVD).map(([k, t]) => `<div>${cx((reg.indicacoes || []).includes(k))} ${t}${k === 'monitorizacao' && reg.indicacaoEspecifique ? ` ${val(reg.indicacaoEspecifique)}` : ''}</div>`).join('')}</td></tr></table>`;
+  }
+  const av = reg.respostas && Object.keys(reg.respostas).length ? avaliarInsercao(reg) : null;
+  const html = `
+    <div class="ins-topo"><h1>${ck.titulo.join('<br>')}</h1>${LOGO}</div>
+    <table class="ins-caixa">
+      <tr><td colspan="3"><strong>PACIENTE:</strong> ${val(p.nome)}</td></tr>
+      <tr><td style="width:37%"><strong>DATA NASCIMENTO:</strong> ${val(p.dataNascimento ? formatarData(p.dataNascimento) : '')}</td><td><strong>ARQUIVO:</strong> ${val(p.registro)}</td><td style="width:25%"><strong>DATA:</strong> ${val(reg.data ? formatarData(reg.data) : '')}</td></tr></table>
+    ${meio}
+    <table class="ins-caixa ins-itens"><colgroup><col><col style="width:9%"><col style="width:9%"></colgroup>${tabelaItens}</table>
+    <div class="ins-rodape-campos">
+      <div>Equipe participante: ${val(reg.equipe) || '<span class="linha"></span>'}</div>
+      <div>Observações: ${val(reg.observacoes) || '<span class="linha"></span>'}</div>
+      <div>Responsável pelo preenchimento: ${val(reg.responsavel) || '<span class="linha"></span>'}</div>
+      ${av ? `<div class="ins-resultado">Registrado no sistema: ${av.status === 'conforme' ? 'bundle conforme' : av.status === 'nao_conforme' ? `bundle não conforme (${av.conformes}/${av.total} itens conformes)` : `incompleto (${av.respondidos}/${av.total} respondidos)`}</div>` : ''}
+    </div>
+    <div class="ins-pe"><span>Versão 2 (07/04/2026)</span><span>Pasta setorial &gt; Recolhimento - para Pasta Arquivo SCIH &gt;<br>Encaminhamento - Arquivo Central LIGA</span></div>`;
   return { html, orientacao: 'retrato', classe: 'folha-insercao' };
 }
 
-export { LUMENS };

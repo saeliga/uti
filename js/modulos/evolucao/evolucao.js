@@ -69,7 +69,11 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   const ro = () => ev.status === 'finalizada' || !podeEditar();
   const dadosDosFormularios = () => Object.fromEntries(Object.entries(formularios).map(([k, f]) => [k, f.dados()]));
   // `herdado` (data da última evacuação, subblocos que vieram da anterior) não é formulário.
-  const ctx = () => contextoEvolucao({ herdado: ev.dados?.herdado, ...dadosDosFormularios() }, ev.data);
+  const ctx = () => ({
+    ...contextoEvolucao({ herdado: ev.dados?.herdado, ...dadosDosFormularios() }, ev.data),
+    // Para componentes que abrem outros registros (ex.: check-list de inserção do dispositivo).
+    internacao, unidade: { id: ev.unidade, nome: unidadeNome }, leitoNum: String(ev.leitoId).split('_')[1],
+  });
   const herdadoDe = (sid) => (ev.dados?.herdado?.subblocos || []).includes(sid);
 
   // ------------------------------------------------------------------ cabeçalho fixo

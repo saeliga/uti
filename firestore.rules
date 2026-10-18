@@ -249,6 +249,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ------------------------------------------------------------------ check-lists de inserção (CVC e CVD)
+    match /checklistsInsercao/{id} {
+      function d() { return request.resource.data; }
+      allow read: if ativo() && (resource == null || naUnidade(resource.data.unidade));
+      allow create, update: if clinico() && naUnidade(d().unidade)
+        && d().tipo in ['cvc', 'cvd']
+        && d().internacaoId is string && id.matches('^' + d().internacaoId + '_(cvc|cvd)_[a-z0-9]+$')
+        && d().respostas is map
+        && (resource == null || (resource.data.unidade == d().unidade && resource.data.internacaoId == d().internacaoId && resource.data.tipo == d().tipo))
+        && autoria();
+      allow delete: if false;
+    }
+
     match /auditoria/{registro} {
       allow create: if ativo()
         && request.resource.data.por == request.auth.uid

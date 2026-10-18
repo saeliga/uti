@@ -427,3 +427,26 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .iras-cel[data-v="NA"] { background: var(--ui-superficie); color: #6b6b70; }
 .iras-vago { color: #9a9aa0; font-weight: 700; letter-spacing: .1em; }
 .iras-resumo { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 10px 0; font-size: 14px; }
+
+/* ---------- Check-list de inserção (modal) ---------- */
+.ins-form { gap: 12px; }
+.ins-paciente { background: var(--ui-superficie); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.ins-bloco { display: flex; flex-direction: column; gap: 6px; }
+.ins-bloco input[type=text], .ins-bloco input[type=date], .ins-bloco textarea { min-height: 40px; padding: 6px 10px; border: 1px solid #c5c6cb; border-radius: 8px; font: 15px var(--fonte-texto); }
+.ins-inline { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.ins-inline input { flex: 1; }
+.ins-indicacoes { display: flex; flex-direction: column; }
+.ins-secao { border: 1px solid var(--ui-borda); border-radius: var(--raio); overflow: hidden; }
+.ins-secao-titulo { background: var(--ui-superficie); font-weight: 700; padding: 8px 10px; font-size: 14px; }
+.ins-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-top: 1px solid var(--ui-borda); }
+.ins-item-texto { flex: 1; font-size: 14px; display: flex; flex-direction: column; gap: 2px; }
+.ins-item-texto small { color: #6b6b70; font-size: 12px; }
+.ins-detalhe { min-height: 36px; padding: 4px 8px; border: 1px solid #c5c6cb; border-radius: 6px; font: 14px var(--fonte-texto); margin-top: 4px; }
+.ins-simnao { flex: none; }
+.chip-op.ins-nc.on { background: #b3202d; border-color: #b3202d; }
+.ins-status { font-weight: 700; padding: 8px 10px; border-radius: 8px; background: var(--ui-superficie); }
+.ins-status.ins-conforme { background: #e7f3ef; color: #0b5345; }
+.ins-status.ins-nao_conforme { background: var(--alerta-fundo); color: #9b1c27; }
+.ins-lista-salvos { display: flex; flex-direction: column; gap: 6px; }
+.ins-salvo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border: 1px solid var(--ui-borda); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+.chip-ok { background: #e7f3ef; color: #0b5345; }
