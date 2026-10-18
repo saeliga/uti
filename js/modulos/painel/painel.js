@@ -8,6 +8,7 @@ import { ISOLAMENTOS, MOTIVOS_BLOQUEIO } from '../../regras/opcoes.js';
 import { diaAssistencial, rotuloDia } from '../../regras/turnos.js';
 import { situacaoEvolucao, ROTULO_SITUACAO } from '../../regras/evolucao.js';
 import { ROTULO_STATUS_PE } from '../../regras/sae.js';
+import { barraImpressos } from './impressos.js';
 
 const ordenar = (a, b) => a.numero.localeCompare(b.numero, 'pt', { numeric: true });
 
@@ -66,6 +67,7 @@ function desenhar(conteudo, unidade, leitos, evolucoes, dia) {
         h('span', {}, h('strong', {}, ocupados.length), ' ocupados'),
         h('span', {}, h('strong', {}, livres), ' livres'),
         bloqueados ? h('span', {}, h('strong', {}, bloqueados), ' bloqueados') : null)),
+    barraImpressos(unidade, leitos),
     ocupados.length ? h('div', { class: 'painel-turno' },
       h('strong', {}, `Evoluções do ${rotuloDia(dia).toLowerCase()}`), ' (07h às 07h): ',
       faltam ? `${faltam} de ${ocupados.length} a concluir` : 'todas finalizadas',

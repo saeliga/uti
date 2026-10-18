@@ -199,6 +199,20 @@ Não precisa mexer no Apps Script nem nas regras do Firestore.
 - **Herança automática:** ao abrir o dia, já vêm preenchidos da evolução anterior a limitação de suporte e o objetivo de cuidado, pele e lesões, dispositivos ativos, antimicrobianos e culturas, e o plano do Processo de Enfermagem. Esses subblocos mostram "Herdado de dd/mm · confira": altere o que mudou ou toque em "Conferido, sem alteração".
 - **Evolução da admissão:** no topo da evolução, o botão "Evolução da admissão" abre a primeira evolução da internação para consulta.
 
+## 11.3 Versão 0.5.0 (impressos da UTI)
+
+**Antes do merge**, publique o `firestore.rules` atualizado (Firestore → Regras → colar → Publicar). Ele traz a coleção nova `checklistsIras`. Sem isso, o check-list de IRAS dá "sem permissão" ao salvar.
+
+No painel de leitos, a barra **Impressos** tem:
+
+- **Capa da ocorrência:** a capa dos enfermeiros da UTI, já com o nome da unidade, a data e o dia da semana.
+- **Ocorrências (transição):** uma folha por leito no modelo da planilha atual. Já vêm preenchidos: identificação, DIH, DUTI e dias de UTI, alergias, isolamento, equipe médica, lesões, dispositivos (data e localização), controle de infusão com as vazões, antimicrobianos com o dia, dieta, eliminações, drenos e curativos. O restante é preenchido à mão, como hoje. Os dados vêm da evolução mais recente (para cada parte, a mais nova que tem registro).
+- **Balanço hídrico:** a "folha de cuidados" (frente e verso, em paisagem), igual à da planilha, com o cabeçalho do paciente e os dias de UTI, de dispositivos e de antimicrobianos contados para a data da folha. Escolha **hoje** ou **amanhã** (depois das 18h, o padrão é amanhã).
+- **Check-list de IRAS:** abre a tela do check-list diário (PAV, IPCS e ITU-AC) do turno. Toque na célula para marcar 1, 0 ou NA; leito vago e bundle sem o dispositivo já vêm marcados, a adesão ao bundle é calculada e tudo é salvo (também sem Wi-Fi). O botão **Imprimir** gera a folha no modelo da Liga (PTQLD0005:03), com a assinatura do enfermeiro.
+- **Check-list de inserção:** CVC ou CVD, com a identificação do paciente; se o dispositivo já estiver na evolução, localização, lado, lúmens e data vêm marcados. Também pode sair em branco.
+
+Na janela de impressão do navegador, deixe **Margens: padrão** e **Escala: padrão (100%)**; o tamanho e a orientação de cada folha já vêm definidos.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

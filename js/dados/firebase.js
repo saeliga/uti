@@ -415,3 +415,20 @@ export async function marcarTranscrita(id, { versao, autor, emTexto }) {
     atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
   }));
 }
+
+// --------------------------------------------------------------------------- check-list diário de IRAS
+// Um documento por unidade, dia assistencial e turno: checklistsIras/{unidade}_{data}_{turno}.
+export async function lerChecklistIras(id) {
+  return executar(async () => {
+    const s = await F.getDoc(F.doc(db, 'checklistsIras', id));
+    return s.exists() ? { id, ...s.data() } : null;
+  });
+}
+
+/** Salva o turno inteiro (funciona sem conexão: o envio acontece quando o Wi-Fi volta). */
+export function salvarChecklistIras(id, { unidade, data, turno, respostas, enfermeiro }) {
+  return F.setDoc(F.doc(db, 'checklistsIras', id), {
+    unidade, data, turno, respostas, enfermeiro: enfermeiro || '',
+    atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
+  }).catch((e) => { throw traduzirErro(e); });
+}
