@@ -97,15 +97,11 @@ export async function telaIras(conteudo, unidade) {
     // Atalhos por leito: vago / tudo conforme nos bundles que se aplicam
     tabela.append(h('tr', {}, h('td', { class: 'iras-item' }, h('small', {}, 'Atalhos do leito')), nums.map((n) => {
       const c = resp[n] ||= {};
-      return h('td', {}, !ro && h('div', { style: 'display:flex;flex-direction:column;gap:4px' },
-        !c.vago && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', title: 'Marca 1 em tudo que ainda está em branco', onclick: () => {
-          for (const b of BUNDLES_IRAS) { c[b.id] ||= {}; for (const [id] of b.itens) if (!c[b.id][id]) c[b.id][id] = '1'; }
-          salvar(); desenhar();
-        } }, 'Tudo 1'),
-        h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => {
-          if (c.vago) delete c.vago; else { for (const k of Object.keys(c)) delete c[k]; c.vago = true; }
-          salvar(); desenhar();
-        } }, c.vago ? 'Ocupado' : 'Vago')));
+      // Leito vago vem do painel de leitos: aqui não se ocupa nem se esvazia leito.
+      return h('td', {}, !ro && !c.vago && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', title: 'Marca 1 em tudo que ainda está em branco', onclick: () => {
+        for (const b of BUNDLES_IRAS) { c[b.id] ||= {}; for (const [id] of b.itens) if (!c[b.id][id]) c[b.id][id] = '1'; }
+        salvar(); desenhar();
+      } }, 'Tudo 1'));
     })));
 
     limpar(conteudo).append(
@@ -115,6 +111,7 @@ export async function telaIras(conteudo, unidade) {
         h('label', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, 'Dia assistencial'), selData),
         h('label', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, 'Turno'), selTurno),
         h('button', { type: 'button', class: 'btn btn-primario', onclick: imprimir }, 'Imprimir'),
+        h('button', { type: 'button', class: 'btn btn-secundario', title: 'Folha com data, turno e leitos vagos; as marcações ficam em branco', onclick: imprimirEmBranco }, 'Imprimir para preencher à mão'),
         situacao),
       h('div', { class: 'iras-resumo' }, BUNDLES_IRAS.map((b) => {
         const r = resumo[b.id];
@@ -122,6 +119,13 @@ export async function telaIras(conteudo, unidade) {
       })),
       h('div', { class: 'iras-tabela-caixa' }, tabela),
       doc.novo && !ro ? h('p', { class: 'ajuda', id: 'iras-nao-salvo' }, `Turno ainda não salvo (${formatarData(data)}, ${TURNOS[turno].nome.toLowerCase()}). Ao marcar a primeira célula, ele é gravado.`) : null);
+  }
+
+  // Folha para preencher à mão: data, turno e leitos vagos (VAGO); marcações em branco.
+  async function imprimirEmBranco() {
+    const m = await import('../../impressos/impressos.js');
+    const respostas = Object.fromEntries(leitos.map((l) => [l.numero, l.internacaoId ? {} : { vago: true }]));
+    m.imprimirFolhas([m.folhaIras(unidade, leitos, { data, turno, respostas, enfermeiro: '' })]);
   }
 
   async function imprimir() {

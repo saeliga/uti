@@ -229,6 +229,11 @@ Na janela de impressão do navegador, deixe **Margens: padrão** e **Escala: pad
 
 Sem nada a publicar além do merge. Em telas de até 900 px de largura (celular e tablet em pé), a evolução usa um cabeçalho compacto: nome, leito, dias de UTI e idade, alergia, isolamento e situação do dia ocupam cerca de um terço do espaço anterior. Os detalhes (nascimento, registro, turno em que começou, evolução da admissão) abrem no botão ▾. Ao rolar para baixo, o cabeçalho se recolhe (fica nome, leito e alergia); ao subir, volta. A barra superior deixa de ficar fixa nessas telas. No computador e no tablet deitado nada muda.
 
+## 11.6 Versão 0.6.2 (datas nos impressos)
+
+- **Capa da ocorrência** e **Ocorrências (transição):** escolha a data na janela de impressão (o padrão é hoje). Na ocorrência, os dias de UTI e de antimicrobianos são contados para a data escolhida.
+- **Check-list de IRAS:** além de "Imprimir" (com as marcações feitas no sistema), há **"Imprimir para preencher à mão"**: sai a folha com a data e o turno escolhidos e os leitos vagos marcados (VAGO); as marcações ficam em branco. Leito vago vem do painel de leitos: no check-list não há mais a opção de ocupar ou esvaziar leito.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.
