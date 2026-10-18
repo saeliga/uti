@@ -19,6 +19,9 @@ export async function telaIras(conteudo, unidade) {
   let leitos = [];
   let doc = null;
   let timer = null;
+  // Leitos alterados desde o último envio: só eles são gravados (outro enfermeiro pode
+  // estar marcando outros leitos do mesmo turno).
+  let alterados = new Set();
   const ro = !podeEditar();
   const pararLeitos = backend.observarLeitos(unidade.id, (ls) => {
     const primeira = !leitos.length;
@@ -50,14 +53,17 @@ export async function telaIras(conteudo, unidade) {
     timer = null;
     const nome = `${estado.perfil.nome}${estado.perfil.coren ? ` (Coren ${estado.perfil.coren})` : ''}`;
     doc.enfermeiro = nome;
-    backend.salvarChecklistIras(idDoc(), { unidade: unidade.id, data, turno, respostas: doc.respostas, enfermeiro: nome })
+    const leitosEnvio = [...alterados];
+    alterados = new Set();
+    backend.salvarChecklistIras(idDoc(), { unidade: unidade.id, data, turno, respostas: doc.respostas, enfermeiro: nome }, { leitos: leitosEnvio, novo: doc.novo })
       .then(() => { situacao.textContent = `✓ Salvo às ${new Date().toTimeString().slice(0, 5)}`; }, (e) => { situacao.textContent = `Não salvo: ${e.message}`; });
     situacao.textContent = navigator.onLine ? 'Salvando…' : 'Salvo neste aparelho · ainda não sincronizado';
     doc.novo = false;
     document.getElementById('iras-nao-salvo')?.remove();
   }
-  function salvar() {
+  function salvar(leito) {
     if (ro) return;
+    if (leito) alterados.add(leito);
     clearTimeout(timer);
     timer = setTimeout(enviar, 500);
   }
@@ -86,7 +92,7 @@ export async function telaIras(conteudo, unidade) {
               c[b.id] ||= {};
               c[b.id][id] = ciclo(c[b.id][id]);
               if (!c[b.id][id]) delete c[b.id][id];
-              salvar();
+              salvar(n);
               desenhar();
             } }, v || '·'));
           })));
@@ -100,7 +106,7 @@ export async function telaIras(conteudo, unidade) {
       // Leito vago vem do painel de leitos: aqui não se ocupa nem se esvazia leito.
       return h('td', {}, !ro && !c.vago && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', title: 'Marca 1 em tudo que ainda está em branco', onclick: () => {
         for (const b of BUNDLES_IRAS) { c[b.id] ||= {}; for (const [id] of b.itens) if (!c[b.id][id]) c[b.id][id] = '1'; }
-        salvar(); desenhar();
+        salvar(n); desenhar();
       } }, 'Tudo 1'));
     })));
 

@@ -23,6 +23,7 @@ export const MENSAGENS = {
   conta_diferente: 'Essa não é a conta Google da sessão bloqueada. Para entrar com outra conta, use "Trocar de usuário".',
   dominio_nao_autorizado: 'Este endereço ainda não foi autorizado no Firebase (Authentication → Configurações → Domínios autorizados).',
   muitas_tentativas: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.',
+  evolucao_sem_conexao: 'Sem conexão. Para abrir a evolução do dia deste paciente pela primeira vez neste aparelho, é preciso internet. Tente de novo quando o Wi-Fi voltar.',
 };
 
 /** Converte erros do Firebase em ErroSistema com mensagem clara. */

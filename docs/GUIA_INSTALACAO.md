@@ -278,6 +278,19 @@ Sem regra nem Apps Script novos.
   - **Eliminações vesicais:** a linha "MANHÃ ( ) TARDE ( ) NOITE ( )" ocupa a largura toda, como no papel.
   - **Ocorrências:** culturas ("11/10 - HEMOCULTURA: NEGATIVA") e as ocorrências abertas da evolução, distribuídas nas 6 linhas; o que não couber termina em "…".
 
+## 11.12 Versão 0.10.0 (correções da revisão de código)
+
+**Antes do merge**, publique o `firestore.rules` atualizado. Depois de publicar, teste com duas contas (uma liberada só na UTI 1 e outra só na UTI 2): troque um paciente de UTI e confira se a outra equipe vê e edita a evolução do dia, e se a evolução do dia anterior aparece como "Evolução anterior".
+
+- **Troca de leito entre UTIs:** a evolução do dia acompanha o paciente (unidade e leito novos), e a equipe da UTI onde ele está agora lê as evoluções anteriores (herança, evolução da admissão e impressos).
+- **Duas pessoas na mesma evolução:** cada aparelho só recebe a atualização do outro nos subblocos que não está editando, e "Finalizar" grava apenas o que foi alterado neste aparelho (não sobrescreve o registro do colega).
+- **Check-list de IRAS:** cada marcação grava só o leito alterado; dois enfermeiros no mesmo turno não apagam as marcações um do outro.
+- **Prescrição antes de finalizar:** sai com o nome e o Coren de quem imprime.
+- **Painel:** o dia de UTI do cartão segue o dia assistencial (vira às 07h), igual à evolução.
+- **Sair com outra aba aberta:** se os dados do aparelho não puderem ser apagados, a tela de entrada avisa para fechar as outras abas e sair de novo.
+- **Sem internet:** a evolução do dia só é criada com conexão (antes, um rascunho criado sem internet podia ser recusado depois). Quem já abriu o paciente no aparelho continua trabalhando sem Wi-Fi.
+- **Regras mais rígidas:** cada etapa da evolução (rascunho, finalização, retificação) só aceita os campos dela; o cadastro do paciente só muda junto com uma internação ativa dele na unidade de quem altera.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

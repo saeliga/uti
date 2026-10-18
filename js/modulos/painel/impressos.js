@@ -5,7 +5,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { h, aviso, abrirJanela } from '../../nucleo/ui.js';
-import { podeEditar } from '../../nucleo/estado.js';
+import { estado, podeEditar } from '../../nucleo/estado.js';
 import { hojeISO, somarDias, formatarData } from '../../regras/datas.js';
 import { diaAssistencial, diaAnterior, idEvolucao } from '../../regras/turnos.js';
 import { CHECKLISTS_INSERCAO, juntarEvolucoes, novoChecklistInsercao, normalizarReservas } from '../../regras/impressos.js';
@@ -188,7 +188,7 @@ export function barraImpressos(unidade, leitos) {
         })))]);
         const semPE = dados.filter((x) => !x.ev).map((x) => x.leito.numero);
         if (semPE.length) aviso(`Sem Processo de Enfermagem registrado: leito(s) ${semPE.join(', ')}. A folha sai sem itens.`, 'atencao', 8000);
-        m.imprimirFolhas(dados.map(({ leito, internacao, ev }) => m.folhaPrescricao(internacao, ev, { leitoNum: leito.numero, unidadeNome: unidade.nome, data })), { unidade: unidade.id });
+        m.imprimirFolhas(dados.map(({ leito, internacao, ev }) => m.folhaPrescricao(internacao, ev, { leitoNum: leito.numero, unidadeNome: unidade.nome, data, quemImprime: estado.perfil && { nome: estado.perfil.nome, coren: estado.perfil.coren } })), { unidade: unidade.id });
       },
     });
   };

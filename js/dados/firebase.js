@@ -5,6 +5,7 @@
 import { FIREBASE_CONFIG, ADMIN_INICIAL, DOMINIO_INSTITUCIONAL } from '../config.js';
 import { ErroSistema, traduzirErro } from './erros.js';
 import { idPaciente, resumoParaLeito } from '../regras/validacao.js';
+import { diaAssistencial, idEvolucao } from '../regras/turnos.js';
 
 const V = '10.14.1';
 const CDN = `https://www.gstatic.com/firebasejs/${V}`;
@@ -100,7 +101,9 @@ export async function sair({ depois } = {}) {
     await F.terminate(db);
     await F.clearIndexedDbPersistence(db);
   } catch (e) {
+    // Normalmente: o sistema está aberto em outra aba. Avisa na próxima tela de entrada.
     console.warn('[sair] cache não apagado', e?.code);
+    try { localStorage.setItem('uti_cache_nao_apagado', '1'); } catch { /* sem armazenamento */ }
   }
   if (depois) location.href = depois; // ex.: sair também da conta Google
   else location.reload();
@@ -247,7 +250,7 @@ export async function admitir(leitoId, dados) {
       if (l.bloqueado) throw new ErroSistema('leito_bloqueado');
       const pacienteId = idPaciente(dados.paciente.registro);
       tx.set(F.doc(db, 'pacientes', pacienteId), {
-        ...dados.paciente, atualizadoEm: agora(), atualizadoPor: uid(),
+        ...dados.paciente, ultimaInternacaoId: intRef.id, atualizadoEm: agora(), atualizadoPor: uid(),
       });
       const internacao = {
         ...dados, pacienteId, unidade: l.unidade, leitoId, status: 'ativa', desfecho: null,
@@ -279,7 +282,7 @@ export async function atualizarInternacao(id, dados, versaoLida) {
       if (versaoLida && i.versao !== versaoLida) throw new ErroSistema('conflito_versao');
       const novo = { ...i, ...dados };
       tx.set(F.doc(db, 'pacientes', i.pacienteId), {
-        ...dados.paciente, registro: i.paciente.registro, atualizadoEm: agora(), atualizadoPor: uid(),
+        ...dados.paciente, registro: i.paciente.registro, ultimaInternacaoId: id, atualizadoEm: agora(), atualizadoPor: uid(),
       });
       tx.update(ref, {
         ...dados, paciente: { ...dados.paciente, registro: i.paciente.registro },
@@ -316,8 +319,13 @@ export async function transferirLeito(id, leitoDestinoId, dataHora) {
       const d = ds.data();
       if (d.internacaoId) throw new ErroSistema('leito_ocupado');
       if (d.bloqueado) throw new ErroSistema('leito_bloqueado');
+      // A evolução do dia acompanha o paciente: passa para a unidade e o leito novos
+      // (senão a equipe da outra UTI não a vê no painel nem consegue editá-la).
+      const evRef = F.doc(db, 'evolucoes', idEvolucao(id, diaAssistencial()));
+      const evDia = await tx.get(evRef);
       const hist = i.historicoLeitos.map((h, k, arr) => (k === arr.length - 1 ? { ...h, ate: dataHora } : h));
       hist.push({ leitoId: leitoDestinoId, unidade: d.unidade, de: dataHora, ate: '' });
+      if (evDia.exists()) tx.update(evRef, { unidade: d.unidade, leitoId: leitoDestinoId, atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO });
       tx.update(ref, {
         leitoId: leitoDestinoId, unidade: d.unidade, historicoLeitos: hist,
         atualizadoEm: agora(), atualizadoPor: uid(), versao: i.versao + 1,
@@ -370,6 +378,11 @@ export async function abrirEvolucao(id, base) {
     const ref = F.doc(db, 'evolucoes', id);
     const s = await F.getDoc(ref);
     if (s.exists()) return { id, ...s.data() };
+    // Não está no aparelho: confere no servidor antes de criar (outro aparelho pode ter
+    // aberto o dia). Sem internet, não cria: o rascunho local seria recusado depois.
+    if (!navigator.onLine) throw new ErroSistema('evolucao_sem_conexao');
+    const srv = await F.getDocFromServer(ref);
+    if (srv.exists()) return { id, ...srv.data() };
     const novo = {
       ...base, status: 'rascunho', versao: 1, confirmados: {},
       criadoPor: uid(), criadoEm: agora(), atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
@@ -439,12 +452,19 @@ export async function lerChecklistIras(id) {
   });
 }
 
-/** Salva o turno inteiro (funciona sem conexão: o envio acontece quando o Wi-Fi volta). */
-export function salvarChecklistIras(id, { unidade, data, turno, respostas, enfermeiro }) {
-  return F.setDoc(F.doc(db, 'checklistsIras', id), {
-    unidade, data, turno, respostas, enfermeiro: enfermeiro || '',
-    atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
-  }).catch((e) => { throw traduzirErro(e); });
+/**
+ * Salva o turno (funciona sem conexão: o envio acontece quando o Wi-Fi volta).
+ * `leitos`: só esses leitos são gravados, para que dois enfermeiros marcando leitos
+ * diferentes no mesmo turno não apaguem as marcações um do outro. Turno novo: mescla.
+ */
+export function salvarChecklistIras(id, { unidade, data, turno, respostas, enfermeiro }, { leitos, novo } = {}) {
+  const ref = F.doc(db, 'checklistsIras', id);
+  const comum = { enfermeiro: enfermeiro || '', atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO };
+  const p = novo || !leitos?.length
+    ? F.setDoc(ref, { unidade, data, turno, respostas, ...comum }, { merge: true })
+    : F.updateDoc(ref, ...leitos.flatMap((n) => [new F.FieldPath('respostas', n), respostas[n] || {}]),
+      ...Object.entries(comum).flat());
+  return p.catch((e) => { throw traduzirErro(e); });
 }
 
 // --------------------------------------------------------------------------- capa da ocorrência (observações)

@@ -42,6 +42,11 @@ Revisão feita em 17/10/2026, na versão 0.7.0. Este texto é técnico e serve d
 
 **Para valer, publique o `firestore.rules` novo e a nova versão do Apps Script (`Codigo.gs`) antes do merge.**
 
+**Revisão de 18/10/2026 (0.10.0), nas regras:**
+- Evolução: cada etapa só aceita os próprios campos (rascunho: dados e confirmações; finalização: autor e hora; retificação: versão e motivo). Não dá mais para gravar uma "cópia ao PEP" ou um autor de finalização num rascunho.
+- Paciente transferido de UTI: a evolução do dia passa para a unidade nova na mesma operação da troca, e a equipe da unidade atual lê as evoluções anteriores (só leitura do histórico do paciente que ela cuida agora).
+- Cadastro de pacientes: só muda junto com uma internação ativa do paciente numa unidade de quem altera (admissão ou correção).
+
 ## 4. Configurações a fazer nos consoles (sem custo)
 
 | # | Onde | O que fazer | Por quê |
