@@ -450,3 +450,46 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .ins-lista-salvos { display: flex; flex-direction: column; gap: 6px; }
 .ins-salvo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border: 1px solid var(--ui-borda); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
 .chip-ok { background: #e7f3ef; color: #0b5345; }
+
+/* ---------- Celular e tablet em pé: cabeçalho da evolução compacto ----------
+   No computador e no tablet deitado (acima de 900 px) nada muda. */
+.evo-curto, .evo-mais { display: none; }
+@media (max-width: 900px) {
+  .topo { position: relative; }
+  .evo-cabecalho { padding: 6px 10px; gap: 4px; margin-left: -4px; margin-right: -4px; }
+  .evo-paciente { flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .evo-voltar { min-height: 40px; min-width: 40px; justify-content: center; text-decoration: none; }
+  .evo-voltar-seta { font-size: 20px; }
+  .evo-voltar-texto { display: none; }
+  .evo-quem { flex: 1; min-width: 0; }
+  .evo-nome { font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .evo-curto { display: block; font-family: var(--fonte-texto); font-weight: 500; font-size: 12.5px; color: #55555a; line-height: 1.3; }
+  .evo-ident { display: none; }
+  .evo-mais { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; border: 1px solid var(--ui-borda); border-radius: 8px; font-size: 16px; order: 3; }
+  .evo-alertas { order: 4; flex-basis: 100%; margin-left: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .evo-alertas::-webkit-scrollbar { display: none; }
+  .evo-alertas .chip { white-space: nowrap; font-size: 12px; }
+  .evo-turno { gap: 6px 10px; font-size: 13px; }
+  .evo-turno .evo-iniciada, .evo-turno .evo-admissao { display: none; }
+  .evo-turno .situacao { font-size: 12px; padding: 1px 8px; }
+  .salvamento { font-size: 12px; }
+  /* Detalhes num toque (▾) */
+  .evo-cabecalho.aberto .evo-ident { display: block; white-space: normal; }
+  .evo-cabecalho.aberto .evo-alertas { flex-wrap: wrap; }
+  .evo-cabecalho.aberto .evo-turno .evo-iniciada, .evo-cabecalho.aberto .evo-turno .evo-admissao { display: inline-flex; }
+  /* Ao rolar para baixo: só nome, leito e a alergia */
+  .evo-cabecalho.recolhido { padding-top: 4px; padding-bottom: 4px; }
+  .evo-cabecalho.recolhido .evo-turno, .evo-cabecalho.recolhido .evo-alertas .chip:not(.chip-alerta) { display: none; }
+  .evo-cabecalho.recolhido .evo-alertas:not(:has(.chip-alerta)) { display: none; }
+  /* Abas e subblocos ocupam melhor a largura */
+  .evo-nav { margin-left: -4px; margin-right: -4px; scrollbar-width: none; }
+  .evo-aba { min-height: 40px; padding: 0 12px; font-size: 13px; }
+  .subbloco > summary { flex-wrap: wrap; gap: 4px 10px; padding: 10px 12px; }
+  .sub-titulo { flex: 1 1 100%; min-width: 0; }
+  .subbloco > summary::before { position: absolute; }
+  .subbloco > summary { position: relative; padding-left: 26px; }
+  .subbloco > summary::before { left: 10px; top: 12px; }
+  .sub-estado { white-space: normal; }
+  .campos { padding: 0 10px 12px; gap: 10px 12px; }
+  .sub-anterior, .sub-descricao { margin-left: 10px; margin-right: 10px; }
+}
