@@ -46,7 +46,7 @@ Revisão feita em 17/10/2026, na versão 0.7.0. Este texto é técnico e serve d
 
 | # | Onde | O que fazer | Por quê |
 |---|---|---|---|
-| 1 | Google Cloud Console → APIs e serviços → Credenciais | Restringir a **chave de API do navegador** a referenciadores HTTP `https://saeliga.github.io/*`. Em "Restrições de API", deixar só Identity Toolkit, Token Service e Cloud Firestore. | A chave é pública por natureza; a restrição impede uso em outros sites. |
+| 1 | Google Cloud Console (o projeto do Firebase **já é** um projeto do Google Cloud): abrir https://console.cloud.google.com/apis/credentials?project=uti-liga-sae com a mesma conta do Firebase | Clicar em **Browser key (auto created by Firebase)** → "Restrições de aplicativos": **Sites** → adicionar `https://saeliga.github.io/*` **e** `https://uti-liga-sae.firebaseapp.com/*` (a janela de login do Google roda nesse endereço; sem ele, o login para de funcionar) → Salvar. A restrição por API é opcional e pode quebrar o login se faltar alguma; não é necessária. | A chave é pública por natureza; a restrição impede uso em outros sites. |
 | 2 | Firebase → Authentication → Configurações → Domínios autorizados | Deixar só `saeliga.github.io` (e o domínio `*.firebaseapp.com` do projeto). Retirar `localhost` quando não estiver testando. | Login só pela página oficial. |
 | 3 | Groq Console → Settings → **Data Controls** | Ativar **Zero Data Retention (ZDR)**. | Por padrão, a Groq pode guardar entradas e saídas por até 30 dias para monitorar abuso, em servidores nos EUA. Com ZDR, não guarda nada. |
 | 4 | Conta Google do administrador | Ativar **verificação em duas etapas** e usar conta institucional (@liga.org.br). | É a conta que aprova acessos. |
