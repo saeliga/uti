@@ -10,6 +10,7 @@ import {
   validarEvidencias, novoDiagnostico, validarConclusao, avisosRisco, enunciado,
 } from '../../regras/sae.js';
 import { agoraLocalISO, formatarDataHora } from '../../regras/datas.js';
+import { HORAS, FREQUENCIAS, horariosPadrao, ordenarHorarios, resumoAprazamento } from '../../regras/prescricao.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o ?? null));
 const responsavel = (nivel = '') => (/técnico/i.test(nivel) ? 'Técnico de enfermagem' : /pós/i.test(nivel) ? 'Enfermeiro (pós-graduado)' : 'Enfermeiro');
@@ -339,6 +340,31 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
   }
 
   // ------------------------------------------------------------------ desenho
+  // Aprazamento da atividade (vai para a prescrição de enfermagem impressa).
+  // Mudar o aprazamento não reabre o PE concluído.
+  const aprazAbertos = new Set();
+  function aprazamento(chave, a) {
+    const resumo = resumoAprazamento(a);
+    if (somenteLeitura) return resumo || a.obsPrescricao ? h('div', { class: 'sae-apraz-ro' }, `Prescrição: ${[resumo, a.obsPrescricao].filter(Boolean).join(' · ')}`) : null;
+    const salvar = () => mudou(false, { manterStatus: true });
+    const det = h('details', { class: 'sae-apraz', open: aprazAbertos.has(chave) },
+      h('summary', {}, 'Aprazamento: ', h('strong', {}, resumo || 'definir'), a.obsPrescricao ? h('span', { class: 'ajuda' }, ` · ${a.obsPrescricao}`) : null),
+      h('div', { class: 'sae-apraz-corpo' },
+        h('label', { class: 'mini' }, 'Frequência',
+          h('select', { onchange: (e) => { a.freq = e.target.value; a.horarios = horariosPadrao(a.freq); salvar(); } },
+            h('option', { value: '' }, '—'), Object.entries(FREQUENCIAS).map(([v, t]) => h('option', { value: v, selected: a.freq === v }, t)))),
+        h('div', { class: 'sae-horas', role: 'group', 'aria-label': 'Horários (toque para marcar ou desmarcar)' }, HORAS.map((hh) => {
+          const on = (a.horarios || []).includes(hh);
+          return h('button', { type: 'button', class: `sae-hora${on ? ' on' : ''}`, 'aria-pressed': String(on), onclick: () => {
+            a.horarios = ordenarHorarios(on ? a.horarios.filter((x) => x !== hh) : [...(a.horarios || []), hh]);
+            salvar();
+          } }, hh);
+        })),
+        h('input', { type: 'text', value: a.obsPrescricao || '', maxlength: 200, placeholder: 'Obs. na prescrição (opcional). Ex.: decúbito D → DD → E', onchange: (e) => { a.obsPrescricao = e.target.value.trim(); salvar(); } })));
+    det.addEventListener('toggle', () => { if (det.open) aprazAbertos.add(chave); else aprazAbertos.delete(chave); });
+    return det;
+  }
+
   function chips(opcoes, valor, aoEscolher, extra = '') {
     return h('div', { class: `chips ${extra}` }, Object.entries(opcoes).map(([v, t]) =>
       h('button', { type: 'button', class: `chip-op chip-mini${String(valor) === v ? ' on' : ''}`, disabled: somenteLeitura, onclick: () => aoEscolher(String(valor) === v ? '' : v) }, t)));
@@ -430,7 +456,8 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
             h('div', {}, a.texto, a.sugeridaIA ? h('span', { class: 'etiqueta-ia etiqueta-mini', title: 'Atividade marcada pela IA; altere se não se aplicar' }, 'IA') : null),
             chips(STATUS_ATIVIDADE, a.status, (v) => { a.status = v; mudou(); }),
             a.status === 'nao_realizado' && h('input', { type: 'text', value: a.justificativa || '', placeholder: 'Justificativa (obrigatória)', disabled: somenteLeitura,
-              onchange: (e) => { a.justificativa = e.target.value; mudou(); } }))),
+              onchange: (e) => { a.justificativa = e.target.value; mudou(); } }),
+            aprazamento(`${d.codigo}|${x.codigo}|${a.id}`, a))),
           !(x.atividades || []).length && (preenchendo.has(`${d.codigo}|${x.codigo}`)
             ? h('p', { class: 'sae-preenchendo' }, h('span', { class: 'giro' }), 'A IA está escolhendo as atividades…')
             : h('p', { class: 'campo-erro' }, 'Escolha as atividades.'))));

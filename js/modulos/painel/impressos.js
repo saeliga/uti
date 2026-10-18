@@ -1,4 +1,5 @@
-// Barra de impressos do painel de leitos: capa da ocorrência, ocorrências por
+// Barra de impressos do painel de leitos: capa da ocorrência, prescrição de
+// enfermagem, ocorrências por
 // leito (transição), folhas de balanço hídrico, check-list de IRAS e check-lists
 // de inserção de CVC e CVD.
 
@@ -25,6 +26,16 @@ async function evolucaoRecente(internacaoId) {
     if (ev) evs.push(ev);
   }
   return juntarEvolucoes(evs);
+}
+
+/** Evolução que traz o PE da data (ou, se ainda não houver, a mais recente dos 3 dias anteriores). */
+async function evolucaoComPE(internacaoId, data) {
+  let d = data;
+  for (let k = 0; k < 4; k++, d = diaAnterior(d)) {
+    const ev = await backend.lerEvolucao(idEvolucao(internacaoId, d)).catch(() => null);
+    if (ev?.dados?.sae?.diagnosticos?.length) return ev;
+  }
+  return null;
 }
 
 async function dadosDosLeitos(leitos) {
@@ -73,20 +84,57 @@ export function barraImpressos(unidade, leitos) {
     return { input, el: h('div', { class: 'campo' }, h('label', { class: 'campo-rotulo' }, rotulo), input, ajuda && h('p', { class: 'ajuda' }, ajuda)) };
   };
 
+  // Capa: data e observações administrativas (reservas cirúrgicas etc.), salvas por
+  // unidade e dia, para que o plantão seguinte veja e complete antes de imprimir.
   const capa = () => {
     const d = campoData('Data da capa');
+    const ro = !podeEditar();
+    const obs = h('textarea', { rows: 7, maxlength: 4000, disabled: true, placeholder: 'Ex.: Reserva de leito para cirurgia de … (Dr. …) às 14h. Equipamento X em manutenção.' });
+    const situacao = h('p', { class: 'ajuda', 'aria-live': 'polite' }, 'Carregando…');
+    let salvo = '';
+    const carregar = async () => {
+      if (!d.input.value) return;
+      obs.disabled = true;
+      situacao.textContent = 'Carregando…';
+      try {
+        const doc = await backend.lerCapaOcorrencia(`${unidade.id}_${d.input.value}`);
+        salvo = doc?.observacoes || '';
+        obs.value = salvo;
+        situacao.textContent = !doc ? 'Nada registrado para este dia.' : doc.atualizadoEm?.toDate ? `Salvo por último em ${doc.atualizadoEm.toDate().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.` : 'Já há observações salvas para este dia.';
+      } catch (e) {
+        situacao.textContent = `Não foi possível carregar: ${e.message}`;
+      }
+      obs.disabled = ro;
+    };
+    const gravar = async () => {
+      if (ro || obs.value === salvo) return;
+      const valor = obs.value.trim();
+      await Promise.race([backend.salvarCapaOcorrencia(`${unidade.id}_${d.input.value}`, { unidade: unidade.id, data: d.input.value, observacoes: valor }), new Promise((r) => setTimeout(r, 4000))]);
+      salvo = obs.value;
+      aviso('Observações da capa salvas.', 'ok');
+    };
+    d.input.addEventListener('change', carregar);
     abrirJanela({
       titulo: `Capa da ocorrência — ${unidade.nome}`,
-      conteudo: h('div', { class: 'formulario' }, d.el),
+      conteudo: h('div', { class: 'formulario' }, d.el,
+        h('div', { class: 'campo' }, h('label', { class: 'campo-rotulo' }, 'Reservas e observações'), obs,
+          h('p', { class: 'ajuda' }, 'Reservas cirúrgicas e outras observações administrativas. Saem no campo RESERVAS da capa e ficam guardadas para este dia.')),
+        situacao),
       acoes: [
         { texto: 'Cancelar', classe: 'btn-secundario' },
-        { texto: 'Imprimir', classe: 'btn-primario', aoClicar: async () => {
+        !ro && { texto: 'Salvar', classe: 'btn-secundario', aoClicar: async () => {
           if (!d.input.value) { aviso('Escolha a data.', 'atencao'); return false; }
-          const m = await carregarImpressos();
-          m.imprimirFolhas([m.folhaCapa(unidade, d.input.value)], { unidade: unidade.id });
+          try { await gravar(); } catch (e) { aviso(e.message, 'erro', 8000); return false; }
         } },
-      ],
+        { texto: ro ? 'Imprimir' : 'Salvar e imprimir', classe: 'btn-primario', aoClicar: async () => {
+          if (!d.input.value) { aviso('Escolha a data.', 'atencao'); return false; }
+          try { await gravar(); } catch (e) { aviso(e.message, 'erro', 8000); return false; }
+          const m = await carregarImpressos();
+          m.imprimirFolhas([m.folhaCapa(unidade, d.input.value, { observacoes: obs.value.trim() })], { unidade: unidade.id });
+        } },
+      ].filter(Boolean),
     });
+    carregar();
   };
 
   const ocorrencias = () => {
@@ -102,6 +150,27 @@ export function barraImpressos(unidade, leitos) {
         if (!data) throw new Error('escolha a data');
         const [m, dados] = await Promise.all([carregarImpressos(), dadosDosLeitos(escolhidos)]);
         m.imprimirFolhas(dados.map(({ leito, internacao, ev }) => m.folhaOcorrencia(internacao, ev, { leitoNum: leito.numero, data })), { unidade: unidade.id });
+      },
+    });
+  };
+
+  const prescricao = () => {
+    if (!ocupados.length) return semPacientes();
+    escolherLeitos({
+      titulo: 'Prescrição de enfermagem',
+      leitos: ocupados,
+      extra: (() => {
+        const d = campoData('Data da prescrição', 'Uma prescrição por leito, com as atividades do Processo de Enfermagem e o aprazamento definido nele. Se o PE do dia ainda não foi feito, sai o plano mais recente.');
+        return { el: d.el, valor: () => d.input.value };
+      })(),
+      aoConfirmar: async (escolhidos, data) => {
+        if (!data) throw new Error('escolha a data');
+        const [m, dados] = await Promise.all([carregarImpressos(), Promise.all(escolhidos.map(async (l) => ({
+          leito: l, internacao: await backend.lerInternacao(l.internacaoId), ev: await evolucaoComPE(l.internacaoId, data),
+        })))]);
+        const semPE = dados.filter((x) => !x.ev).map((x) => x.leito.numero);
+        if (semPE.length) aviso(`Sem Processo de Enfermagem registrado: leito(s) ${semPE.join(', ')}. A folha sai sem itens.`, 'atencao', 8000);
+        m.imprimirFolhas(dados.map(({ leito, internacao, ev }) => m.folhaPrescricao(internacao, ev, { leitoNum: leito.numero, unidadeNome: unidade.nome, data })), { unidade: unidade.id });
       },
     });
   };
@@ -197,6 +266,7 @@ export function barraImpressos(unidade, leitos) {
   return h('div', { class: 'barra-impressos', role: 'toolbar', 'aria-label': 'Impressos da unidade' },
     h('span', { class: 'barra-rotulo' }, 'Impressos'),
     h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: capa }, 'Capa da ocorrência'),
+    h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: prescricao }, 'Prescrição de enfermagem'),
     h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: ocorrencias }, 'Ocorrências (transição)'),
     h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: balanco }, 'Balanço hídrico'),
     h('a', { class: 'btn btn-secundario btn-pequeno', href: `#/iras/${unidade.id}` }, 'Check-list de IRAS'),

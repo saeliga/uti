@@ -346,6 +346,15 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .sae-noc, .sae-nic { background: var(--ui-superficie); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
 .sae-noc-topo { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .sae-indicador, .sae-atividade { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px dashed var(--ui-borda); font-size: 14px; }
+.sae-apraz { font-size: 13px; color: #45454a; }
+.sae-apraz summary { cursor: pointer; padding: 4px 0; min-height: 32px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.sae-apraz-corpo { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 6px; }
+.sae-apraz-corpo .mini { display: flex; gap: 6px; align-items: center; }
+.sae-horas { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; max-width: 560px; }
+.sae-hora { border: 1px solid var(--ui-borda); background: #fff; border-radius: 6px; min-height: 34px; font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer; padding: 0; }
+.sae-hora.on { background: var(--ui-acao); border-color: var(--ui-acao); color: #fff; font-weight: 600; }
+@media (max-width: 600px) { .sae-horas { grid-template-columns: repeat(6, minmax(0, 1fr)); } .sae-hora { min-height: 40px; } }
+.sae-apraz-ro { font-size: 13px; color: #6b6b70; }
 .sae-ind-linha { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .sae-ind-linha .mini { display: flex; gap: 6px; align-items: center; font-size: 13px; color: #6b6b70; }
 .sae-concluir { display: flex; justify-content: flex-end; }

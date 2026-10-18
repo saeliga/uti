@@ -8,6 +8,7 @@ import {
   CHECKLISTS_INSERCAO, OPCOES_SITUACAO, OPCOES_LUMENS, INDICACOES_CVD, avaliarInsercao,
 } from '../regras/impressos.js';
 import { formatarData } from '../regras/datas.js';
+import { HORAS, FREQUENCIAS, itensPrescricao, camposPrescricao } from '../regras/prescricao.js';
 import { TURNOS } from '../regras/turnos.js';
 
 const LOGO = '<img class="folha-logo" src="assets/logo/logo_liga_cor.png" alt="Liga Contra o Câncer">';
@@ -23,7 +24,7 @@ const CSS = `
 .lote-impressao{display:none}
 @media print{
   body.imprimindo-lote>*:not(.lote-impressao){display:none!important}
-  body.imprimindo-lote{background:#fff;margin:0}
+  body.imprimindo-lote{background:#fff;margin:0;min-height:0!important}
   body.imprimindo-lote .lote-impressao{display:block}
 }
 @page retrato{size:A4 portrait;margin:7mm}
@@ -62,7 +63,33 @@ const CSS = `
 .iras .item{font-weight:700;font-size:8pt}
 .iras .item small{font-size:6.5pt}
 .folha-capa .ft td,.folha-capa .ft th{padding:.8mm 1.5mm;font-size:8pt;line-height:1.25}
+.folha-capa .ft td.capa-obs{white-space:pre-wrap;vertical-align:top;font-size:8.5pt;line-height:1.35}
 .legenda{display:flex;justify-content:space-between;font-size:8pt;margin-top:2mm}
+/* prescrição de enfermagem (padrão da prescrição médica da Liga) */
+.folha-presc{font-family:"Gotham Pro",Arial,Helvetica,sans-serif;color:#333}
+.presc{width:100%;border-collapse:collapse;table-layout:fixed;font-size:7pt}
+.presc thead{display:table-header-group}.presc tfoot{display:table-footer-group}
+.presc tr{break-inside:avoid;page-break-inside:avoid}
+.presc-cab{border:0!important;padding:0 0 2mm!important}
+.presc-topo{display:flex;align-items:center;justify-content:space-between;margin:0 0 2.5mm}
+.presc-topo .folha-logo{height:10mm;margin:0}
+.presc-topo h1{flex:1;text-align:center;font-size:13pt;letter-spacing:.3pt;margin:0;color:#3c3c3b}
+.presc-topo .presc-pag{width:10mm}
+.presc-id{display:grid;grid-template-columns:2.3fr 1fr 1.3fr 1.3fr 1.1fr;gap:1.6mm 4mm;font-size:6.6pt;margin-bottom:2mm}
+.presc-id b{color:#3c3c3b}.presc-id span{color:#555}
+.presc-id .l2{grid-column:span 2}
+.presc-alergia{display:inline-block;background:#e0242e;color:#fff;font-weight:700;border-radius:3mm;padding:.6mm 2.4mm;font-size:6.8pt;margin:.5mm 0 1.6mm}
+.presc-dx{font-size:6.8pt;margin-bottom:.5mm;line-height:1.3}
+.presc th,.presc td{border:0.5pt solid #9a9a9a;padding:.9mm 1mm;vertical-align:middle;text-align:left}
+.presc th{font-weight:700;color:#3c3c3b;font-size:6.6pt;border-top:0.9pt solid #555;border-bottom:0.9pt solid #555}
+.presc .h{text-align:center;padding:.9mm 0;font-variant-numeric:tabular-nums}
+.presc td.h{font-size:7pt;color:#222}
+.presc .c{text-align:center}
+.presc-grupo td{background:#eee;font-weight:700;color:#3c3c3b;font-size:6.8pt}
+.presc-grupo small{font-weight:400;color:#555;font-size:6.3pt}
+.presc-obs td{color:#555;font-size:6.5pt;padding:.6mm 1mm}
+.presc td.presc-ass{border:0!important;padding:9mm 0 0!important;text-align:right}
+.presc-ass span{display:inline-block;width:80mm;border-top:0.6pt solid #333;text-align:center;font-size:6.6pt;padding-top:1mm;color:#333}
 .folha-insercao{font-family:"Gotham Pro",Arial,sans-serif;font-size:8.5pt}
 .ins-topo{display:flex;justify-content:space-between;align-items:flex-start;margin:2mm 0 5mm}
 .ins-topo h1{font-family:"Zona Pro","Gotham Pro",Arial,sans-serif;font-weight:700;font-size:16pt;line-height:1.25;margin:0;color:#3c3c3b}
@@ -101,6 +128,14 @@ export function imprimirFolhas(folhas, meta = {}) {
   document.querySelector('.lote-impressao')?.remove();
   const lote = document.createElement('div');
   lote.className = 'lote-impressao';
+  // Lote de uma só orientação usa a página padrão (@page sem nome): o Chrome cria uma
+  // página em branco quando uma tabela com rodapé repetido está numa página nomeada.
+  const orientacoes = new Set(folhas.map((f) => f.orientacao));
+  const pagina = document.getElementById('pagina-lote') || document.head.appendChild(Object.assign(document.createElement('style'), { id: 'pagina-lote' }));
+  if (orientacoes.size === 1) {
+    const o = [...orientacoes][0];
+    pagina.textContent = `@media print{@page{size:A4 ${o === 'paisagem' ? 'landscape' : 'portrait'};margin:${o === 'paisagem' ? 6 : 7}mm}.lote-impressao .folha{page:auto}}`;
+  } else pagina.textContent = '';
   lote.innerHTML = folhas.map((f) => `<section class="folha folha-${f.orientacao} ${f.classe || ''}">${f.html}</section>`).join('');
   document.body.append(lote);
   document.body.classList.add('imprimindo-lote');
@@ -134,7 +169,10 @@ const EQUIPAMENTOS = ['AMBÚ', 'TESOURA', 'TERMÔMETRO', 'ESTETOSCÓPIO', 'OXÍM
   'RESPIRADOR', 'ECG', 'PRESSURÍMETRO', 'GARRA', 'SISTEMA DE COMPRESSOR PNEUMÁTICO', 'MANTA TÉRMICA', 'MARCAPASSO / CUFFÔMETRO', 'OFTALMOSCÓPIO/OTOSCÓPIO', 'INDICADORES', 'NAS/BRADEN', 'EVOLUÇÃO:', 'BANHOS:'];
 
 /** Capa da ocorrência dos enfermeiros, por UTI (igual ao modelo em Word). */
-export function folhaCapa(unidade, data) {
+export function folhaCapa(unidade, data, { observacoes = '' } = {}) {
+  const obs = String(observacoes || '').trim();
+  // Cada linha escrita ocupa o lugar de uma linha em branco do papel (cerca de 115 caracteres por linha).
+  const linhasObs = obs ? obs.split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 115)), 0) : 0;
   const tres = (txt, cls = '') => `<tr>${[0, 1, 2].map(() => `<td colspan="2" class="${cls}">${txt}</td>`).join('')}</tr>`;
   const html = `
     <div class="capa-topo">${LOGO}<h1>OCORRÊNCIA DOS ENFERMEIROS – ${esc(unidade.nome.toUpperCase())}<br>DATA: ${formatarData(data)} - ${diaDaSemana(data)}</h1><span style="width:16mm"></span></div>
@@ -150,9 +188,47 @@ export function folhaCapa(unidade, data) {
       ${tres('EQUIPAMENTOS/MATERIAIS', 'amarelo')}
       ${EQUIPAMENTOS.map((e) => tres(e)).join('')}
       <tr><td colspan="6"><strong>RESERVAS:</strong></td></tr>
-      ${Array.from({ length: 6 }, () => '<tr><td colspan="6" style="height:5mm"></td></tr>').join('')}
+      ${obs ? `<tr><td colspan="6" class="capa-obs">${esc(obs)}</td></tr>` : ''}
+      ${Array.from({ length: Math.max(obs ? 1 : 0, 6 - linhasObs) }, () => '<tr><td colspan="6" style="height:5mm"></td></tr>').join('')}
     </table>`;
   return { html, orientacao: 'retrato', classe: 'folha-capa' };
+}
+
+/**
+ * Prescrição de enfermagem de um paciente, no leiaute da prescrição médica da Liga:
+ * cabeçalho repetido em cada página, itens numerados com frequência, responsável
+ * e os horários marcados nas 24 colunas (07 às 06), observação abaixo do item.
+ */
+export function folhaPrescricao(internacao, ev, { leitoNum, unidadeNome, data }) {
+  const c = camposPrescricao(internacao, ev, { leitoNum, unidadeNome, data });
+  const { grupos, diagnosticos } = itensPrescricao(ev?.dados?.sae);
+  const ncol = 3 + HORAS.length;
+  const campo = (rot, val, cls = '') => `<div class="${cls}"><b>${rot}:</b> <span>${esc(val || '')}</span></div>`;
+  let n = 0;
+  const corpo = grupos.map((g) => `<tr class="presc-grupo"><td colspan="${ncol}">${esc(g.titulo)} <small>· ${esc(g.diagnosticos.join('; '))}</small></td></tr>${g.atividades.map((a) => {
+    n += 1;
+    return `<tr><td>${n}. ${esc(a.texto)}</td><td class="c">${g.resp}</td><td class="c">${esc(FREQUENCIAS[a.freq] || '')}</td>${HORAS.map((hh) => `<td class="h">${a.horarios.includes(hh) ? hh : ''}</td>`).join('')}</tr>${a.obs ? `<tr class="presc-obs"><td colspan="${ncol}">Obs: ${esc(a.obs)}</td></tr>` : ''}`;
+  }).join('')}`).join('') || `<tr><td colspan="${ncol}" class="c" style="padding:4mm">Sem atividades de enfermagem no Processo de Enfermagem deste dia.</td></tr>`;
+  const html = `
+    <table class="presc">
+      <colgroup><col style="width:86mm"><col style="width:9mm"><col style="width:17mm">${HORAS.map(() => '<col>').join('')}</colgroup>
+      <thead>
+        <tr><td colspan="${ncol}" class="presc-cab">
+          <div class="presc-topo">${LOGO}<h1>PRESCRIÇÃO DE ENFERMAGEM</h1><span class="presc-pag"></span></div>
+          <div class="presc-id">
+            ${campo('PACIENTE', c.nome)}${campo('ARQUIVO', c.registro)}${campo('CONVÊNIO', c.convenio)}${campo('SETOR', c.setor)}${campo('LEITO', c.leito)}
+            ${campo('NASCIMENTO', c.nascimento)}${campo('DIAGNÓSTICO MÉDICO', c.diagnostico, 'l2')}${campo('DATA DA PRESCRIÇÃO', c.data)}${campo('DATA VALIDADE', c.validade)}
+            ${campo('ENFERMEIRO(A)', c.profissional, 'l2')}${c.isolamento ? campo('ISOLAMENTO', c.isolamento, 'l2') : ''}
+          </div>
+          ${c.alergias && c.alergias !== 'NEGA' ? `<div class="presc-alergia">ALERGIA: ${esc(c.alergias)}</div>` : c.alergias === 'NEGA' ? '<div class="presc-dx"><b>ALERGIA:</b> NEGA</div>' : ''}
+          ${diagnosticos.length ? `<div class="presc-dx"><b>DIAGNÓSTICOS DE ENFERMAGEM:</b> ${diagnosticos.map((t, k) => `${k + 1}. ${esc(t)}`).join('; ')}</div>` : ''}
+        </td></tr>
+        <tr><th>CUIDADOS DE ENFERMAGEM / ORIENTAÇÕES</th><th class="c">RESP.</th><th class="c">FREQ.</th>${HORAS.map((hh) => `<th class="h">${hh}</th>`).join('')}</tr>
+      </thead>
+      <tbody>${corpo}</tbody>
+      <tfoot><tr><td colspan="${ncol}" class="presc-ass"><span>ASSINATURA E CARIMBO DO(A) ENFERMEIRO(A)</span></td></tr></tfoot>
+    </table>`;
+  return { html, orientacao: 'paisagem', classe: 'folha-presc' };
 }
 
 /** Cabeçalho institucional dos protocolos (igual ao do check-list diário). */

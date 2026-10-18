@@ -372,7 +372,10 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         h('div', { class: 'linha-acoes' },
           h('button', { class: 'btn btn-primario', type: 'button', onclick: copiarPEP }, 'Copiar para o PEP'),
           h('button', { class: 'btn btn-secundario', type: 'button', onclick: imprimir }, 'Imprimir / PDF'),
+          h('button', { class: 'btn btn-secundario', type: 'button', onclick: imprimirPrescricao }, 'Imprimir prescrição de enfermagem'),
           podeEditar() && h('button', { class: 'btn btn-perigo', type: 'button', onclick: retificar }, 'Retificar'))),
+      ev.status === 'rascunho' && atual.dados?.sae?.diagnosticos?.length && h('div', { class: 'linha-acoes' },
+        h('button', { class: 'btn btn-secundario', type: 'button', onclick: imprimirPrescricao }, 'Imprimir prescrição de enfermagem')),
       navegacaoRodape('fim')].filter(Boolean));
   }
 
@@ -434,6 +437,11 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
       ].filter(Boolean),
     });
     setTimeout(() => area.select(), 50);
+  }
+
+  async function imprimirPrescricao() {
+    const m = await import('../../impressos/impressos.js');
+    m.imprimirFolhas([m.folhaPrescricao(internacao, evolucaoAtual(), { leitoNum, unidadeNome, data: ev.data })], { unidade: ev.unidade, internacaoId: internacao.id });
   }
 
   function imprimir() {

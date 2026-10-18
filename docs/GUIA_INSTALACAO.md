@@ -238,6 +238,13 @@ Sem nada a publicar além do merge. Em telas de até 900 px de largura (celular 
 
 **Antes do merge:** (1) publique o `firestore.rules` novo; (2) cole de novo o `Codigo.gs` no Apps Script e publique **Nova versão** em Gerenciar implantações. A partir desta versão, **só contas Google @liga.org.br entram** (regras, Apps Script e tela de entrada conferem); contas pessoais já aprovadas perdem o acesso. Depois, faça as configurações da seção 4 de [`docs/SEGURANCA_LGPD.md`](SEGURANCA_LGPD.md): restringir a chave de API, domínios autorizados, ativar Zero Data Retention na Groq e verificação em duas etapas na conta do administrador.
 
+## 11.8 Versão 0.8.0 (prescrição de enfermagem e observações da capa)
+
+**Antes do merge**, publique o `firestore.rules` atualizado (Firestore → Regras → colar → Publicar). Ele traz a coleção nova `capasOcorrencia`. Sem isso, as observações da capa dão "sem permissão" ao salvar. O Apps Script não muda.
+
+- **Prescrição de enfermagem:** no Processo de Enfermagem, cada atividade das intervenções tem **Aprazamento**: frequência (01/01H a 24/24H, 1X/TURNO, contínuo, SN, ACM), horários (vêm no padrão da farmácia, com o último às 06, e podem ser ajustados tocando na hora) e uma observação opcional. O aprazamento passa para o dia seguinte com o plano e mudá-lo não reabre o PE concluído. A folha sai no leiaute da prescrição médica da Liga, em paisagem: cabeçalho do paciente repetido em cada página, alergia em destaque, diagnósticos de enfermagem, itens numerados por intervenção, responsável (ENF/TÉC, pelo nível da intervenção), frequência, as 24 colunas de horário (07 às 06) e a assinatura do enfermeiro. Imprime pelo painel (**Prescrição de enfermagem**, por leito e data; se o PE do dia ainda não foi feito, sai o plano mais recente) ou pela etapa **Finalizar** da evolução.
+- **Capa da ocorrência:** campo **Reservas e observações** (reservas cirúrgicas e outras observações administrativas), guardado por UTI e dia. O texto sai no campo RESERVAS da capa; as contagens continuam à mão.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.
