@@ -2,7 +2,7 @@
 // As regras do Firestore (firestore.rules) repetem as mesmas checagens no
 // servidor: o que está aqui é conveniência, a proteção real está nas regras.
 
-import { FIREBASE_CONFIG, ADMIN_INICIAL } from '../config.js';
+import { FIREBASE_CONFIG, ADMIN_INICIAL, DOMINIO_INSTITUCIONAL } from '../config.js';
 import { ErroSistema, traduzirErro } from './erros.js';
 import { idPaciente, resumoParaLeito } from '../regras/validacao.js';
 
@@ -41,17 +41,31 @@ async function executar(fn) {
 // --------------------------------------------------------------------------- sessão
 export const modo = 'firebase';
 
+const institucional = (email) => String(email || '').toLowerCase().endsWith(`@${DOMINIO_INSTITUCIONAL}`);
+
 export function aoMudarSessao(cb) {
-  return A.onAuthStateChanged(auth, (u) => cb(u ? { uid: u.uid, email: u.email, nome: u.displayName || '' } : null));
+  return A.onAuthStateChanged(auth, (u) => {
+    // Sessão de conta fora do domínio institucional (ex.: guardada de antes da restrição): encerra.
+    if (u && !institucional(u.email)) { A.signOut(auth); return cb(null); }
+    cb(u ? { uid: u.uid, email: u.email, nome: u.displayName || '' } : null);
+  });
 }
 
 // Login com Google. "select_account" faz o Google perguntar qual conta usar a
 // cada entrada (importante em tablet compartilhado). Usa janela (popup) porque o
 // redirecionamento falha quando o site (github.io) e o Firebase têm domínios diferentes.
 const provedor = new A.GoogleAuthProvider();
-provedor.setCustomParameters({ prompt: 'select_account' });
+// hd: o Google já sugere as contas do domínio institucional (a conferência de verdade é nas regras).
+provedor.setCustomParameters({ prompt: 'select_account', hd: DOMINIO_INSTITUCIONAL });
 
-export const entrarComGoogle = () => executar(() => A.signInWithPopup(auth, provedor));
+export async function entrarComGoogle() {
+  const r = await executar(() => A.signInWithPopup(auth, provedor));
+  if (!institucional(r.user?.email)) {
+    await A.signOut(auth);
+    throw new ErroSistema('conta_nao_institucional');
+  }
+  return r;
+}
 
 /** Primeiro acesso: cria a solicitação (perfil pendente) com nome e Coren. */
 export async function solicitarAcesso({ nome, coren }) {

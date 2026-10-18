@@ -14,7 +14,7 @@ Revisão feita em 17/10/2026, na versão 0.7.0. Este texto é técnico e serve d
 
 | Tema | Como está |
 |---|---|
-| **Autenticação** | Só conta Google com e-mail verificado. O cadastro nasce **pendente**, e só o administrador aprova, define o perfil (enfermeiro, leitura, administrador) e as unidades. |
+| **Autenticação** | Só conta Google **institucional (@liga.org.br)** com e-mail verificado. O cadastro nasce **pendente**, e só o administrador aprova, define o perfil (enfermeiro, leitura, administrador) e as unidades. |
 | **Autorização** | Regras do Firestore: a pessoa só lê a unidade em que está; o perfil "leitura" não altera nada; ninguém altera o próprio perfil. |
 | **Integridade** | Nada clínico é apagado. Internação encerrada não muda mais. Evolução finalizada só muda por **retificação**, que guarda a versão anterior. Autor e hora são sempre os do servidor. |
 | **Rastreabilidade** | A coleção `auditoria` só aceita inclusões, com autor e hora do servidor. Ela registra admissões, transferências, desfechos, mudanças de leito, isolamento e usuários, e retificações. |
@@ -38,8 +38,9 @@ Revisão feita em 17/10/2026, na versão 0.7.0. Este texto é técnico e serve d
 5. **IA.** O resumo enviado passa por `anonimizarParaIA`, que retira nome do paciente, registro, nascimento, CPF, cartão do SUS, telefones, e-mails e nomes depois de "Dr./Dra./Enf./Téc.". Idade de 90 anos ou mais vai como faixa. Há um teste automático para isso.
 6. **Moldura de outro site.** O sistema se recusa a abrir dentro de moldura (iframe) de outro site, o que protege contra *clickjacking*.
 7. **Endereço de origem.** O navegador não envia o endereço do sistema a sites externos (*referrer*).
+8. **Só e-mail institucional.** Somente contas Google @liga.org.br entram (regras, Apps Script e tela de entrada).
 
-**Para valer, publique o `firestore.rules` novo antes do merge.**
+**Para valer, publique o `firestore.rules` novo e a nova versão do Apps Script (`Codigo.gs`) antes do merge.**
 
 ## 4. Configurações a fazer nos consoles (sem custo)
 
@@ -53,7 +54,7 @@ Revisão feita em 17/10/2026, na versão 0.7.0. Este texto é técnico e serve d
 | 6 | (Opcional) Firebase → App Check | Ativar com reCAPTCHA v3, primeiro só monitorando. | Dificulta chamadas ao banco feitas fora do aplicativo. |
 | 7 | (A verificar) Google Cloud → IAM → Registros de auditoria | Avaliar ativar "Leitura de dados" do Firestore. | Registro de **todas** as leituras. Pode exigir faturamento; confirmar antes. |
 
-**Pergunta em aberto:** limitar o pedido de acesso a contas **@liga.org.br**? Se todos os enfermeiros tiverem e-mail institucional, a regra fica mais forte; hoje qualquer conta Google pode **pedir** acesso, embora só entre quem você aprovar.
+**Decidido em 17/10/2026:** só contas **@liga.org.br** entram. A conferência está nas regras do Firestore (todas as coleções), no Apps Script e na tela de entrada; uma sessão antiga de conta pessoal é encerrada automaticamente.
 
 ## 5. LGPD: papéis, bases legais e documentos
 

@@ -19,6 +19,8 @@ export const FIREBASE_CONFIG = {
 // administradora (sem passar pela aprovação). As regras do Firestore conferem
 // o mesmo e-mail. Os demais usuários são aprovados por ela em Administração.
 export const ADMIN_INICIAL = 'tercio.neto@liga.org.br';
+// Só contas Google do domínio institucional entram (as regras do Firestore e o Apps Script conferem o mesmo).
+export const DOMINIO_INSTITUCIONAL = 'liga.org.br';
 
 // URL da implantação do Apps Script (termina em /exec).
 export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYIiydVGCjTim8u1hZfAalhFGWN0pGWwlRruzeSh_xE9s4mWlR9vSVTQul3FsCRKjE/exec';

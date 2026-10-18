@@ -6,7 +6,7 @@ rules_version = '2';
 // o servidor do Firestore não. Publicar no console: Firestore → Regras.
 //
 // Princípios:
-// - Login somente com conta Google (Firebase Authentication → provedor Google).
+// - Login somente com conta Google institucional (@liga.org.br).
 // - Só usuário cadastrado, aprovado (ativo) e da unidade lê dados clínicos.
 // - Ninguém altera o próprio perfil; só administrador aprova e muda perfis.
 // - Internação encerrada não muda mais. Nada clínico é apagado.
@@ -19,10 +19,12 @@ service cloud.firestore {
 
     // ------------------------------------------------------------------ apoio
     // Só contas Google com e-mail verificado (o login do sistema é pelo Google).
+    // Só conta Google do domínio institucional (@liga.org.br), com e-mail verificado.
     function logado() {
       return request.auth != null
         && request.auth.token.firebase.sign_in_provider == 'google.com'
-        && request.auth.token.email_verified == true;
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches('.*@liga[.]org[.]br$');
     }
     function caminho(colecao, id) { return /databases/$(database)/documents/$(colecao)/$(id); }
     function meuPerfil() { return get(caminho('usuarios', request.auth.uid)).data; }

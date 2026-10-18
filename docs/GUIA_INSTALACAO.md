@@ -236,7 +236,7 @@ Sem nada a publicar além do merge. Em telas de até 900 px de largura (celular 
 
 ## 11.7 Versão 0.7.0 (segurança e LGPD)
 
-**Antes do merge**, publique o `firestore.rules` novo. Depois, faça as configurações da seção 4 de [`docs/SEGURANCA_LGPD.md`](SEGURANCA_LGPD.md): restringir a chave de API, domínios autorizados, ativar Zero Data Retention na Groq e verificação em duas etapas na conta do administrador.
+**Antes do merge:** (1) publique o `firestore.rules` novo; (2) cole de novo o `Codigo.gs` no Apps Script e publique **Nova versão** em Gerenciar implantações. A partir desta versão, **só contas Google @liga.org.br entram** (regras, Apps Script e tela de entrada conferem); contas pessoais já aprovadas perdem o acesso. Depois, faça as configurações da seção 4 de [`docs/SEGURANCA_LGPD.md`](SEGURANCA_LGPD.md): restringir a chave de API, domínios autorizados, ativar Zero Data Retention na Groq e verificação em duas etapas na conta do administrador.
 
 ## 12. Publicar uma versão nova
 

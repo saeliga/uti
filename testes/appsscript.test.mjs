@@ -103,9 +103,9 @@ function criarAmbiente({ perfis = {}, groq = () => ({ status: 200, corpo: { choi
   return { ctx, chamar, chamadas, real: cat.real };
 }
 
-function token({ sub = 'u1', aud = PROJETO, exp = Math.floor(Date.now() / 1000) + 3000, assinatura = 'assinatura-valida', provedor = 'google.com' } = {}) {
+function token({ sub = 'u1', aud = PROJETO, exp = Math.floor(Date.now() / 1000) + 3000, assinatura = 'assinatura-valida', provedor = 'google.com', email = '' } = {}) {
   const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
-  return `${b({ alg: 'RS256' })}.${b({ sub, aud, iss: `https://securetoken.google.com/${aud}`, exp, email: `${sub}@exemplo.org`, email_verified: true, firebase: { sign_in_provider: provedor } })}.${assinatura}`;
+  return `${b({ alg: 'RS256' })}.${b({ sub, aud, iss: `https://securetoken.google.com/${aud}`, exp, email: email || `${sub}@liga.org.br`, email_verified: true, firebase: { sign_in_provider: provedor } })}.${assinatura}`;
 }
 
 const PERFIS = {
@@ -253,4 +253,11 @@ test('IA sugere PE: resumo curto é recusado e leitura não pode pedir', () => {
   const { chamar } = criarAmbiente({ perfis: PERFIS });
   assert.equal(chamar({ acao: 'ia.sugerirSAE', token: token(), dados: { resumo: 'curto' } }).erro, 'resumo_insuficiente');
   assert.equal(chamar({ acao: 'ia.sugerirSAE', token: token({ sub: 'ler' }), dados: { resumo: 'x'.repeat(100) } }).erro, 'sem_permissao');
+});
+
+test('só conta institucional (@liga.org.br) usa o Apps Script', () => {
+  const { chamar } = criarAmbiente({ perfis: PERFIS });
+  assert.equal(chamar({ acao: 'ping', token: token({ email: 'alguem@gmail.com' }) }).erro, 'sem_permissao');
+  assert.equal(chamar({ acao: 'ping', token: token({ email: 'u1@liga.org.br.falso.com' }) }).erro, 'sem_permissao');
+  assert.equal(chamar({ acao: 'ping', token: token({ email: 'U1@LIGA.ORG.BR' }) }).ok, true);
 });
