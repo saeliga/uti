@@ -2,7 +2,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, limpar, carregando, aviso, confirmar, abrirJanela, campo, lerFormulario } from '../../nucleo/ui.js';
+import { h, limpar, carregando, aviso, confirmar, abrirJanela, campo, lerFormulario, anexar } from '../../nucleo/ui.js';
 import { contagemDia, idade, hojeISO } from '../../regras/datas.js';
 import { ISOLAMENTOS, MOTIVOS_BLOQUEIO } from '../../regras/opcoes.js';
 import { diaAssistencial, rotuloDia } from '../../regras/turnos.js';
@@ -60,7 +60,7 @@ function desenhar(conteudo, unidade, leitos, evolucoes, dia) {
   const faltam = sits.filter((x) => x === 'sem_evolucao' || x === 'rascunho').length;
   const semPEP = sits.filter((x) => x === 'finalizada' || x === 'alterada_apos_copia').length;
   const rolagem = window.scrollY;
-  limpar(conteudo).append(
+  anexar(limpar(conteudo), 
     h('div', { class: 'painel-cabecalho' },
       h('h1', {}, unidade.nome),
       h('div', { class: 'painel-contagem' },

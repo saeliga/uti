@@ -4,7 +4,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, limpar, carregando } from '../../nucleo/ui.js';
+import { h, limpar, carregando, anexar } from '../../nucleo/ui.js';
 import { diaAssistencial, diaAnterior, turnoDe, TURNOS, idEvolucao } from '../../regras/turnos.js';
 import { formatarData } from '../../regras/datas.js';
 import { BUNDLES_IRAS, MARCAS_IRAS, adesaoBundle, irasInicial, resumoIras, juntarEvolucoes } from '../../regras/impressos.js';
@@ -104,7 +104,7 @@ export async function telaIras(conteudo, unidade) {
       } }, 'Tudo 1'));
     })));
 
-    limpar(conteudo).append(
+    anexar(limpar(conteudo), 
       h('div', { class: 'painel-cabecalho' }, h('h1', {}, `Check-list de IRAS — ${unidade.nome}`), h('a', { class: 'btn btn-link', href: `#/${unidade.id}` }, '← Painel')),
       h('p', { class: 'ajuda' }, 'Toque na célula para alternar: 1 (conforme) → 0 (não conforme) → NA (não se aplica) → em branco. Leito vago e bundle sem o dispositivo já vêm marcados. A adesão ao bundle é calculada.'),
       h('div', { class: 'iras-topo' },
