@@ -245,6 +245,19 @@ Sem nada a publicar além do merge. Em telas de até 900 px de largura (celular 
 - **Prescrição de enfermagem:** no Processo de Enfermagem, cada atividade das intervenções tem **Aprazamento**: frequência (01/01H a 24/24H, 1X/TURNO, contínuo, SN, ACM), horários (vêm no padrão da farmácia, com o último às 06, e podem ser ajustados tocando na hora) e uma observação opcional. O aprazamento passa para o dia seguinte com o plano e mudá-lo não reabre o PE concluído. A folha sai no leiaute da prescrição médica da Liga, em paisagem: cabeçalho do paciente repetido em cada página, alergia em destaque, diagnósticos de enfermagem, itens numerados por intervenção, responsável (ENF/TÉC, pelo nível da intervenção), frequência, as 24 colunas de horário (07 às 06) e a assinatura do enfermeiro. Imprime pelo painel (**Prescrição de enfermagem**, por leito e data; se o PE do dia ainda não foi feito, sai o plano mais recente) ou pela etapa **Finalizar** da evolução.
 - **Capa da ocorrência:** campo **Reservas e observações** (reservas cirúrgicas e outras observações administrativas), guardado por UTI e dia. O texto sai no campo RESERVAS da capa; as contagens continuam à mão.
 
+## 11.9 Versão 0.9.0 (evolução no formato SBAR para o PEP)
+
+Não há regra nem Apps Script novos.
+
+- **Copiar para o PEP:** o texto sai no formato **SBAR**, todo em caixa alta e em frases curtas, como o enfermeiro escreve.
+  - **S – Situação:** estado geral e suporte atual (ventilação, droga vasoativa, hemodiálise), intercorrências e a narrativa do enfermeiro.
+  - **B – Breve histórico:** diagnóstico médico, comorbidades, admissão na UTI, alergia, precaução, limitação de suporte e objetivo de cuidado, antimicrobianos e culturas.
+  - **A – Avaliação:** sinais vitais e sistemas, infusões, dispositivos e diagnósticos de enfermagem com o resultado esperado.
+  - **R – Recomendações:** intervenções do PE com o aprazamento, a situação de cada atividade e a avaliação do dia, mais os alertas do sistema (AVP ou curativo vencido, sítio alterado, interrupção da sedação não realizada).
+- **Fica de fora** o que o PEP já registra: nome, registro e nascimento do paciente, data, autor e assinatura (o PEP imprime nome e Coren). As pendências também não entram.
+- **"Copiar texto"** copia com os títulos em **negrito** (o editor do PEP mantém); onde a formatação não for aceita, sai como texto simples.
+- **"Imprimir / PDF"** da evolução usa o mesmo texto, com a identificação do paciente no alto e a linha de assinatura.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

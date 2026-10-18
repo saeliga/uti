@@ -296,6 +296,9 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .chip-atalho { font-weight: 500; }
 .atalhos { margin-bottom: 8px; }
 .texto-pep { width: 100%; font: 13.5px/1.5 var(--fonte-texto); padding: 10px; border: 1px solid #b9bac0; border-radius: 8px; }
+.previa-pep { max-height: 55vh; overflow: auto; background: #fff; user-select: text; }
+.previa-pep p { margin: 0 0 3px; }
+.previa-pep .impressao-sep { height: 8px; }
 .impressao { display: none; }
 
 @media print { .topo, .rodape, .faixa-demo, .avisos { display: none; } }

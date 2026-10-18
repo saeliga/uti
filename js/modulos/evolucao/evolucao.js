@@ -6,7 +6,7 @@ import { estado, podeEditar } from '../../nucleo/estado.js';
 import { h, limpar, carregando, aviso, abrirJanela, confirmar, campo, lerFormulario, mostrarErros } from '../../nucleo/ui.js';
 import { BLOCOS, contextoEvolucao } from '../../regras/evolucao-esquema.js';
 import {
-  validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP,
+  validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP, htmlParaPEP, estruturaPEP, linhasPEP,
   resumoSubbloco, subblocoRegistrado, dadosIniciais,
 } from '../../regras/evolucao.js';
 import { diaAssistencial, diaAnterior, rotuloDia, idEvolucao, turnoDe, TURNOS } from '../../regras/turnos.js';
@@ -20,6 +20,14 @@ const horaAgora = () => agoraLocalISO().slice(11, 16);
 // Redesenha a tela pelo roteador (sem recarregar a página: no modo demonstração, recarregar apagaria tudo).
 const redesenhar = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
 const autor = () => ({ nome: estado.perfil.nome, coren: estado.perfil.coren });
+
+/** Parágrafos da evolução em SBAR (caixa alta, títulos em negrito) para a prévia e a impressão. */
+function paragrafosPEP(est) {
+  return linhasPEP(est).flatMap((l) => [
+    ...(l.novaSecao ? [h('div', { class: 'impressao-sep' })] : []),
+    h('p', {}, l.negrito ? h('strong', {}, l.negrito) : null, l.negrito && l.texto ? ' ' : null, l.texto || null),
+  ]);
+}
 
 /** Procura a evolução mais recente antes do dia informado (até 3 dias para trás). */
 async function buscarAnterior(internacaoId, data) {
@@ -405,21 +413,24 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
 
   function copiarPEP() {
     backend.registrarEvento?.('evolucao_copiada', { evolucaoId: id, unidade: ev.unidade });
-    const texto = textoParaPEP(evolucaoAtual(), internacao, { unidadeNome });
-    const area = h('textarea', { class: 'texto-pep', readonly: true, rows: 18 });
-    area.value = texto;
+    const atual = evolucaoAtual();
+    const texto = textoParaPEP(atual, internacao, { unidadeNome });
+    const html = htmlParaPEP(atual, internacao, { unidadeNome });
+    const area = h('div', { class: 'texto-pep previa-pep', tabindex: '0', 'aria-label': 'Texto para o PEP' }, ...paragrafosPEP(estruturaPEP(atual, internacao, { unidadeNome })));
+    const selecionar = () => { const r = document.createRange(); r.selectNodeContents(area); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
     abrirJanela({
       titulo: 'Copiar para o PEP',
       conteudo: h('div', {},
-        h('p', { class: 'ajuda' }, 'Texto simples, sem tabelas. Copie, cole no campo de evolução do PEP e depois marque como transcrito.'),
+        h('p', { class: 'ajuda' }, 'Formato SBAR, em caixa alta, com os títulos em negrito. Copie, cole no campo de evolução do PEP e depois marque como transcrito.'),
         area),
       acoes: [
         { texto: 'Fechar', classe: 'btn-secundario' },
         { texto: 'Copiar texto', classe: 'btn-secundario', aoClicar: async () => {
           try {
-            await navigator.clipboard.writeText(texto);
+            // Com formatação (negrito) para o editor do PEP; texto simples como reserva.
+            await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([texto], { type: 'text/plain' }) })]);
           } catch {
-            area.select();
+            selecionar();
             document.execCommand('copy');
           }
           aviso('Texto copiado.', 'ok');
@@ -436,7 +447,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         } },
       ].filter(Boolean),
     });
-    setTimeout(() => area.select(), 50);
+    setTimeout(selecionar, 50);
   }
 
   async function imprimirPrescricao() {
@@ -446,11 +457,13 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
 
   function imprimir() {
     backend.registrarEvento?.('impressao', { tipos: 'evolucao', folhas: 1, evolucaoId: id, unidade: ev.unidade });
-    const texto = textoParaPEP(evolucaoAtual(), internacao, { unidadeNome });
-    const [titulo, ...resto] = texto.split('\n');
+    const est = estruturaPEP(evolucaoAtual(), internacao, { unidadeNome });
+    const [titulo, ...resto] = paragrafosPEP(est);
     const folha = h('div', { class: 'impressao' },
-      h('div', { class: 'impressao-topo' }, h('img', { src: 'assets/logo/logo_liga_cinza.png', alt: 'Liga Contra o Câncer' }), h('h1', {}, titulo)),
-      ...resto.map((l) => (l ? h('p', {}, l) : h('div', { class: 'impressao-sep' }))),
+      h('div', { class: 'impressao-topo' }, h('img', { src: 'assets/logo/logo_liga_cinza.png', alt: 'Liga Contra o Câncer' }), h('h1', {}, titulo.textContent)),
+      // Na folha impressa (fora do PEP) a identificação do paciente é obrigatória.
+      h('p', {}, h('strong', {}, 'PACIENTE: '), `${p.nome} · REGISTRO ${p.registro || '—'} · NASCIMENTO ${p.dataNascimento ? formatarData(p.dataNascimento) : '—'} · DIA ${formatarData(ev.data)}`),
+      ...resto,
       h('div', { class: 'impressao-assinatura' }, '_______________________________________', h('br'), 'Assinatura e carimbo'));
     document.body.append(folha);
     document.body.classList.add('imprimindo');
