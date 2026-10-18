@@ -27,6 +27,7 @@ var CACHE_USUARIO_SEG = 300;
 var CLINICOS = ['enfermeiro', 'admin'];
 var TODOS = ['enfermeiro', 'leitura', 'admin'];
 var ADMIN = ['admin'];
+var DOMINIO_INSTITUCIONAL = '@liga.org.br'; // só contas institucionais (igual às regras do Firestore)
 
 // Lista FECHADA de ações. É uma função (e não uma variável) porque o Apps
 // Script carrega os arquivos em sequência: as funções de Catalogo.gs e Groq.gs
@@ -129,6 +130,8 @@ function autenticar_(token) {
   if (p.aud !== projeto || p.iss !== 'https://securetoken.google.com/' + projeto || !p.sub) throw erro_('token_invalido');
   // O sistema só aceita login com conta Google (as regras do Firestore conferem o mesmo).
   if (!p.firebase || p.firebase.sign_in_provider !== 'google.com' || p.email_verified !== true) throw erro_('sem_permissao');
+  var email = String(p.email || '').toLowerCase();
+  if (email.slice(-DOMINIO_INSTITUCIONAL.length) !== DOMINIO_INSTITUCIONAL) throw erro_('sem_permissao');
   var restante = Math.floor(p.exp - Date.now() / 1000);
   if (!(restante > 0)) throw erro_('token_invalido');
 

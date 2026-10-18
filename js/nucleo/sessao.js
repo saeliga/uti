@@ -89,7 +89,7 @@ export function telaEntrada(raiz) {
     h('div', { class: 'acesso-form' },
       btn,
       erro,
-      h('p', { class: 'acesso-nota' }, 'Use sua conta Google. No primeiro acesso, você informa nome e Coren, e o administrador do sistema aprova.')))));
+      h('p', { class: 'acesso-nota' }, 'Use sua conta Google institucional (@liga.org.br). No primeiro acesso, você informa nome e Coren, e o administrador do sistema aprova.')))));
 }
 
 /** Primeiro acesso com uma conta Google: nome e Coren para o administrador conferir. */

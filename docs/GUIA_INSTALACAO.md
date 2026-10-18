@@ -234,6 +234,10 @@ Sem nada a publicar além do merge. Em telas de até 900 px de largura (celular 
 - **Capa da ocorrência** e **Ocorrências (transição):** escolha a data na janela de impressão (o padrão é hoje). Na ocorrência, os dias de UTI e de antimicrobianos são contados para a data escolhida.
 - **Check-list de IRAS:** além de "Imprimir" (com as marcações feitas no sistema), há **"Imprimir para preencher à mão"**: sai a folha com a data e o turno escolhidos e os leitos vagos marcados (VAGO); as marcações ficam em branco. Leito vago vem do painel de leitos: no check-list não há mais a opção de ocupar ou esvaziar leito.
 
+## 11.7 Versão 0.7.0 (segurança e LGPD)
+
+**Antes do merge:** (1) publique o `firestore.rules` novo; (2) cole de novo o `Codigo.gs` no Apps Script e publique **Nova versão** em Gerenciar implantações. A partir desta versão, **só contas Google @liga.org.br entram** (regras, Apps Script e tela de entrada conferem); contas pessoais já aprovadas perdem o acesso. Depois, faça as configurações da seção 4 de [`docs/SEGURANCA_LGPD.md`](SEGURANCA_LGPD.md): restringir a chave de API, domínios autorizados, ativar Zero Data Retention na Groq e verificação em duas etapas na conta do administrador.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

@@ -355,3 +355,6 @@ export async function salvarChecklistInsercao(id, dados) {
   checklistsInsercao[id] = { ...resto, atualizadoPor: USUARIO.uid };
   return espera(120);
 }
+
+// --------------------------------------------------------------------------- registro de operações
+export async function registrarEvento() { /* demonstração: nada é registrado */ }

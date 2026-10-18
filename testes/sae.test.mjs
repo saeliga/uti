@@ -1,7 +1,7 @@
 // Testes das regras do Processo de Enfermagem.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validarEvidencias, novoDiagnostico, planoParaNovoDia, validarConclusao, avisosRisco, enunciado, textoSAE, resumoParaIA, CATEGORIA } from '../js/regras/sae.js';
+import { anonimizarParaIA, validarEvidencias, novoDiagnostico, planoParaNovoDia, validarConclusao, avisosRisco, enunciado, textoSAE, resumoParaIA, CATEGORIA } from '../js/regras/sae.js';
 
 const it = (id, texto) => ({ id, texto });
 
@@ -76,4 +76,12 @@ test('resumo para a IA não leva identificação', () => {
   const r = resumoParaIA({ idade: 68, diagnosticoMedico: 'Choque séptico', comorbidades: 'HAS', isolamento: 'Contato', textoSubblocos: 'SINAIS VITAIS: FC 110.' });
   assert.match(r, /68 anos/);
   assert.doesNotMatch(r, /Registro|Nascimento|Leito/i);
+});
+
+test('anonimização antes da IA: tira nome, registro, nascimento, documentos e nomes de profissionais', () => {
+  const t = anonimizarParaIA('INTERCORRÊNCIAS: Ana Exemplo Fictícia com queda de SpO2, comunicado Dr. João Silva. Reg DEMO-1001, nasc. 12/03/1958, CPF 123.456.789-09, tel (84) 99999-1234, e-mail ana@exemplo.com. FC 118 bpm, débito 1500 mL, pele rosada.',
+    { nome: 'ANA EXEMPLO FICTICIA', registro: 'DEMO-1001', nascimento: '1958-03-12' });
+  for (const x of ['Ana', 'Exemplo', 'Fictícia', 'João', 'Silva', 'DEMO-1001', '12/03/1958', '123.456.789-09', '99999-1234', 'ana@exemplo.com']) assert.ok(!t.includes(x), x);
+  for (const x of ['FC 118 bpm', 'débito 1500 mL', 'pele rosada', 'SpO2']) assert.ok(t.includes(x), `mantém o dado clínico: ${x}`);
+  assert.match(resumoParaIA({ idade: 95 }), /90 anos ou mais/, 'idade muito alta vai como faixa');
 });

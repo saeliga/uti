@@ -16,6 +16,7 @@ export const MENSAGENS = {
   conflito_versao: 'Outra pessoa alterou este registro agora. Abra de novo para ver a versão atual.',
   sem_conexao: 'Sem conexão. Esta operação precisa de internet; tente de novo quando o Wi-Fi voltar.',
   sem_permissao: 'Você não tem permissão para esta ação (ou seu acesso foi desativado).',
+  conta_nao_institucional: 'Use a sua conta institucional (@liga.org.br). Contas pessoais não têm acesso ao sistema.',
   leito_com_paciente: 'Não é possível remover um leito ocupado.',
   login_cancelado: 'Login cancelado.',
   popup_bloqueado: 'O navegador bloqueou a janela do Google. Permita janelas pop-up para este site e tente de novo.',

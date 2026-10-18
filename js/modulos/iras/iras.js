@@ -125,12 +125,12 @@ export async function telaIras(conteudo, unidade) {
   async function imprimirEmBranco() {
     const m = await import('../../impressos/impressos.js');
     const respostas = Object.fromEntries(leitos.map((l) => [l.numero, l.internacaoId ? {} : { vago: true }]));
-    m.imprimirFolhas([m.folhaIras(unidade, leitos, { data, turno, respostas, enfermeiro: '' })]);
+    m.imprimirFolhas([m.folhaIras(unidade, leitos, { data, turno, respostas, enfermeiro: '' })], { unidade: unidade.id });
   }
 
   async function imprimir() {
     const m = await import('../../impressos/impressos.js');
-    m.imprimirFolhas([m.folhaIras(unidade, leitos, { ...doc, data, turno })]);
+    m.imprimirFolhas([m.folhaIras(unidade, leitos, { ...doc, data, turno })], { unidade: unidade.id });
   }
 
   return () => {
