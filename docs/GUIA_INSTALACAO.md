@@ -232,7 +232,7 @@ Sem nada a publicar além do merge. Em telas de até 900 px de largura (celular 
 ## 11.6 Versão 0.6.2 (datas nos impressos)
 
 - **Capa da ocorrência** e **Ocorrências (transição):** escolha a data na janela de impressão (o padrão é hoje). Na ocorrência, os dias de UTI e de antimicrobianos são contados para a data escolhida.
-- **Check-list de IRAS:** além de "Imprimir" (com as marcações feitas no sistema), há **"Imprimir para preencher à mão"**: sai a folha com a data e o turno escolhidos e os leitos vagos marcados (VAGO); as marcações ficam em branco.
+- **Check-list de IRAS:** além de "Imprimir" (com as marcações feitas no sistema), há **"Imprimir para preencher à mão"**: sai a folha com a data e o turno escolhidos e os leitos vagos marcados (VAGO); as marcações ficam em branco. Leito vago vem do painel de leitos: no check-list não há mais a opção de ocupar ou esvaziar leito.
 
 ## 12. Publicar uma versão nova
 

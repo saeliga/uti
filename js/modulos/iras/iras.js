@@ -97,15 +97,11 @@ export async function telaIras(conteudo, unidade) {
     // Atalhos por leito: vago / tudo conforme nos bundles que se aplicam
     tabela.append(h('tr', {}, h('td', { class: 'iras-item' }, h('small', {}, 'Atalhos do leito')), nums.map((n) => {
       const c = resp[n] ||= {};
-      return h('td', {}, !ro && h('div', { style: 'display:flex;flex-direction:column;gap:4px' },
-        !c.vago && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', title: 'Marca 1 em tudo que ainda está em branco', onclick: () => {
-          for (const b of BUNDLES_IRAS) { c[b.id] ||= {}; for (const [id] of b.itens) if (!c[b.id][id]) c[b.id][id] = '1'; }
-          salvar(); desenhar();
-        } }, 'Tudo 1'),
-        h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => {
-          if (c.vago) delete c.vago; else { for (const k of Object.keys(c)) delete c[k]; c.vago = true; }
-          salvar(); desenhar();
-        } }, c.vago ? 'Ocupado' : 'Vago')));
+      // Leito vago vem do painel de leitos: aqui não se ocupa nem se esvazia leito.
+      return h('td', {}, !ro && !c.vago && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', title: 'Marca 1 em tudo que ainda está em branco', onclick: () => {
+        for (const b of BUNDLES_IRAS) { c[b.id] ||= {}; for (const [id] of b.itens) if (!c[b.id][id]) c[b.id][id] = '1'; }
+        salvar(); desenhar();
+      } }, 'Tudo 1'));
     })));
 
     limpar(conteudo).append(
