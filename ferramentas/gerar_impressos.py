@@ -74,9 +74,15 @@ MARC_OC = {
     **{f'B{47 + k}': f'{{{{atbDias{k}}}}}' for k in range(5)},
     'E42': '(    ) ESPONT ({{eColost}}) COLOSTOMIA ({{eIleost}}) ILEOSTOMIA (   ) FRALDA',
     'E50': '({{dPenrose}}) PENROSE ({{dLaminar}}) TUBO LAMINAR ({{dToracico}}) TORÁCICO ({{dOutro}}) {{dOutroNome}}',
-    'A53': '({{cAvc}}) AVC  (   ) DISS VENOSA ({{cDreno}}) DRENO',
-    'A54': '({{cCvti}}) CVTI ({{cCirurgico}})  CIRÚRGICO   ({{cLpp}})  LESÃO P/ PRESSÃO',
+    'A53': '({{cAvc}}) AVC {{dCurAvc}} (   ) DISS VENOSA ({{cDreno}}) DRENO',
+    'A54': '({{cCvti}}) CVTI {{dCurCvti}} ({{cCirurgico}})  CIRÚRGICO   ({{cLpp}})  LESÃO P/ PRESSÃO',
+    # Abaixo de BIPAP: via aérea artificial (TOT ou TQT) e data de inserção
+    'A27': '{{viaAerea}}',
+    # Ocorrências: culturas e ocorrências abertas da evolução, uma por linha
+    'E51': 'OCORRÊNCIAS: {{oc0}}', **{f'E{51 + k}': f'{{{{oc{k}}}}}' for k in range(1, 6)},
 }
+# Mesclagens que faltam na planilha (no Excel o texto transborda; na tabela, não).
+MESCLAR_OC = ['E40:H40']
 
 # ---------------------------------------------------------------------------
 ESTILOS = {}  # estilo inline → classe (deixa o modelo bem menor)
@@ -217,6 +223,8 @@ bh2 = tabela(bh, list(range(42, 81)), cols_bh, MARC_BH, larg_bh, alt_bh)
 
 # Ocorrência: GRADE, colunas A a H, linhas 1 a 56.
 oc = wb['GRADE']
+for faixa in MESCLAR_OC:
+    oc.merge_cells(faixa)
 cols_oc = list(range(1, 9))
 larg_oc = [largura_col(oc, get_column_letter(c)) for c in cols_oc]
 alt_oc = lambda r: oc.row_dimensions[r].height or 15.75

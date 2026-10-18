@@ -339,7 +339,8 @@ export function camposOcorrencia(internacao, ev, { leitoNum, data }) {
     ...camposIdentificacao(internacao, leitoNum),
     data: formatarData(data),
     idade: internacao.paciente?.dataNascimento ? `${idadeEm(internacao.paciente.dataNascimento, data)}a` : '',
-    xClinico: internacao.tipo === 'clinico' ? '(X)' : '(  )', xCirurgico: internacao.tipo === 'cirurgico' ? '(X)' : '(  )',
+    // Caixas de seleção (na planilha são controles de marcar)
+    xClinico: internacao.tipo === 'clinico' ? '☒' : '☐', xCirurgico: internacao.tipo === 'cirurgico' ? '☒' : '☐',
     pulseiraS: X(internacao.pulseira === true), pulseiraN: X(internacao.pulseira === false),
     dih: internacao.admissaoHospital ? formatarData(internacao.admissaoHospital) : '',
     duti: internacao.admissaoUti ? formatarData(internacao.admissaoUti) : '',
@@ -358,6 +359,17 @@ export function camposOcorrencia(internacao, ev, { leitoNum, data }) {
   c.sondaRotulo = sonda ? ROTULO_SONDA[sonda.tipo] : 'SNE'; c.dataSonda = sonda ? formatarData(sonda.insercao || '') : '';
   const cvd = primeiro(disp, ['cvd']);
   c.svdRotulo = 'CVD'; c.dataSvd = cvd?.insercao ? formatarData(cvd.insercao) : '';
+  // Via aérea artificial (linha abaixo de BIPAP)
+  const va = primeiro(disp, ['tot', 'tqt']);
+  // Curto para caber na célula: "TOT 7,5 - 22CM - 14/10 (D3)"
+  c.viaAerea = va ? [`${va.tipo.toUpperCase()}${va.numero ? ` ${va.numero}` : ''}`, va.fixacao && `${va.fixacao}CM`, va.insercao && `${curta(va.insercao)} (${contagemDia(va.insercao, data)})`].filter(Boolean).join(' - ') : '';
+  // Dia do curativo do CVC e do CVTI (filme vale 7 dias; gaze, 1)
+  const diaCurativo = (i) => (i?.curativoData ? `${contagemDia(i.curativoData, data)}${({ filme: '/7', gaze: '/1' })[i.curativoTipo] || ''}` : '');
+  c.dCurAvc = diaCurativo(primeiro(disp, ['cvc', 'picc']));
+  c.dCurCvti = diaCurativo(primeiro(disp, ['cti']));
+  // Ocorrências: culturas e ocorrências abertas da evolução, em até 6 linhas
+  const linhasOc = ocorrenciasEmLinhas(itensOcorrencia(ev));
+  for (let k = 0; k < 6; k++) c[`oc${k}`] = linhasOc[k] || '';
 
   // Dieta, eliminações, drenos e curativos (marcações)
   const vias = d.gi?.via || [];
@@ -378,6 +390,46 @@ export function camposOcorrencia(internacao, ev, { leitoNum, data }) {
   const TIPO_LESAO = { lpp: 'LPP', cirurgica: 'INCISÃO CIRÚRGICA', oncologica: 'LESÃO ONCOLÓGICA', dermatite: 'DERMATITE ASSOCIADA À INCONTINÊNCIA', friccao: 'LESÃO POR FRICÇÃO', outra: 'LESÃO' };
   c.lesoes = lesoes.filter((l) => l.tipo || l.local).map((l) => [TIPO_LESAO[l.tipo] || 'LESÃO', l.local && caixaAlta(l.local), l.estagio && `ESTÁGIO ${caixaAlta(l.estagio)}`, l.cobertura && `COBERTURA: ${caixaAlta(l.cobertura)}`].filter(Boolean).join(' - '));
   return { ...c, ...antimicrobianos(ev, data) };
+}
+
+/** Itens do campo OCORRÊNCIAS: culturas ("11/09 - HEMOCULTURA: NEGATIVA") e ocorrências não resolvidas. */
+export function itensOcorrencia(ev) {
+  const d = ev?.dados || {};
+  const culturas = (d.antimicrobianos?.culturas || []).filter((i) => i.material)
+    .map((i) => `${i.coleta ? `${formatarData(i.coleta).slice(0, 5)} - ` : ''}${caixaAlta(i.material)}: ${caixaAlta(i.resultado || 'em andamento')}`);
+  const ocorrencias = (d.pendencias?.itens || []).filter((i) => String(i.descricao || '').trim() && i.situacao !== 'resolvida').map((i) => caixaAlta(i.descricao));
+  return [...culturas, ...ocorrencias];
+}
+
+/**
+ * Distribui os itens nas linhas do papel: cada item começa numa linha nova quando
+ * não cabe no resto da atual; item longo continua na linha seguinte. O que não
+ * couber termina em "…" (o registro completo fica na evolução).
+ */
+export function ocorrenciasEmLinhas(itens, { linhas = 6, primeira = 46, demais = 62 } = {}) {
+  const out = [''];
+  const cabe = (k) => (k === 0 ? primeira : demais);
+  for (const item of itens) {
+    let resto = String(item).replace(/\s+/g, ' ').trim();
+    const atual = out[out.length - 1];
+    if (atual && atual.length + 3 + resto.length <= cabe(out.length - 1)) { out[out.length - 1] = `${atual} / ${resto}`; continue; }
+    if (atual) out.push('');
+    while (resto) {
+      const k = out.length - 1;
+      if (resto.length <= cabe(k)) { out[k] = resto; break; }
+      let corte = resto.lastIndexOf(' ', cabe(k));
+      if (corte < cabe(k) * 0.5) corte = cabe(k);
+      out[k] = resto.slice(0, corte).trim();
+      resto = resto.slice(corte).trim();
+      out.push('');
+    }
+  }
+  if (out.length > linhas) {
+    const visiveis = out.slice(0, linhas);
+    visiveis[linhas - 1] = `${visiveis[linhas - 1].slice(0, cabe(linhas - 1) - 2)} …`;
+    return visiveis;
+  }
+  return out.filter((t, k) => t || k === 0);
 }
 
 /** Troca {{campo}} pelo valor (texto escapado; listas viram linhas; `brutos` entram como HTML). */

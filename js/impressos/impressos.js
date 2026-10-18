@@ -40,6 +40,8 @@ const CSS = `
 .folha-oc .planilha tr{height:4.86mm!important}
 .folha-oc .planilha td{font-size:7.5pt}
 .folha-oc td[data-c="E12"]{white-space:normal;vertical-align:top;font-size:7pt;padding:2px;text-align:center}
+.folha-oc td[data-c^="E5"]{font-size:6.6pt}
+.folha-oc td[data-c="D4"],.folha-oc td[data-c="F4"]{font-size:10pt;text-align:right;padding-right:1.5mm}
 .oc-boneco{height:58mm;max-width:100%;display:block;margin:0 auto}
 .oc-lesoes{text-align:left;font-size:6.5pt;line-height:1.2}
 .aceitacao{height:8mm;display:block;margin:auto}

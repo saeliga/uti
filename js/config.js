@@ -5,7 +5,7 @@
 // A chave da Groq NUNCA entra aqui: fica nas Propriedades do script.
 // =============================================================================
 
-export const VERSAO = '0.9.2';
+export const VERSAO = '0.9.3';
 
 // Copie do console do Firebase: Configurações do projeto → Seus apps → Web.
 export const FIREBASE_CONFIG = {
