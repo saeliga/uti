@@ -144,7 +144,7 @@ export function abrirChecklistInsercao({ tipo, internacao, unidade, leitoNum, di
       aoSalvar?.({ id, ...dados });
       if (imprimir) {
         const m = await import('../../impressos/impressos.js');
-        m.imprimirFolhas([m.folhaInsercao(internacao, dados)]);
+        m.imprimirFolhas([m.folhaInsercao(internacao, dados)], { unidade: unidade.id, internacaoId: internacao.id });
       }
     } catch (e) {
       aviso(e.message, 'erro', 8000);
@@ -157,7 +157,7 @@ export function abrirChecklistInsercao({ tipo, internacao, unidade, leitoNum, di
     conteudo: corpo,
     acoes: ro ? [
       { texto: 'Fechar', classe: 'btn-secundario' },
-      { texto: 'Imprimir', classe: 'btn-primario', aoClicar: async () => { const m = await import('../../impressos/impressos.js'); m.imprimirFolhas([m.folhaInsercao(internacao, reg)]); } },
+      { texto: 'Imprimir', classe: 'btn-primario', aoClicar: async () => { const m = await import('../../impressos/impressos.js'); m.imprimirFolhas([m.folhaInsercao(internacao, reg)], { unidade: unidade.id, internacaoId: internacao.id }); } },
     ] : [
       { texto: 'Cancelar', classe: 'btn-secundario' },
       { texto: 'Salvar', classe: 'btn-secundario', aoClicar: () => salvar(false) },

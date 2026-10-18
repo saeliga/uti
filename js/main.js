@@ -10,6 +10,12 @@ import { estado } from './nucleo/estado.js';
 import { PERFIS } from './regras/opcoes.js';
 
 const raiz = document.getElementById('app');
+// Não funciona dentro de moldura de outro site (proteção contra "clickjacking":
+// uma página maliciosa por cima do sistema, enganando o toque do usuário).
+if (window.top !== window.self) {
+  raiz.textContent = 'Por segurança, o sistema só abre na própria página: https://saeliga.github.io/uti/';
+  throw new Error('aberto dentro de moldura');
+}
 window.__sistemaCarregado = true; // usado pelo aviso de falha de carregamento (index.html)
 let iniciado = false;
 

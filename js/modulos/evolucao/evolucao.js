@@ -14,7 +14,7 @@ import { agoraLocalISO, formatarData, formatarDataHora, idade, contagemDia, soma
 import { ISOLAMENTOS } from '../../regras/opcoes.js';
 import { formularioSubbloco } from './formulario.js';
 import { painelSAE } from '../sae/sae.js';
-import { resumoParaIA } from '../../regras/sae.js';
+import { resumoParaIA, anonimizarParaIA } from '../../regras/sae.js';
 
 const horaAgora = () => agoraLocalISO().slice(11, 16);
 // Redesenha a tela pelo roteador (sem recarregar a página: no modo demonstração, recarregar apagaria tudo).
@@ -60,6 +60,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   }
 
   const unidadeNome = estado.unidades.find((u) => u.id === ev.unidade)?.nome || ev.unidade;
+  backend.registrarEvento?.('evolucao_aberta', { evolucaoId: id, unidade: ev.unidade }); // registro de acesso (LGPD)
   const formularios = {};
   const timers = {};
   const editadoEm = {};
@@ -325,13 +326,14 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
       .filter(([, t]) => t)
       .map(([t, r]) => `${t}: ${r}.`);
     const iso = internacao.isolamento?.tipo;
-    return resumoParaIA({
+    // Tira do texto qualquer identificação que tenha escapado nos campos livres.
+    return anonimizarParaIA(resumoParaIA({
       idade: idade(p.dataNascimento, ev.data),
       diagnosticoMedico: internacao.diagnosticoMedico,
       comorbidades: internacao.comorbidades,
       isolamento: iso && iso !== 'padrao' ? ISOLAMENTOS[iso] : '',
       textoSubblocos: partes.join('\n'),
-    });
+    }), { nome: p.nome, registro: p.registro, nascimento: p.dataNascimento });
   };
   const sae = painelSAE({
     dados: ev.dados?.sae,
@@ -399,6 +401,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   }
 
   function copiarPEP() {
+    backend.registrarEvento?.('evolucao_copiada', { evolucaoId: id, unidade: ev.unidade });
     const texto = textoParaPEP(evolucaoAtual(), internacao, { unidadeNome });
     const area = h('textarea', { class: 'texto-pep', readonly: true, rows: 18 });
     area.value = texto;
@@ -434,6 +437,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   }
 
   function imprimir() {
+    backend.registrarEvento?.('impressao', { tipos: 'evolucao', folhas: 1, evolucaoId: id, unidade: ev.unidade });
     const texto = textoParaPEP(evolucaoAtual(), internacao, { unidadeNome });
     const [titulo, ...resto] = texto.split('\n');
     const folha = h('div', { class: 'impressao' },

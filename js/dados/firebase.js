@@ -456,3 +456,9 @@ export function salvarChecklistInsercao(id, dados) {
     ...resto, atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
   }).catch((e) => { throw traduzirErro(e); });
 }
+
+// --------------------------------------------------------------------------- registro de operações
+/** Registra uma operação (abertura de evolução, impressão…) na auditoria. Nunca guarda conteúdo clínico. */
+export function registrarEvento(acao, dados = {}) {
+  return F.addDoc(F.collection(db, 'auditoria'), { acao, ...dados, por: uid(), em: agora() }).catch(() => {});
+}

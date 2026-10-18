@@ -2,6 +2,7 @@
 // página A4 (retrato ou paisagem); várias folhas saem num único "Imprimir".
 
 import { BH_PAGINA_1, BH_PAGINA_2, OCORRENCIA, ESTILOS_PLANILHA } from './modelos.js';
+import { backend } from '../dados/backend.js';
 import {
   camposBH, camposOcorrencia, preencherModelo, diaDaSemana, BUNDLES_IRAS, adesaoBundle,
   CHECKLISTS_INSERCAO, OPCOES_SITUACAO, OPCOES_LUMENS, INDICACOES_CVD, avaliarInsercao,
@@ -88,9 +89,15 @@ function garantirEstilos() {
   document.head.append(Object.assign(document.createElement('style'), { id: 'estilos-impressos', textContent: CSS + ESTILOS_PLANILHA }));
 }
 
-/** Imprime as folhas: [{ html, orientacao: 'retrato'|'paisagem', classe }] */
-export function imprimirFolhas(folhas) {
+/**
+ * Imprime as folhas: [{ html, orientacao: 'retrato'|'paisagem', classe }].
+ * Toda impressão fica no registro de operações (quem, quando, o quê, quantas folhas),
+ * porque papel com dados de paciente também é tratamento de dados (LGPD).
+ */
+export function imprimirFolhas(folhas, meta = {}) {
   garantirEstilos();
+  const tipos = [...new Set(folhas.map((f) => (f.classe || '').replace('folha-', '')))].join(',');
+  backend.registrarEvento?.('impressao', { tipos, folhas: folhas.length, ...meta });
   document.querySelector('.lote-impressao')?.remove();
   const lote = document.createElement('div');
   lote.className = 'lote-impressao';

@@ -83,7 +83,7 @@ export function barraImpressos(unidade, leitos) {
         { texto: 'Imprimir', classe: 'btn-primario', aoClicar: async () => {
           if (!d.input.value) { aviso('Escolha a data.', 'atencao'); return false; }
           const m = await carregarImpressos();
-          m.imprimirFolhas([m.folhaCapa(unidade, d.input.value)]);
+          m.imprimirFolhas([m.folhaCapa(unidade, d.input.value)], { unidade: unidade.id });
         } },
       ],
     });
@@ -101,7 +101,7 @@ export function barraImpressos(unidade, leitos) {
       aoConfirmar: async (escolhidos, data) => {
         if (!data) throw new Error('escolha a data');
         const [m, dados] = await Promise.all([carregarImpressos(), dadosDosLeitos(escolhidos)]);
-        m.imprimirFolhas(dados.map(({ leito, internacao, ev }) => m.folhaOcorrencia(internacao, ev, { leitoNum: leito.numero, data })));
+        m.imprimirFolhas(dados.map(({ leito, internacao, ev }) => m.folhaOcorrencia(internacao, ev, { leitoNum: leito.numero, data })), { unidade: unidade.id });
       },
     });
   };
@@ -123,7 +123,7 @@ export function barraImpressos(unidade, leitos) {
       },
       aoConfirmar: async (escolhidos, dataFolha) => {
         const [m, dados] = await Promise.all([carregarImpressos(), dadosDosLeitos(escolhidos)]);
-        m.imprimirFolhas(dados.flatMap(({ leito, internacao, ev }) => m.folhasBH(internacao, ev, { leitoNum: leito.numero, dataFolha })));
+        m.imprimirFolhas(dados.flatMap(({ leito, internacao, ev }) => m.folhasBH(internacao, ev, { leitoNum: leito.numero, dataFolha })), { unidade: unidade.id });
       },
     });
   };
@@ -162,7 +162,7 @@ export function barraImpressos(unidade, leitos) {
           } }, 'Abrir'),
           h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: async () => {
             const [m, internacao] = await Promise.all([carregarImpressos(), backend.lerInternacao(l.internacaoId)]);
-            m.imprimirFolhas([m.folhaInsercao(internacao, c)]);
+            m.imprimirFolhas([m.folhaInsercao(internacao, c)], { unidade: unidade.id });
           } }, 'Imprimir')))] : [h('p', { class: 'ajuda' }, 'Nenhum check-list deste tipo preenchido para este paciente.')]));
       } catch (e) {
         salvos.replaceChildren(h('p', { class: 'campo-erro' }, e.message));
@@ -181,7 +181,7 @@ export function barraImpressos(unidade, leitos) {
         { texto: 'Imprimir para preencher à mão', classe: 'btn-secundario', aoClicar: async () => {
           const m = await carregarImpressos();
           const c = await contexto().catch(() => null);
-          m.imprimirFolhas([m.folhaInsercao(c?.internacao || { paciente: {} }, novoChecklistInsercao(tipo))]);
+          m.imprimirFolhas([m.folhaInsercao(c?.internacao || { paciente: {} }, novoChecklistInsercao(tipo))], { unidade: unidade.id });
         } },
         podeEditar() && { texto: 'Preencher no sistema', classe: 'btn-primario', aoClicar: async () => {
           const c = await contexto();

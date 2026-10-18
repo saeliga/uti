@@ -174,11 +174,45 @@ export function textoSAE(sae) {
  * leito) para enviar à IA. `textoSubblocos` vem pronto da evolução.
  */
 export function resumoParaIA({ idade, diagnosticoMedico, comorbidades, isolamento, textoSubblocos }) {
+  // Idade muito alta identifica (poucas pessoas): vai como faixa.
+  const idadeTxt = idade == null || idade === '' ? '' : Number(idade) >= 90 ? ', 90 anos ou mais' : `, ${idade} anos`;
   return [
-    `Paciente adulto em terapia intensiva oncológica${idade ? `, ${idade} anos` : ''}.`,
+    `Paciente adulto em terapia intensiva oncológica${idadeTxt}.`,
     diagnosticoMedico && `Diagnóstico médico / motivo da internação: ${diagnosticoMedico}.`,
     comorbidades && `Comorbidades: ${comorbidades}.`,
     isolamento && `Precaução: ${isolamento}.`,
     textoSubblocos,
   ].filter(Boolean).join('\n');
+}
+
+const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const escRegex = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Última barreira antes de enviar texto à IA (LGPD: só dado anonimizado sai do
+ * sistema). Remove: partes do nome do paciente, registro, data de nascimento,
+ * CPF, CNS/cartão do SUS, telefones, e-mails e nomes depois de "Dr./Dra./Enf.".
+ */
+export function anonimizarParaIA(texto, { nome = '', registro = '', nascimento = '' } = {}) {
+  let t = String(texto || '');
+  const partes = semAcento(nome).split(/\s+/).filter((x) => x.length >= 3 && !/^(DOS|DAS|DES|DEL)$/i.test(x));
+  for (const parte of partes) {
+    // compara sem acento, letra a letra (o texto pode ter ou não acento)
+    const padrao = [...parte].map((c) => {
+      const variantes = { A: 'AÁÀÂÃÄ', E: 'EÉÈÊË', I: 'IÍÌÎÏ', O: 'OÓÒÔÕÖ', U: 'UÚÙÛÜ', C: 'CÇ', N: 'NÑ' }[c.toUpperCase()];
+      return variantes ? `[${variantes}${variantes.toLowerCase()}]` : escRegex(c);
+    }).join('');
+    t = t.replace(new RegExp(`(^|[^\\p{L}])${padrao}(?=$|[^\\p{L}])`, 'giu'), '$1[paciente]');
+  }
+  if (registro && String(registro).trim().length >= 3) t = t.split(String(registro).trim()).join('[registro]');
+  if (nascimento && /^\d{4}-\d{2}-\d{2}$/.test(nascimento)) {
+    const [a, m, d] = nascimento.split('-');
+    t = t.split(`${d}/${m}/${a}`).join('[data]').split(nascimento).join('[data]');
+  }
+  return t
+    .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, '[documento]') // CPF
+    .replace(/\b\d{3}\s?\d{4}\s?\d{4}\s?\d{4}\b/g, '[documento]') // CNS
+    .replace(/\(?\b\d{2}\)?\s?9?\d{4}-?\d{4}\b/g, '[telefone]')
+    .replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[e-mail]')
+    .replace(/\b(Dr|Dra|Enf|Enfa|Téc|Tec)\.?\s+[A-ZÁ-Ú][\p{L}]+(\s+[A-ZÁ-Ú][\p{L}]+)?/gu, '$1. [profissional]');
 }

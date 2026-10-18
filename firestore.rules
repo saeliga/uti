@@ -133,7 +133,10 @@ service cloud.firestore {
 
     // ------------------------------------------------------------------ pacientes
     match /pacientes/{pacienteId} {
-      allow read: if ativo();
+      // Só a consulta de UM paciente pelo registro (readmissão), por quem admite.
+      // Listar o cadastro inteiro de pacientes não é permitido a ninguém (minimização, LGPD).
+      allow get: if clinico();
+      allow list: if false;
       allow create, update: if clinico()
         && request.resource.data.keys().hasOnly(['nome', 'dataNascimento', 'registro', 'convenio', 'atualizadoEm', 'atualizadoPor'])
         && request.resource.data.nome is string && request.resource.data.nome.size() <= 150
@@ -226,9 +229,13 @@ service cloud.firestore {
       match /versoes/{v} {
         function evolucao() { return get(/databases/$(database)/documents/evolucoes/$(id)).data; }
         allow read: if naUnidade(evolucao().unidade);
+        // A versão guardada tem de ser cópia fiel da evolução finalizada (não dá para forjar).
         allow create: if clinico() && naUnidade(evolucao().unidade)
           && evolucao().status == 'finalizada' && v == string(evolucao().versao)
-          && request.resource.data.por == request.auth.uid;
+          && request.resource.data.por == request.auth.uid
+          && request.resource.data.versao == evolucao().versao
+          && request.resource.data.dados == evolucao().dados
+          && request.resource.data.finalizadoPor == evolucao().finalizadoPor;
         allow update, delete: if false;
       }
     }
@@ -257,16 +264,23 @@ service cloud.firestore {
         && d().tipo in ['cvc', 'cvd']
         && d().internacaoId is string && id.matches('^' + d().internacaoId + '_(cvc|cvd)_[a-z0-9]+$')
         && d().respostas is map
+        && d().keys().hasOnly(['tipo', 'unidade', 'internacaoId', 'leitoId', 'leitoNum', 'dispositivoId', 'data', 'respostas', 'detalhes',
+             'equipe', 'observacoes', 'responsavel', 'avaliacao', 'naUti', 'setor', 'situacao', 'situacaoMotivo', 'indicacao', 'indicacaoMotivo',
+             'cateter', 'lumens', 'cateterOutro', 'local', 'lado', 'localOutro', 'indicacoes', 'indicacaoEspecifique',
+             'atualizadoPor', 'atualizadoEm', 'atualizadoNo'])
+        && (!('observacoes' in d()) || d().observacoes.size() <= 2000)
         && (resource == null || (resource.data.unidade == d().unidade && resource.data.internacaoId == d().internacaoId && resource.data.tipo == d().tipo))
         && autoria();
       allow delete: if false;
     }
 
     match /auditoria/{registro} {
+      // Registro das operações (LGPD art. 37): só inclusão, com autor e hora do servidor.
       allow create: if ativo()
         && request.resource.data.por == request.auth.uid
         && request.resource.data.em == request.time
-        && request.resource.data.acao is string;
+        && request.resource.data.acao is string && request.resource.data.acao.size() <= 60
+        && request.resource.data.keys().size() <= 12;
       allow read: if admin();
       allow update, delete: if false;
     }
