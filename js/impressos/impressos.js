@@ -5,7 +5,7 @@ import { BH_PAGINA_1, BH_PAGINA_2, OCORRENCIA, ESTILOS_PLANILHA } from './modelo
 import { backend } from '../dados/backend.js';
 import {
   camposBH, camposOcorrencia, preencherModelo, diaDaSemana, BUNDLES_IRAS, adesaoBundle,
-  CHECKLISTS_INSERCAO, OPCOES_SITUACAO, OPCOES_LUMENS, INDICACOES_CVD, avaliarInsercao, TIPOS_RESERVA, normalizarReservas,
+  CHECKLISTS_INSERCAO, OPCOES_SITUACAO, OPCOES_LUMENS, INDICACOES_CVD, avaliarInsercao, normalizarReservas,
 } from '../regras/impressos.js';
 import { formatarData } from '../regras/datas.js';
 import { HORAS, FREQUENCIAS, itensPrescricao, camposPrescricao } from '../regras/prescricao.js';
@@ -63,8 +63,7 @@ const CSS = `
 .iras .item{font-weight:700;font-size:8pt}
 .iras .item small{font-size:6.5pt}
 .folha-capa .ft td,.folha-capa .ft th{padding:.8mm 1.5mm;font-size:8pt;line-height:1.25}
-.folha-capa .ft tr.capa-res td{height:4.6mm}
-.folha-capa .ft tr.capa-res-cab td{font-weight:700;font-size:7pt;padding:.5mm 1.5mm}
+.folha-capa .ft tr.capa-res td{height:4.6mm;white-space:normal;line-height:1.3}
 .folha-capa .ft td.capa-obs{white-space:pre-wrap;vertical-align:top;font-size:8.5pt;line-height:1.35}
 .legenda{display:flex;justify-content:space-between;font-size:8pt;margin-top:2mm}
 /* prescrição de enfermagem (padrão da prescrição médica da Liga) */
@@ -176,7 +175,9 @@ export function folhaCapa(unidade, data, { observacoes = '', reservas = [] } = {
   const res = normalizarReservas(reservas);
   // Cada linha escrita ocupa o lugar de uma linha em branco do papel (cerca de 115 caracteres por linha).
   const linhasObs = obs ? obs.split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 115)), 0) : 0;
-  const linhaReserva = (r) => `<tr class="capa-res"><td>${r ? esc(TIPOS_RESERVA[r.tipo].toUpperCase()) : ''}</td><td colspan="2">${r ? esc(r.paciente) : ''}</td><td colspan="2">${r ? esc(r.detalhe) : ''}</td><td class="c">${r?.horario ? esc(r.horario) : ''}</td></tr>`;
+  // Uma linha por paciente (texto livre); a linha longa ocupa o lugar das linhas em branco.
+  const linhasRes = res.reduce((n, t) => n + Math.max(1, Math.ceil((t.length + 4) / 120)), 0);
+  const linhaReserva = (t, k) => `<tr class="capa-res"><td colspan="6">${t ? `${k + 1}. ${esc(t)}` : ''}</td></tr>`;
   const tres = (txt, cls = '') => `<tr>${[0, 1, 2].map(() => `<td colspan="2" class="${cls}">${txt}</td>`).join('')}</tr>`;
   const html = `
     <div class="capa-topo">${LOGO}<h1>OCORRÊNCIA DOS ENFERMEIROS – ${esc(unidade.nome.toUpperCase())}<br>DATA: ${formatarData(data)} - ${diaDaSemana(data)}</h1><span style="width:16mm"></span></div>
@@ -192,8 +193,7 @@ export function folhaCapa(unidade, data, { observacoes = '', reservas = [] } = {
       ${tres('EQUIPAMENTOS/MATERIAIS', 'amarelo')}
       ${EQUIPAMENTOS.map((e) => tres(e)).join('')}
       <tr><td colspan="6"><strong>RESERVAS</strong> (cirúrgicas e de leito para hemodiálise):</td></tr>
-      <tr class="capa-res-cab"><td>TIPO</td><td colspan="2">PACIENTE</td><td colspan="2">CIRURGIA / DETALHES</td><td class="c">HORÁRIO</td></tr>
-      ${[...res, ...Array.from({ length: Math.max(1, 5 - res.length) }, () => null)].map(linhaReserva).join('')}
+      ${[...res, ...Array.from({ length: Math.max(1, 5 - linhasRes) }, () => '')].map(linhaReserva).join('')}
       <tr><td colspan="6"><strong>OBSERVAÇÕES:</strong></td></tr>
       ${obs ? `<tr><td colspan="6" class="capa-obs">${esc(obs)}</td></tr>` : ''}
       ${Array.from({ length: Math.max(obs ? 0 : 1, 2 - linhasObs) }, () => '<tr><td colspan="6" style="height:5mm"></td></tr>').join('')}

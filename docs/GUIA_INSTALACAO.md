@@ -262,8 +262,8 @@ Não há regra nem Apps Script novos.
 
 **Antes do merge**, publique o `firestore.rules` atualizado (a capa passa a guardar a lista de reservas).
 
-- Na janela da **Capa da ocorrência**, **Reservas** é uma lista com um paciente por linha: tipo (cirúrgica ou leito para hemodiálise), paciente, cirurgia/detalhes e horário previsto. **Observações** é um campo de texto à parte.
-- Na folha impressa, as reservas saem numa tabela (tipo, paciente, cirurgia/detalhes, horário), com linhas em branco para completar à mão, e as observações logo abaixo.
+- Na janela da **Capa da ocorrência**, **Reservas** é um campo livre com **um paciente por linha**, do jeito que o NIR manda no WhatsApp. Pode colar o aviso inteiro ("Reservas de UTI 17/10" + itens numerados): o sistema tira o cabeçalho e a numeração, junta a linha quebrada ao item e mostra quantas reservas reconheceu. **Observações** é um campo à parte.
+- Na folha impressa, cada reserva sai numa linha numerada (a linha longa ocupa duas), com linhas em branco para completar à mão, e as observações logo abaixo.
 
 ## 12. Publicar uma versão nova
 

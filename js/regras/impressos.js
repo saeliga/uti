@@ -243,15 +243,34 @@ const localCurto = (i) => [i?.local === 'OUTRO' ? i?.localOutro : i?.local, i?.l
 const ROTULO_SONDA = { sne: 'SNE', soe: 'SOE', sng: 'SNG', sog: 'SOG' };
 
 // --------------------------------------------------------------------------- capa: reservas
-/** Reservas da capa: um paciente por linha (cirurgia ou leito para hemodiálise). */
-export const TIPOS_RESERVA = { cirurgica: 'Cirúrgica', hd: 'Hemodiálise' };
+/**
+ * Reservas da capa (cirúrgicas ou de leito para hemodiálise): uma linha livre por
+ * paciente, do jeito que o NIR manda no WhatsApp. Aceita o aviso colado inteiro:
+ * tira o cabeçalho ("Reservas de UTI 17/10"), linhas vazias e a numeração ("1.",
+ * "2)", "3 -"); linha sem número logo depois de um item numerado é continuação dele.
+ */
 export const MAX_RESERVAS = 20;
-export function normalizarReservas(lista) {
-  const t = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
-  return (Array.isArray(lista) ? lista : [])
-    .map((r) => ({ tipo: r?.tipo in TIPOS_RESERVA ? r.tipo : 'cirurgica', paciente: t(r?.paciente, 120), detalhe: t(r?.detalhe, 200), horario: /^\d{2}:\d{2}$/.test(r?.horario || '') ? r.horario : '' }))
-    .filter((r) => r.paciente)
-    .slice(0, MAX_RESERVAS);
+const NUMERO = /^\s*\d{1,2}\s*[.)\-–]\s*/;
+export function normalizarReservas(entrada) {
+  const limparLinha = (t) => String(t ?? '').replace(/\s+/g, ' ').trim();
+  let linhas;
+  if (Array.isArray(entrada)) {
+    // Lista já salva (texto) ou do formato antigo (objetos com paciente/detalhe/horário).
+    linhas = entrada.map((r) => (r && typeof r === 'object' ? [r.paciente, r.detalhe, r.horario && `às ${r.horario}`].filter(Boolean).join(' / ') : r));
+    return linhas.map(limparLinha).map((t) => t.replace(NUMERO, '')).filter(Boolean).map((t) => t.slice(0, 600)).slice(0, MAX_RESERVAS);
+  }
+  // Continuação: linha sem número colada (sem linha em branco) a um item numerado.
+  const itens = [];
+  let anteriorNumerado = false;
+  for (const bruta of String(entrada ?? '').split(/\r?\n/)) {
+    const t = limparLinha(bruta);
+    if (!t) { anteriorNumerado = false; continue; }
+    if (/^reservas?\b/i.test(t) && !NUMERO.test(t)) continue;
+    if (NUMERO.test(t)) { itens.push(t.replace(NUMERO, '')); anteriorNumerado = true; }
+    else if (anteriorNumerado) itens[itens.length - 1] += ` ${t}`;
+    else itens.push(t);
+  }
+  return itens.filter(Boolean).map((t) => t.slice(0, 600)).slice(0, MAX_RESERVAS);
 }
 
 /** Campos de identificação comuns às folhas. */

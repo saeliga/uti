@@ -152,19 +152,17 @@ test('check-lists de inserção: modelo atual da Liga, preenchimento a partir do
   assert.equal(avaliarInsercao(r).status, 'incompleto');
 });
 
-test('capa: reservas com um paciente por linha (cirurgia ou hemodiálise)', async () => {
-  const { normalizarReservas, TIPOS_RESERVA, MAX_RESERVAS } = await import('../js/regras/impressos.js');
-  assert.deepEqual(Object.keys(TIPOS_RESERVA), ['cirurgica', 'hd']);
-  const r = normalizarReservas([
-    { tipo: 'hd', paciente: '  Paciente   A ', detalhe: 'Turno da tarde', horario: '14:00' },
-    { tipo: 'x', paciente: 'Paciente B', horario: '25h' },
-    { tipo: 'cirurgica', paciente: '   ' },
-    null,
-  ]);
-  assert.deepEqual(r, [
-    { tipo: 'hd', paciente: 'Paciente A', detalhe: 'Turno da tarde', horario: '14:00' },
-    { tipo: 'cirurgica', paciente: 'Paciente B', detalhe: '', horario: '' },
-  ]);
-  assert.equal(normalizarReservas(Array.from({ length: 30 }, (_, k) => ({ paciente: `P${k}` }))).length, MAX_RESERVAS);
+test('capa: reservas em texto livre, uma por paciente, a partir do aviso do NIR', async () => {
+  const { normalizarReservas, MAX_RESERVAS } = await import('../js/regras/impressos.js');
+  const aviso = 'Reservas de UTI 17/10\n\n1.Paciente Fictícia Um /71 anos/GEAP / CIRURGIA DE JOELHO / Dr. EXEMPLO  (Pré às 08h00)\n\n2.Paciente Fictício Dois/ 91 anos/ SUS /RESSECÇÃO\nDE TUMOR / DR TESTE (Pré às 18h00).\n';
+  assert.deepEqual(normalizarReservas(aviso), [
+    'Paciente Fictícia Um /71 anos/GEAP / CIRURGIA DE JOELHO / Dr. EXEMPLO (Pré às 08h00)',
+    'Paciente Fictício Dois/ 91 anos/ SUS /RESSECÇÃO DE TUMOR / DR TESTE (Pré às 18h00).',
+  ], 'tira cabeçalho, numeração e junta a linha quebrada ao item');
+  assert.deepEqual(normalizarReservas('Paciente A / HD turno da tarde\nPaciente B / cirurgia'), ['Paciente A / HD turno da tarde', 'Paciente B / cirurgia'], 'sem numeração: uma linha por paciente');
+  assert.deepEqual(normalizarReservas(['1. Paciente A', '  ', { paciente: 'Paciente B', detalhe: 'Cirurgia', horario: '14:00' }]), ['Paciente A', 'Paciente B / Cirurgia / às 14:00']);
+  assert.equal(normalizarReservas(Array.from({ length: 30 }, (_, k) => `P${k}`).join('\n')).length, MAX_RESERVAS);
+  assert.deepEqual(normalizarReservas('Paciente A / cirurgia\n\nPaciente B / HD\n\nReservas de UTI 18/10\n1. Paciente C / cirurgia\ncontinua aqui'),
+    ['Paciente A / cirurgia', 'Paciente B / HD', 'Paciente C / cirurgia continua aqui'], 'aviso novo colado depois das reservas já salvas');
   assert.deepEqual(normalizarReservas(undefined), []);
 });

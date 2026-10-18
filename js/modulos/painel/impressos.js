@@ -8,7 +8,7 @@ import { h, aviso, abrirJanela } from '../../nucleo/ui.js';
 import { podeEditar } from '../../nucleo/estado.js';
 import { hojeISO, somarDias, formatarData } from '../../regras/datas.js';
 import { diaAssistencial, diaAnterior, idEvolucao } from '../../regras/turnos.js';
-import { CHECKLISTS_INSERCAO, juntarEvolucoes, novoChecklistInsercao, TIPOS_RESERVA, MAX_RESERVAS, normalizarReservas } from '../../regras/impressos.js';
+import { CHECKLISTS_INSERCAO, juntarEvolucoes, novoChecklistInsercao, normalizarReservas } from '../../regras/impressos.js';
 import { ativo as dispositivoAtivo } from '../../regras/dispositivos.js';
 
 const carregarImpressos = () => import('../../impressos/impressos.js');
@@ -84,55 +84,49 @@ export function barraImpressos(unidade, leitos) {
     return { input, el: h('div', { class: 'campo' }, h('label', { class: 'campo-rotulo' }, rotulo), input, ajuda && h('p', { class: 'ajuda' }, ajuda)) };
   };
 
-  // Capa: data, reservas (um paciente por linha: cirurgia ou leito para hemodiálise) e
+  // Capa: data, reservas (uma linha por paciente, como o NIR manda no WhatsApp) e
   // observações administrativas, salvas por unidade e dia para o plantão seguinte completar.
   const capa = () => {
     const d = campoData('Data da capa');
     const ro = !podeEditar();
-    const obs = h('textarea', { rows: 4, maxlength: 4000, disabled: true, placeholder: 'Ex.: Respirador 3 em manutenção. Falta de bomba de infusão.' });
+    const res = h('textarea', { rows: 8, maxlength: 12000, disabled: true, class: 'capa-reservas-texto',
+      placeholder: 'Cole aqui o aviso de reservas do NIR ou digite um paciente por linha (pode deixar uma linha em branco entre eles).\nEx.: Paciente Exemplo / 70 anos / SUS / Cirurgia … / Dr. … (Pré às 08h00)' });
+    const contagem = h('p', { class: 'ajuda', 'aria-live': 'polite' });
+    const obs = h('textarea', { rows: 3, maxlength: 4000, disabled: true, placeholder: 'Ex.: Respirador 3 em manutenção.' });
     const situacao = h('p', { class: 'ajuda', 'aria-live': 'polite' }, 'Carregando…');
-    const listaEl = h('div', { class: 'capa-reservas' });
-    let reservas = [];
     let salvo = '';
-    const estadoAtual = () => JSON.stringify({ o: obs.value.trim(), r: normalizarReservas(reservas) });
-    const novaLinha = () => ({ tipo: 'cirurgica', paciente: '', detalhe: '', horario: '' });
-    function desenharReservas() {
-      const linhas = reservas.map((r, k) => {
-        const entrada = (nome, attrs) => {
-          const el = h('input', { ...attrs, value: r[nome] || '', disabled: ro });
-          el.addEventListener('input', () => { r[nome] = el.value; });
-          return el;
-        };
-        const tipo = h('select', { 'aria-label': 'Tipo de reserva', disabled: ro, onchange: (e) => { r.tipo = e.target.value; desenharReservas(); } },
-          Object.entries(TIPOS_RESERVA).map(([v, t]) => h('option', { value: v, selected: r.tipo === v }, t)));
-        return h('div', { class: 'capa-reserva' }, tipo,
-          entrada('paciente', { type: 'text', maxlength: 120, placeholder: 'Paciente', 'aria-label': 'Paciente' }),
-          entrada('detalhe', { type: 'text', maxlength: 200, placeholder: r.tipo === 'hd' ? 'Turno / detalhes' : 'Cirurgia e cirurgião', 'aria-label': 'Cirurgia ou detalhes' }),
-          entrada('horario', { type: 'time', 'aria-label': 'Horário previsto' }),
-          !ro && h('button', { type: 'button', class: 'btn-icone', 'aria-label': 'Retirar reserva', title: 'Retirar', onclick: () => { reservas.splice(k, 1); desenharReservas(); } }, '×'));
-      });
-      listaEl.replaceChildren(...(linhas.length ? linhas : [h('p', { class: 'ajuda' }, 'Nenhuma reserva para este dia.')]));
-    }
+    const estadoAtual = () => JSON.stringify({ o: obs.value.trim(), r: normalizarReservas(res.value) });
+    const contar = () => {
+      const n = normalizarReservas(res.value).length;
+      contagem.textContent = n ? `${n} reserva(s) reconhecida(s): cada uma sai numa linha numerada da capa.` : 'Nenhuma reserva para este dia.';
+    };
+    // Ao colar o aviso inteiro, já mostra uma reserva por linha (sem cabeçalho e sem numeração).
+    res.addEventListener('paste', () => setTimeout(() => { res.value = normalizarReservas(res.value).join('\n\n'); contar(); }, 0));
+    res.addEventListener('input', contar);
     const carregar = async () => {
       if (!d.input.value) return;
       obs.disabled = true;
+      res.disabled = true;
       situacao.textContent = 'Carregando…';
       try {
         const doc = await backend.lerCapaOcorrencia(`${unidade.id}_${d.input.value}`);
         obs.value = doc?.observacoes || '';
-        reservas = normalizarReservas(doc?.reservas);
+        res.value = normalizarReservas(doc?.reservas).join('\n\n');
         salvo = estadoAtual();
         situacao.textContent = !doc ? 'Nada registrado para este dia.' : doc.atualizadoEm?.toDate ? `Salvo por último em ${doc.atualizadoEm.toDate().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.` : 'Já há registro salvo para este dia.';
       } catch (e) {
         situacao.textContent = `Não foi possível carregar: ${e.message}`;
       }
       obs.disabled = ro;
-      desenharReservas();
+      res.disabled = ro;
+      contar();
     };
     const gravar = async () => {
       if (ro || estadoAtual() === salvo) return;
-      const dados = { unidade: unidade.id, data: d.input.value, observacoes: obs.value.trim(), reservas: normalizarReservas(reservas) };
+      const reservas = normalizarReservas(res.value);
+      const dados = { unidade: unidade.id, data: d.input.value, observacoes: obs.value.trim(), reservas };
       await Promise.race([backend.salvarCapaOcorrencia(`${unidade.id}_${d.input.value}`, dados), new Promise((r) => setTimeout(r, 4000))]);
+      res.value = reservas.join('\n\n');
       salvo = estadoAtual();
       aviso('Capa salva.', 'ok');
     };
@@ -140,13 +134,7 @@ export function barraImpressos(unidade, leitos) {
     abrirJanela({
       titulo: `Capa da ocorrência — ${unidade.nome}`,
       conteudo: h('div', { class: 'formulario' }, d.el,
-        h('div', { class: 'campo' }, h('span', { class: 'campo-rotulo' }, 'Reservas'),
-          h('p', { class: 'ajuda' }, 'Uma linha por paciente: reserva cirúrgica ou de leito para hemodiálise.'),
-          listaEl,
-          !ro && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => {
-            if (reservas.length >= MAX_RESERVAS) return aviso(`No máximo ${MAX_RESERVAS} reservas.`, 'atencao');
-            reservas.push(novaLinha()); desenharReservas(); listaEl.querySelector('.capa-reserva:last-child input')?.focus();
-          } }, '+ Reserva')),
+        h('div', { class: 'campo' }, h('label', { class: 'campo-rotulo' }, 'Reservas (cirúrgicas e de leito para hemodiálise)'), res, contagem),
         h('div', { class: 'campo' }, h('label', { class: 'campo-rotulo' }, 'Observações'), obs,
           h('p', { class: 'ajuda' }, 'Observações administrativas. Tudo fica guardado para este dia.')),
         situacao),
@@ -160,7 +148,7 @@ export function barraImpressos(unidade, leitos) {
           if (!d.input.value) { aviso('Escolha a data.', 'atencao'); return false; }
           try { await gravar(); } catch (e) { aviso(e.message, 'erro', 8000); return false; }
           const m = await carregarImpressos();
-          m.imprimirFolhas([m.folhaCapa(unidade, d.input.value, { observacoes: obs.value.trim(), reservas: normalizarReservas(reservas) })], { unidade: unidade.id });
+          m.imprimirFolhas([m.folhaCapa(unidade, d.input.value, { observacoes: obs.value.trim(), reservas: normalizarReservas(res.value) })], { unidade: unidade.id });
         } },
       ].filter(Boolean),
     });
