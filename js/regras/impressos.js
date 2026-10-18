@@ -106,43 +106,133 @@ export function resumoIras(respostas = {}) {
 }
 
 // --------------------------------------------------------------------------- checklists de inserção
-// Itens do protocolo usado no piloto (CCIH/ANVISA), no leiaute da Liga.
+// Texto igual aos formulários atuais da Liga (Versão 2, 07/04/2026), enviados pelo Tercio.
+// `esperado` = resposta conforme (nas perguntas de falha, o conforme é NÃO).
+export const OPCOES_SITUACAO = { urgencia: 'Urgência', nova: 'Nova inserção', reinsercao: 'Reinserção (Troca)' };
+export const OPCOES_LOCAL_CVC = { jugular: 'Jugular', subclavia: 'Subclávia', femoral: 'Femoral', mmss: 'MMSS', mmii: 'MMII' };
+export const OPCOES_LUMENS = { mono: 'Mono Lúmen', duplo: 'Duplo Lúmen', triplo: 'Triplo Lúmen' };
+export const INDICACOES_CVD = {
+  intraop: 'Monitorização do débito urinário no intra-operatório',
+  posop: 'Monitorização do débito urinário no pós-operatório',
+  monitorizacao: 'Monitorização do débito urinário, especifique:',
+  retencao: 'Manejo de retenção urinária',
+  obstrucao: 'Manejo de obstrução urinária',
+  incontinencia: 'Incontinência urinária',
+  lpp: 'Paciente com lesão por pressão com cicatrização prejudicada pelo contato com a urina',
+};
+
 export const CHECKLISTS_INSERCAO = {
   cvc: {
-    titulo: 'CHECK-LIST PARA PASSAGEM DE CATETER VENOSO CENTRAL',
-    subtitulo: 'PROTOCOLO DE PREVENÇÃO DE INFECÇÃO DE CORRENTE SANGUÍNEA',
+    titulo: ['CHECK-LIST DE INSERÇÃO DE', 'CATETER VENOSO CENTRAL'], curto: 'CVC',
     tipos: ['cvc', 'cateter_dialise', 'picc'],
-    cabecalho: [
-      ['INDICAÇÃO DO PROCEDIMENTO', ['DROGA VASOATIVA', 'SEM CONDIÇÕES DE AVP', 'HEMODIÁLISE', 'NUTRIÇÃO PARENTERAL', 'OUTROS: ________']],
-      ['LOCALIZAÇÃO', ['JUGULAR INTERNA', 'SUBCLÁVIA', 'FEMORAL', 'PERIFÉRICA (PICC)'], 'local'],
-      ['LADO', ['DIREITO', 'ESQUERDO'], 'lado'],
-      ['TIPO DE PROCEDIMENTO', ['ELETIVO', 'EMERGÊNCIA']],
-      ['TIPO DE CATETER', ['1 LÚMEN', '2 LÚMENS', '3 LÚMENS', 'CATETER DE HEMODIÁLISE'], 'lumens'],
-      ['SÍTIO DE 1ª ESCOLHA É SUBCLÁVIA?', ['SIM', 'NÃO — JUSTIFICATIVA: ____________________']],
-      ['COMPLICAÇÃO', ['SEM COMPLICAÇÕES', 'ARRITMIA', 'HEMATOMA', 'LESÃO VASCULAR', 'MAL POSICIONAMENTO', 'PNEUMOTÓRAX']],
-    ],
     secoes: [
-      ['ANTES DO PROCEDIMENTO', ['HIGIENIZAÇÃO DAS MÃOS COM CLOREXIDINA DEGERMANTE', 'CAMPO ESTÉRIL GRANDE COBRINDO TODO O PACIENTE, INCLUINDO O ROSTO', 'ANTISSEPSIA DA PELE COM CLOREXIDINA ALCOÓLICA > 0,5%']],
-      ['PARAMENTAÇÃO (BARREIRA MÁXIMA)', ['MÁSCARA', 'ÓCULOS', 'TOUCA DESCARTÁVEL', 'LUVA ESTÉRIL', 'AVENTAL (CAPOTE) CIRÚRGICO ESTÉRIL']],
-      ['APÓS O PROCEDIMENTO', ['FIXAÇÃO DO CATETER EM 4 PONTOS', 'CURATIVO COM GAZE E FITA NAS PRIMEIRAS 24 HORAS (OU FILME TRANSPARENTE)', 'RAIO X CHECADO E DOCUMENTADO (JUGULAR OU SUBCLÁVIA)', 'DATA DA INSERÇÃO REGISTRADA NO CURATIVO']],
+      { titulo: 'Boas práticas antes da inserção do cateter', itens: [
+        { id: 'identificacao', texto: 'Confirmada a identificação do paciente?' },
+        { id: 'explicado', texto: 'Procedimento explicado ao paciente?' },
+        { id: 'preparoMaos', texto: 'Realizado preparo pré-operatório das mãos com anti-séptico?' },
+        { id: 'assistenteMaos', texto: 'Assistente realizou a higiene das mãos antes do procedimento?' },
+        { id: 'degermacao', texto: 'Realizado degermação da pele com clorexidina degermante?' },
+        { id: 'antissepsia', texto: 'Realizado antissepsia da pele com clorexidina alcoólica?' },
+      ] },
+      { titulo: 'Boas práticas durante a inserção do cateter', itens: [
+        { id: 'barreira', texto: 'Equipe cirúrgica utilizando a barreira máxima de precaução?', nota: 'Luva estéril, máscara, gorro e avental/capote estéril.' },
+        { id: 'campo', texto: 'Manteve campo estéril amplo?' },
+        { id: 'quebra', texto: 'Houve quebra de técnica durante a inserção do cateter?', nota: 'Se sim, especifique:', esperado: 'nao', detalhe: true },
+        { id: 'maisPuncao', texto: 'Foi necessário mais de uma punção para inserir o cateter?', esperado: 'nao' },
+        { id: 'mudouSitio', texto: 'Mudou o sítio de inserção após primeira tentativa?', esperado: 'nao' },
+      ] },
+      { titulo: 'Boas práticas após inserção do cateter', itens: [
+        { id: 'fixado', texto: 'Cateter fixado adequadamente?' },
+        { id: 'curativo', texto: 'Realizado curativo estéril com gaze e micropore nas primeiras 24h?' },
+        { id: 'anotado', texto: 'Anotado data de inserção no curativo e no prontuário?' },
+        { id: 'raioX', texto: 'Confirmado posição com radiologia simples de tórax?' },
+      ] },
     ],
-    assinaturas: ['MÉDICO QUE REALIZOU O PROCEDIMENTO (NOME, ASSINATURA E CARIMBO)', 'ENFERMEIRO(A) QUE APLICOU O CHECK-LIST (NOME, ASSINATURA E CARIMBO)'],
   },
   cvd: {
-    titulo: 'CHECK-LIST PARA PASSAGEM DE CATETER VESICAL DE DEMORA',
-    subtitulo: 'PROTOCOLO DE PREVENÇÃO DE INFECÇÃO DO TRATO URINÁRIO',
+    titulo: ['CHECK-LIST DE INSERÇÃO DE', 'CATETER VESICAL DE DEMORA'], curto: 'CVD',
     tipos: ['cvd'],
-    cabecalho: [
-      ['JUSTIFICATIVA PARA O PROCEDIMENTO', ['MONITORIZAÇÃO DO VOLUME URINÁRIO', 'OBSTRUÇÃO DO TRATO URINÁRIO', 'BEXIGA NEUROGÊNICA E/OU RETENÇÃO URINÁRIA', 'CIRURGIA UROLÓGICA', 'IRRIGAÇÃO CONTÍNUA OU INTERMITENTE', 'LESÃO POR PRESSÃO EM REGIÃO SACRAL OU PERINEAL', 'INSTABILIDADE HEMODINÂMICA', 'OUTRO: ________']],
-      ['TIPO DE PROCEDIMENTO', ['ELETIVO', 'URGÊNCIA']],
-      ['CALIBRE', ['Nº ______'], 'numero'],
-    ],
     secoes: [
-      ['ANTES E DURANTE O PROCEDIMENTO', ['HIGIENIZAÇÃO DAS MÃOS', 'USO CORRETO DE EPI: TOUCA, MÁSCARA, AVENTAL E LUVAS', 'HIGIENE ÍNTIMA PRÉVIA COM ÁGUA E SABÃO OU DEGERMANTE', 'ANTISSEPSIA COM CLOREXIDINA AQUOSA', 'NOVA HIGIENIZAÇÃO DAS MÃOS (ÁGUA E SABÃO OU ÁLCOOL 70%)', 'ABERTURA DO MATERIAL ESTÉRIL SEM CONTAMINAÇÃO', 'LUVAS ESTÉREIS CALÇADAS COM TÉCNICA CORRETA', 'PASSAGEM SEM CONTAMINAÇÃO NA PRIMEIRA TENTATIVA', 'BALÃO INSUFLADO COM ÁGUA DESTILADA', 'SISTEMA FECHADO CONECTADO E BOLSA ABAIXO DO NÍVEL DA BEXIGA', 'FIXAÇÃO DO CATETER PARA EVITAR TRAÇÃO E TRAUMA']],
+      { titulo: 'Boas práticas antes da inserção da CVD', itens: [
+        { id: 'identificacao', texto: 'Confirmada a identificação do paciente?' },
+        { id: 'explicado', texto: 'Procedimento explicado ao paciente?' },
+        { id: 'material', texto: 'Reunido material para realização da higiene íntima e passagem da CVD?' },
+        { id: 'maosAntes', texto: 'Realizado a higiene das mãos antes da higiene íntima do(a) paciente?' },
+        { id: 'higieneIntima', texto: 'Realizado higiene íntima do(a) paciente com água e solução degermante a 2%?' },
+      ] },
+      { titulo: 'Boas práticas para inserção da CVD com técnica asséptica', itens: [
+        { id: 'maosDepois', texto: 'Realizado a higiene das mãos depois da higiene íntima do(a) paciente?' },
+        { id: 'luvas', texto: 'Calçou as luvas de procedimento estéreis?' },
+        { id: 'campo', texto: 'Manteve campo estéril amplo?' },
+        { id: 'organizou', texto: 'Organizou material no campo estéril?' },
+        { id: 'conectou', texto: 'Conectou CVD ao coletor de urina?' },
+        { id: 'antissepsia', texto: 'Realizou a antissepsia da região perineal com solução de clorexidina aquosa a 0,2%?', nota: 'Partindo da uretra para periferia' },
+        { id: 'tecnica', texto: 'Seguiu técnica asséptica na inserção?' },
+        { id: 'drenagem', texto: 'Antes de insuflar o balão, observou a drenagem de urina pelo cateter e coletor que deverá ficar abaixo da bexiga urinária?' },
+        { id: 'fixou', texto: 'Fixou corretamente o cateter na parte interna da raiz da coxa.' },
+      ] },
+      { titulo: 'Boas práticas após inserção da CVD', itens: [
+        { id: 'maosApos', texto: 'Realizado a higiene das mãos depois da passagem da CVD?' },
+        { id: 'demarcado', texto: 'Demarcado 2/3 na bolsa coletora para sinalizar o momento do descarte do volume urinário?' },
+        { id: 'registrado', texto: 'Procedimento registrado no prontuário?' },
+      ] },
     ],
-    assinaturas: ['PROFISSIONAL QUE REALIZOU O PROCEDIMENTO (ENFERMEIRO OU MÉDICO)', 'PROFISSIONAL QUE APLICOU O CHECK-LIST OU AUXILIOU'],
   },
 };
+export const itensInsercao = (tipo) => CHECKLISTS_INSERCAO[tipo].secoes.flatMap((s) => s.itens);
+/** Tipo de check-list de um dispositivo (CVC, cateter de hemodiálise e PICC → CVC; CVD → CVD). */
+export const tipoChecklistDe = (tipoDispositivo) => Object.keys(CHECKLISTS_INSERCAO).find((k) => CHECKLISTS_INSERCAO[k].tipos.includes(tipoDispositivo)) || null;
+
+/** Registro novo, já com o que o dispositivo informa (tipo de cateter, lúmens, local, lado, data). */
+export function novoChecklistInsercao(tipo, { dispositivo, data, setor, responsavel } = {}) {
+  const r = { tipo, data: dispositivo?.insercao || data || '', respostas: {}, detalhes: {}, equipe: '', observacoes: '', responsavel: responsavel || '' };
+  if (tipo === 'cvc') {
+    const d = dispositivo || {};
+    const local = String(d.local || '');
+    Object.assign(r, {
+      naUti: d.implantadoUti === 'nao' ? 'nao' : d.implantadoUti === 'sim' ? 'sim' : '', setor: '',
+      situacao: '', situacaoMotivo: '', indicacao: '', indicacaoMotivo: '',
+      cateter: d.tipo === 'cateter_dialise' ? 'hd' : d.tipo ? 'cvc' : '',
+      lumens: { 1: 'mono', 2: 'duplo', 3: 'triplo' }[d.lumens] || '', cateterOutro: d.tipo === 'picc' ? 'PICC' : '',
+      local: /JUGULAR/.test(local) ? 'jugular' : /SUBCL/.test(local) ? 'subclavia' : /FEMORAL/.test(local) ? 'femoral' : d.tipo === 'picc' ? 'mmss' : '',
+      lado: d.lado === 'D' || d.lado === 'E' ? d.lado : '', localOutro: '',
+    });
+  } else {
+    Object.assign(r, { setor: setor || '', indicacoes: [], indicacaoEspecifique: '' });
+  }
+  return r;
+}
+
+/** Conformidade: tudo respondido e todas as respostas iguais à esperada. */
+export function avaliarInsercao(reg) {
+  const itens = itensInsercao(reg.tipo);
+  const resp = reg.respostas || {};
+  const respondidos = itens.filter((i) => resp[i.id]).length;
+  const conformes = itens.filter((i) => resp[i.id] === (i.esperado || 'sim')).length;
+  const status = respondidos < itens.length ? 'incompleto' : conformes === itens.length ? 'conforme' : 'nao_conforme';
+  return { total: itens.length, respondidos, conformes, status };
+}
+
+/** Pendências para salvar como concluído. */
+export function validarInsercao(reg) {
+  const e = [];
+  if (!reg.data) e.push('Informe a data.');
+  if (reg.tipo === 'cvc') {
+    if (!reg.naUti) e.push('Informe se o cateter foi passado na UTI.');
+    if (reg.naUti === 'nao' && !String(reg.setor || '').trim()) e.push('Informe em qual setor o cateter foi passado.');
+    if (!reg.situacao) e.push('Marque a situação de inserção.');
+    if (reg.situacao === 'reinsercao' && !String(reg.situacaoMotivo || '').trim()) e.push('Informe o motivo da reinserção.');
+    if (!reg.cateter && !String(reg.cateterOutro || '').trim()) e.push('Marque o tipo de cateter.');
+    if (!reg.local && !String(reg.localOutro || '').trim()) e.push('Marque o local de inserção.');
+    if (reg.local && !reg.lado) e.push('Marque o lado do local de inserção.');
+  } else if (!(reg.indicacoes || []).length) e.push('Marque a indicação de inserção.');
+  const resp = reg.respostas || {};
+  const faltam = itensInsercao(reg.tipo).filter((i) => !resp[i.id]);
+  if (faltam.length) e.push(`Responda todos os itens (${faltam.length} sem resposta).`);
+  for (const i of itensInsercao(reg.tipo)) if (i.detalhe && resp[i.id] === 'sim' && !String(reg.detalhes?.[i.id] || '').trim()) e.push(`${i.texto} Especifique.`);
+  if (!String(reg.responsavel || '').trim()) e.push('Informe o responsável pelo preenchimento.');
+  return e;
+}
 
 // --------------------------------------------------------------------------- campos da ocorrência e do BH
 function dispositivosAtivos(ev) {

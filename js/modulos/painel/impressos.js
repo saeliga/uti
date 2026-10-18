@@ -4,9 +4,10 @@
 
 import { backend } from '../../dados/backend.js';
 import { h, aviso, abrirJanela } from '../../nucleo/ui.js';
+import { podeEditar } from '../../nucleo/estado.js';
 import { hojeISO, somarDias, formatarData } from '../../regras/datas.js';
 import { diaAssistencial, diaAnterior, idEvolucao } from '../../regras/turnos.js';
-import { CHECKLISTS_INSERCAO, juntarEvolucoes } from '../../regras/impressos.js';
+import { CHECKLISTS_INSERCAO, juntarEvolucoes, novoChecklistInsercao } from '../../regras/impressos.js';
 import { ativo as dispositivoAtivo } from '../../regras/dispositivos.js';
 
 const carregarImpressos = () => import('../../impressos/impressos.js');
@@ -107,34 +108,69 @@ export function barraImpressos(unidade, leitos) {
   };
 
   const insercao = () => {
-    const sel = h('select', { 'aria-label': 'Leito' },
+    const sel = h('select', { 'aria-label': 'Paciente' },
       ocupados.map((l) => h('option', { value: l.id }, `Leito ${l.numero} — ${l.resumo?.nome || ''}`)),
-      h('option', { value: '' }, 'Em branco (sem paciente)'));
+      h('option', { value: '' }, 'Em branco (sem paciente, para preencher à mão)'));
     let tipo = 'cvc';
+    const salvos = h('div', { class: 'ins-lista-salvos' });
     const tipos = h('div', { class: 'opcoes' }, Object.entries({ cvc: 'Cateter venoso central (CVC)', cvd: 'Cateter vesical de demora (CVD)' }).map(([v, t]) =>
-      h('label', { class: 'opcao' }, h('input', { type: 'radio', name: 'tipo-ins', value: v, checked: v === tipo, onchange: () => { tipo = v; } }), h('span', {}, t))));
-    abrirJanela({
+      h('label', { class: 'opcao' }, h('input', { type: 'radio', name: 'tipo-ins', value: v, checked: v === tipo, onchange: () => { tipo = v; listar(); } }), h('span', {}, t))));
+    let janela = null;
+
+    async function contexto() {
+      const l = ocupados.find((x) => x.id === sel.value);
+      if (!l) return null;
+      const [internacao, ev] = await Promise.all([backend.lerInternacao(l.internacaoId), evolucaoRecente(l.internacaoId)]);
+      const disp = (ev?.dados?.dispositivos?.itens || []).filter(dispositivoAtivo).filter((i) => CHECKLISTS_INSERCAO[tipo].tipos.includes(i.tipo))
+        .sort((a, b) => String(b.insercao || '').localeCompare(String(a.insercao || '')))[0];
+      return { l, internacao, disp };
+    }
+    async function listar() {
+      const l = ocupados.find((x) => x.id === sel.value);
+      if (!l) return salvos.replaceChildren(h('p', { class: 'ajuda' }, 'Folha em branco, para preencher à mão.'));
+      salvos.replaceChildren(h('p', { class: 'ajuda' }, 'Procurando check-lists já preenchidos…'));
+      try {
+        const lista = (await backend.listarChecklistsInsercao(unidade.id, l.internacaoId)).filter((c) => c.tipo === tipo);
+        const { abrirChecklistInsercao, ROTULO_STATUS_INSERCAO } = await import('../insercao/insercao.js');
+        salvos.replaceChildren(...(lista.length ? [h('div', { class: 'campo-rotulo' }, 'Já preenchidos para este paciente'), ...lista.map((c) => h('div', { class: 'ins-salvo' },
+          h('strong', {}, formatarData(c.data || '')), h('span', {}, ROTULO_STATUS_INSERCAO[c.avaliacao] || ''), h('span', { class: 'ajuda' }, c.responsavel || ''),
+          h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: async () => {
+            const internacao = await backend.lerInternacao(l.internacaoId);
+            janela?.fechar();
+            abrirChecklistInsercao({ tipo, internacao, unidade, leitoNum: l.numero, existente: c });
+          } }, 'Abrir'),
+          h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: async () => {
+            const [m, internacao] = await Promise.all([carregarImpressos(), backend.lerInternacao(l.internacaoId)]);
+            m.imprimirFolhas([m.folhaInsercao(internacao, c)]);
+          } }, 'Imprimir')))] : [h('p', { class: 'ajuda' }, 'Nenhum check-list deste tipo preenchido para este paciente.')]));
+      } catch (e) {
+        salvos.replaceChildren(h('p', { class: 'campo-erro' }, e.message));
+      }
+    }
+    sel.addEventListener('change', listar);
+    janela = abrirJanela({
       titulo: 'Check-list de inserção',
       conteudo: h('div', { class: 'formulario' },
         h('div', {}, h('div', { class: 'campo-rotulo' }, 'Dispositivo'), tipos),
         h('div', { class: 'campo' }, h('label', { class: 'campo-rotulo' }, 'Paciente'), sel),
-        h('p', { class: 'ajuda' }, 'Se o dispositivo já estiver registrado na evolução, localização, lado, lúmens e data vêm marcados.')),
+        salvos,
+        h('p', { class: 'ajuda' }, 'Ao preencher no sistema, o que a evolução já registra do dispositivo (tipo de cateter, lúmens, local, lado e data) vem marcado.')),
       acoes: [
-        { texto: 'Cancelar', classe: 'btn-secundario' },
-        { texto: 'Imprimir', classe: 'btn-primario', aoClicar: async () => {
+        { texto: 'Fechar', classe: 'btn-secundario' },
+        { texto: 'Imprimir para preencher à mão', classe: 'btn-secundario', aoClicar: async () => {
           const m = await carregarImpressos();
-          const l = ocupados.find((x) => x.id === sel.value);
-          if (!l) {
-            m.imprimirFolhas([m.folhaInsercao(tipo, { paciente: {} }, { leitoNum: '', unidadeNome: unidade.nome, data: hojeISO() })]);
-            return;
-          }
-          const [internacao, ev] = await Promise.all([backend.lerInternacao(l.internacaoId), evolucaoRecente(l.internacaoId)]);
-          const disp = (ev?.dados?.dispositivos?.itens || []).filter(dispositivoAtivo).filter((i) => CHECKLISTS_INSERCAO[tipo].tipos.includes(i.tipo))
-            .sort((a, b) => String(b.insercao || '').localeCompare(String(a.insercao || '')))[0];
-          m.imprimirFolhas([m.folhaInsercao(tipo, internacao, { leitoNum: l.numero, unidadeNome: unidade.nome, data: hojeISO(), dispositivo: disp })]);
+          const c = await contexto().catch(() => null);
+          m.imprimirFolhas([m.folhaInsercao(c?.internacao || { paciente: {} }, novoChecklistInsercao(tipo))]);
         } },
-      ],
+        podeEditar() && { texto: 'Preencher no sistema', classe: 'btn-primario', aoClicar: async () => {
+          const c = await contexto();
+          if (!c) { aviso('Escolha o paciente para preencher no sistema.', 'atencao'); return false; }
+          const { abrirChecklistInsercao } = await import('../insercao/insercao.js');
+          setTimeout(() => abrirChecklistInsercao({ tipo, internacao: c.internacao, unidade, leitoNum: c.l.numero, dispositivo: c.disp }), 50);
+        } },
+      ].filter(Boolean),
     });
+    listar();
   };
 
   return h('div', { class: 'barra-impressos', role: 'toolbar', 'aria-label': 'Impressos da unidade' },

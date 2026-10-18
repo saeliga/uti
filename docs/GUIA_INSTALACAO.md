@@ -213,6 +213,18 @@ No painel de leitos, a barra **Impressos** tem:
 
 Na janela de impressão do navegador, deixe **Margens: padrão** e **Escala: padrão (100%)**; o tamanho e a orientação de cada folha já vêm definidos.
 
+## 11.4 Versão 0.6.0 (check-lists de inserção no sistema)
+
+**Antes do merge**, publique de novo o `firestore.rules` (coleção nova `checklistsInsercao`).
+
+- **Check-lists de inserção de CVC e CVD** no modelo atual da Liga (Versão 2, 07/04/2026), preenchidos no sistema:
+  - pelo painel: **Impressos → Check-list de inserção → Preencher no sistema** (escolha o dispositivo e o paciente). Ali também aparecem os já preenchidos do paciente, para abrir ou imprimir, e a folha para preencher à mão;
+  - pelo cartão do dispositivo na evolução: CVC, cateter de hemodiálise, PICC e CVD implantados na UTI mostram "⏳ Check-list de inserção pendente"; depois de salvo, "✓ Check-list de inserção".
+  - O que a evolução já registra do dispositivo (tipo de cateter, lúmens, local, lado, data, implantado na UTI) vem marcado. Cada item é SIM ou NÃO; nas perguntas de falha (quebra de técnica, mais de uma punção, mudou o sítio) o conforme é NÃO. O sistema mostra se o bundle de inserção ficou conforme.
+  - "Salvar e imprimir" gera a folha no leiaute da Liga, com as respostas.
+- **Ocorrência:** o boneco (frente e costas) voltou ao espaço de lesões/curativos; a lista de lesões registradas sai logo abaixo dele.
+- **Balanço hídrico (verso):** as figuras de prato e garrafa (0%, 50%, 75% e 100%) para o técnico registrar à mão a aceitação da dieta via oral.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

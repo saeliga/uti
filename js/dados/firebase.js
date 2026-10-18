@@ -432,3 +432,27 @@ export function salvarChecklistIras(id, { unidade, data, turno, respostas, enfer
     atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
   }).catch((e) => { throw traduzirErro(e); });
 }
+
+// --------------------------------------------------------------------------- check-lists de inserção (CVC e CVD)
+export async function lerChecklistInsercao(id) {
+  return executar(async () => {
+    const s = await F.getDoc(F.doc(db, 'checklistsInsercao', id));
+    return s.exists() ? { id, ...s.data() } : null;
+  });
+}
+
+/** Check-lists do paciente nesta unidade (o filtro pela unidade é exigido pelas regras). */
+export async function listarChecklistsInsercao(unidade, internacaoId) {
+  return executar(async () => {
+    const q = F.query(F.collection(db, 'checklistsInsercao'), F.where('unidade', '==', unidade), F.where('internacaoId', '==', internacaoId));
+    const s = await F.getDocs(q);
+    return s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')));
+  });
+}
+
+export function salvarChecklistInsercao(id, dados) {
+  const { id: _ignorar, atualizadoEm, atualizadoPor, atualizadoNo, ...resto } = dados;
+  return F.setDoc(F.doc(db, 'checklistsInsercao', id), {
+    ...resto, atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
+  }).catch((e) => { throw traduzirErro(e); });
+}
