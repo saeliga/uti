@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { glasgow, camIcu, bps, evn } from '../js/regras/escalas.js';
 import { pam, checarSinal, diureseReal, debitoUrinario } from '../js/regras/calculos.js';
 import { diaAssistencial, diaAnterior, turnoDe, idEvolucao } from '../js/regras/turnos.js';
-import { validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, textoParaPEP, pendenciasAbertas, dadosIniciais, resumoSubbloco } from '../js/regras/evolucao.js';
+import { validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, textoParaPEP, htmlParaPEP, estruturaPEP, pendenciasAbertas, dadosIniciais, resumoSubbloco } from '../js/regras/evolucao.js';
 import { alertasDispositivo, textoDispositivo, dispositivosParaNovoDia } from '../js/regras/dispositivos.js';
 import { textoInfusoes, normalizarInfusoes, MEDICAMENTOS_FIXOS } from '../js/regras/infusoes.js';
 import { BLOCOS, camDe, visivel, contextoEvolucao } from '../js/regras/evolucao-esquema.js';
@@ -216,51 +216,67 @@ test('pendências abertas passam ao turno seguinte', () => {
   assert.deepEqual(pendenciasAbertas(evolucaoCompleta()).map((p) => p.descricao), ['Coletar hemocultura']);
 });
 
-test('texto para o PEP: seções, cálculos e só siglas do manual da Liga', () => {
+test('texto para o PEP: SBAR em caixa alta, frases curtas e só siglas do manual da Liga', () => {
   const ev = evolucaoCompleta();
+  ev.dados.intercorrencias = { itens: [{ hora: '10:30', descricao: 'Dessaturação a 85%', conduta: 'Aspiração', comunicado: 'Plantonista' }] };
+  ev.dados.antimicrobianos = { itens: [{ nome: 'Meropeném', inicio: '2026-10-15', previsto: '7' }], culturas: [{ material: 'Hemocultura', coleta: '2026-10-15' }] };
   ev.dados.sae = {
     status: 'concluido',
     diagnosticos: [{
       codigo: '90001', titulo: 'Risco de infecção (exemplo)', categoria: 'Potencial para deteriorar', situacao: 'ativo', confirmado: true,
       evidencias: { ri: [{ id: 'RI1', texto: 'cateter venoso central' }] },
       noc: [{ codigo: '9101', titulo: 'Controle de infecção', indicadores: [{ codigo: '910101', texto: 'febre', niveis: ['Grave', 'Substancial', 'Moderado', 'Leve', 'Nenhum'], meta: '5', pontuacao: '4', anterior: '3' }] }],
-      nic: [{ codigo: '9201', titulo: 'Cuidados com dispositivos', atividades: [{ id: 'A1', texto: 'avaliar necessidade do cateter', status: 'realizado' }] }],
+      nic: [{ codigo: '9201', titulo: 'Cuidados com dispositivos', atividades: [{ id: 'A1', texto: 'avaliar necessidade do cateter', status: 'realizado', freq: '24/24H' }, { id: 'A2', texto: 'trocar curativo', status: 'nao_realizado', justificativa: 'sem material' }] }],
       decisao: 'manter',
-    }],
+    }, { codigo: '90004', titulo: 'Dor aguda', situacao: 'resolvido' }],
   };
-  const t = textoParaPEP(ev, internacao, { unidadeNome: 'UTI 1', autor: { nome: 'ENF. TESTE', coren: '123-RN' } });
-  assert.match(t, /pressão arterial: 96x58 mmHg/);
-  assert.match(t, /PAM: 71 mmHg/);
-  assert.match(t, /SINAIS VITAIS \(08:00\)/);
-  assert.match(t, /INFUSÕES CONTÍNUAS: DVA: NORADRENALINA a 15 mL\/h; sedoanalgesia: PROPOFOL a 12 mL\/h\./);
-  assert.match(t, /ausculta pulmonar: MV diminuídos, Roncos; MV diminuídos em: Base direita, Base esquerda/);
-  assert.match(t, /ritmo: Sinusal; ausculta cardíaca: BNF em 2T; edema: MMII; grau do edema \(cacifo\): \+2/);
-  assert.match(t, /ABDOME: inspeção, palpação e percussão: Globoso, Flácido; ruídos hidroaéreos \(RHA\): Presentes; ascite: Sem ascite\./);
-  assert.match(t, /hemodiálise - ultrafiltração \(UF\): 1500 mL; hemodiálise - duração: 4 h; hemodiálise - heparina: Sem heparina/);
-  assert.match(t, /consistência \(escala de Bristol\): Tipo 6/);
-  assert.match(t, /estomias: 1\) colostomia, estoma vermelho vivo, úmido; 2\) ileostomia, 300 mL/);
-  assert.match(t, /DISPOSITIVOS: 1\) CVC, jugular interna, lado direito, 3 lúmens/);
-  assert.match(t, /SNE, número 12, inserção 14\/10\/2026 \(D2\), retirado em 16\/10\/2026/);
-  assert.doesNotMatch(t, /Glasgow/, 'sedado: Glasgow não é registrado');
-  assert.match(t, /RASS: -4 Sedação profunda/);
-  assert.match(t, /débito urinário: 1,43 mL\/kg\/h/);
-  assert.match(t, /SpO2: 94 %/);
-  assert.match(t, /pupilas: isocóricas, fotorreação direita presente, esquerda presente/);
-  assert.match(t, /DIA 16\/10\/2026 \(TURNO DA MANHÃ\)/);
-  assert.match(t, /Alergias: Dipirona/);
-  assert.match(t, /PENDÊNCIAS IDENTIFICADAS PELO SISTEMA/);
-  assert.match(t, /1\) Diagnóstico: Risco de infecção \(exemplo\), evidenciado por fatores de risco: cateter venoso central\./);
-  assert.match(t, /Resultado: Controle de infecção - febre: 4 \(Leve\), meta 5, anterior 3\./);
-  assert.match(t, /Intervenção: Cuidados com dispositivos - avaliar necessidade do cateter \(realizado\)\./);
-  assert.ok(t.indexOf('SINAIS VITAIS') < t.indexOf('PROCESSO DE ENFERMAGEM:') && t.indexOf('PROCESSO DE ENFERMAGEM:') < t.indexOf('PENDÊNCIAS IDENTIFICADAS'), 'PE entra depois da avaliação');
+  const t = textoParaPEP(ev, internacao, { unidadeNome: 'UTI 1' });
+  assert.equal(t, t.toLocaleUpperCase('pt-BR'), 'tudo em caixa alta');
+  const linhas = t.split('\n');
+  assert.equal(linhas[0], 'EVOLUÇÃO DE ENFERMAGEM - UTI 1 - LEITO 01 - D3 DE UTI - TURNO DA MANHÃ');
+  const pos = ['S - SITUAÇÃO:', 'B - BREVE HISTÓRICO:', 'A - AVALIAÇÃO:', 'R - RECOMENDAÇÕES:'].map((x) => t.indexOf(x));
+  assert.ok(pos.every((x, k) => x > 0 && (k === 0 || x > pos[k - 1])), 'S, B, A e R nessa ordem');
+  // Sem identificação, sem pendências e sem assinatura (o PEP já registra).
+  assert.doesNotMatch(t, /ANA EXEMPLO|DEMO-1|1958|NASCIMENTO|PENDÊNCIA|COLETAR HEMOCULTURA|COREN|ENFERMEIRO\(A\)/);
+  // S: estado atual, intercorrências e a narrativa do enfermeiro.
+  assert.match(t, /S - SITUAÇÃO: ESTADO GERAL GRAVE, SOB SEDAÇÃO, EM VMI POR TOT, EM USO DE NORADRENALINA, EM HEMODIÁLISE\./);
+  assert.match(t, /INTERCORRÊNCIAS: ÀS 10:30, DESSATURAÇÃO A 85%\. CONDUTA: ASPIRAÇÃO\. COMUNICADO: PLANTONISTA\./);
+  assert.match(t, /\nPACIENTE GRAVE, EM DESMAME DE SEDAÇÃO\.\n/);
+  // B
+  assert.match(t, /DIAGNÓSTICO MÉDICO: CHOQUE SÉPTICO\. ADMISSÃO NA UTI EM 13\/10\/2026\. ALERGIA: DIPIRONA\. PRECAUÇÃO: CONTATO \(VIGILÂNCIA\)\. SEM LIMITAÇÃO DE SUPORTE, OBJETIVO DE CUIDADO CURATIVO\. ANTIMICROBIANOS: MEROPENÉM D1\/7\. CULTURAS: HEMOCULTURA DE 15\/10\/2026: SEM RESULTADO\./);
+  // A: frases diretas, sem "rótulo: valor"
+  assert.match(t, /SINAIS VITAIS \(08:00\): PRESSÃO ARTERIAL 96X58 MMHG \(PAM 71 MMHG\), FC 112 BPM, FREQUÊNCIA RESPIRATÓRIA 24 IRPM, TEMPERATURA 37,8 °C, SPO2 94%, HGT 180 MG\/DL\./);
+  assert.match(t, /NEUROLÓGICO: SOB SEDAÇÃO, RASS -4 \(SEDAÇÃO PROFUNDA\), META RASS -3\. PUPILAS ISOCÓRICAS, FOTORREAGENTES\./);
+  assert.doesNotMatch(t, /GLASGOW/, 'sedado: Glasgow não é registrado');
+  assert.match(t, /DOR: DOR INACEITÁVEL \(BPS 6\), CONDUTA FARMACOLÓGICA\./);
+  assert.match(t, /RESPIRATÓRIO: EM VMI POR TOT, PCV, PEEP 8 CMH2O, FIO2 40%\. MV DIMINUÍDOS EM BASE DIREITA E BASE ESQUERDA, RONCOS\./);
+  assert.match(t, /CARDIOVASCULAR: RITMO SINUSAL, BNF EM 2T\. EDEMA EM MMII \+2\/4\./);
+  assert.match(t, /ABDOME: GLOBOSO, FLÁCIDO, RHA PRESENTES, SEM ASCITE\./);
+  assert.match(t, /INFUSÕES CONTÍNUAS: DVA: NORADRENALINA A 15 ML\/H; SEDOANALGESIA: PROPOFOL A 12 ML\/H\./);
+  assert.match(t, /RENAL: DIURESE POR CVD, 600 ML EM 6 H, DÉBITO 1,43 ML\/KG\/H\. HEMODIÁLISE, UF 1500 ML, DURAÇÃO 4 H, SEM HEPARINA\./);
+  assert.match(t, /GASTRINTESTINAL E NUTRIÇÃO: EVACUOU, BRISTOL 6, COLORAÇÃO HABITUAL\. COLOSTOMIA, ESTOMA VERMELHO VIVO, ÚMIDO; ILEOSTOMIA, 300 ML\./);
+  assert.match(t, /DISPOSITIVOS: 1\) CVC, JUGULAR INTERNA, LADO DIREITO, 3 LÚMENS/);
+  assert.match(t, /SNE, NÚMERO 12, INSERÇÃO 14\/10\/2026 \(D2\), RETIRADO EM 16\/10\/2026/);
+  assert.match(t, /DIAGNÓSTICOS DE ENFERMAGEM:\n1\. RISCO DE INFECÇÃO \(EXEMPLO\), EVIDENCIADO POR FATORES DE RISCO: CATETER VENOSO CENTRAL\. RESULTADO ESPERADO - CONTROLE DE INFECÇÃO: FEBRE 4 \(META 5\)\.\n2\. DOR AGUDA: RESOLVIDO\./);
+  // R: intervenções com aprazamento, situação e avaliação do dia; alertas do sistema.
+  assert.match(t, /R - RECOMENDAÇÕES:\n1\. CUIDADOS COM DISPOSITIVOS: AVALIAR NECESSIDADE DO CATETER \(24\/24H\) - REALIZADO; TROCAR CURATIVO - NÃO REALIZADO \(SEM MATERIAL\)\. MANTER O PLANO\./);
+  assert.match(t, /2\. AVP, ANTEBRAÇO, LADO ESQUERDO: AVP COM 5 DIAS \(96 H OU MAIS\)/);
   assert.doesNotMatch(t, /[│┃|<>]/, 'sem caracteres de tabela');
-  // Siglas: toda palavra toda em maiúsculas (exceto nome do paciente, cabeçalhos de seção e unidade)
+  // HTML: títulos em negrito, conteúdo escapado.
+  const html = htmlParaPEP(ev, internacao, { unidadeNome: 'UTI 1' });
+  assert.match(html, /^<p><b>EVOLUÇÃO DE ENFERMAGEM/);
+  assert.match(html, /<p><b>S - SITUAÇÃO:<\/b> ESTADO GERAL GRAVE/);
+  assert.match(html, /<p><b>RESPIRATÓRIO:<\/b> EM VMI POR TOT/);
+  ev.dados.narrativa.texto = '<script>x</script>';
+  assert.match(htmlParaPEP(ev, internacao, { unidadeNome: 'UTI 1' }), /&lt;SCRIPT&gt;/);
+  // Siglas (no texto antes da caixa alta): só as do manual da Liga.
+  const { titulo, secoes } = estruturaPEP(evolucaoCompleta(), internacao, { unidadeNome: 'UTI 1' });
+  const misto = [titulo, ...secoes.flatMap((x) => [x.rotulo, x.texto, ...x.itens.flatMap((i) => [i.titulo, i.texto])])].filter(Boolean).join('\n');
   const manual = JSON.parse(fs.readFileSync(new URL('./siglas_liga_resumo.json', import.meta.url)));
-  const ignorar = new Set([...internacao.paciente.nome.split(' '), 'ENF', 'TESTE', 'UTI', 'LEITO', 'DEMO-1', 'RN',
-    ...MEDICAMENTOS_FIXOS.flatMap((m) => m.split(/[\s,%]+/))]); // medicamentos em caixa alta
-  const titulos = new Set(BLOCOS.flatMap((b) => b.subblocos.map((s) => s.titulo.toUpperCase())).join(' ').split(/[\s(),]+/));
-  const palavras = t.split(/[\s.,;:()]+/).filter((w) => /^[A-Z][A-Z0-9]{1,}$|^SpO2$|^FiO2$/.test(w));
-  const fora = [...new Set(palavras)].filter((w) => !/^D\d+$/.test(w) && !ignorar.has(w) && !titulos.has(w) && !['EVOLUÇÃO', 'ENFERMAGEM', 'MANHÃ', 'DE', 'DIA', 'TURNO', 'DA', 'PENDÊNCIAS', 'IDENTIFICADAS', 'PELO', 'SISTEMA', 'PROCESSO'].includes(w));
-  const naoPermitidas = fora.filter((w) => !manual.permitidas.includes(w));
+  const ignorar = new Set(['UTI', 'LEITO', 'DEMO-1', 'S', 'B', 'A', 'R', 'SITUAÇÃO', 'BREVE', 'HISTÓRICO', 'AVALIAÇÃO', 'RECOMENDAÇÕES', 'EVOLUÇÃO', 'ENFERMAGEM', 'DE', 'TURNO', 'DA', 'MANHÃ',
+    ...Object.values({ a: 'SINAIS VITAIS NEUROLÓGICO DOR RESPIRATÓRIO CARDIOVASCULAR ABDOME INFUSÕES CONTÍNUAS RENAL GASTRINTESTINAL E NUTRIÇÃO PELE LESÕES DISPOSITIVOS CONTENÇÃO MECÂNICA DIAGNÓSTICOS INTERCORRÊNCIAS' }).join(' ').split(' '),
+    ...MEDICAMENTOS_FIXOS.flatMap((m) => m.split(/[\s,%]+/))]);
+  const palavras = misto.split(/[\s.,;:()/]+/).filter((w) => /^[A-Z][A-Z0-9]{1,}$|^SpO2$|^FiO2$/.test(w));
+  const naoPermitidas = [...new Set(palavras)].filter((w) => !/^D\d+$/.test(w) && !ignorar.has(w) && !manual.permitidas.includes(w));
   assert.deepEqual(naoPermitidas, [], `siglas fora do manual ou ambíguas: ${naoPermitidas}`);
 });
