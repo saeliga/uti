@@ -31,6 +31,30 @@ export function trocarFilhos(el, ...filhos) {
   return el;
 }
 
+/**
+ * Campos numéricos (inputmode decimal/numeric) aceitam só números: decimal com um
+ * separador (vírgula ou ponto). Vale para toda a aplicação (escuta na captura,
+ * antes de o componente ler o valor), inclusive ao colar.
+ */
+export function ativarCamposNumericos(raiz = document) {
+  raiz.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement)) return;
+    const modo = el.getAttribute('inputmode');
+    if (modo !== 'decimal' && modo !== 'numeric') return;
+    const v = el.value;
+    let limpo = modo === 'numeric' ? v.replace(/\D/g, '') : v.replace(/[^\d.,]/g, '');
+    if (modo === 'decimal') {
+      const i = limpo.search(/[.,]/);
+      if (i >= 0) limpo = limpo.slice(0, i + 1) + limpo.slice(i + 1).replace(/[.,]/g, '');
+    }
+    if (limpo === v) return;
+    const pos = Math.max(0, (el.selectionStart ?? v.length) - (v.length - limpo.length));
+    el.value = limpo;
+    try { el.setSelectionRange(pos, pos); } catch { /* campo sem seleção */ }
+  }, true);
+}
+
 export function limpar(el) {
   while (el.firstChild) el.firstChild.remove();
   return el;

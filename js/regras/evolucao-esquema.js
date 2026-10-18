@@ -304,8 +304,8 @@ export const BLOCOS = [
     ],
   },
   {
-    id: 'b6', titulo: '6. Intercorrências, pendências e narrativa',
-    descricao: 'Pendências abertas da evolução anterior já vêm para cá e seguem até serem resolvidas.',
+    id: 'b6', titulo: '6. Intercorrências, ocorrências e narrativa',
+    descricao: 'Ocorrências abertas da evolução anterior já vêm para cá e seguem até serem marcadas como resolvidas.',
     subblocos: [
       {
         id: 'intercorrencias', titulo: 'Intercorrências', copiavel: false,
@@ -322,14 +322,14 @@ export const BLOCOS = [
         ],
       },
       {
-        id: 'pendencias', titulo: 'Pendências', copiavel: false,
+        // Mesmo id de antes (dados já salvos continuam valendo); no papel, vai para OCORRÊNCIAS.
+        id: 'pendencias', titulo: 'Ocorrências', copiavel: false,
+        descricao: 'Uma ocorrência por linha (exames, pareceres, avisos à equipe). As abertas saem no campo OCORRÊNCIAS da folha impressa; marque "Resolvida" para tirar do papel.',
         campos: [
-          { nome: 'itens', rotulo: 'Pendências', tipo: 'lista', rotuloItem: 'pendência',
-            textoItem: (i) => [i.descricao, i.providencia && `providência: ${i.providencia}`, i.comunicado && `comunicado: ${i.comunicado}`, i.situacao === 'resolvida' ? 'resolvida' : 'aberta'].filter(Boolean).join(', '),
+          { nome: 'itens', rotulo: 'Ocorrências', tipo: 'lista', rotuloItem: 'ocorrência',
+            textoItem: (i) => [i.descricao, i.situacao === 'resolvida' ? 'resolvida' : 'aberta'].filter(Boolean).join(', '),
             campos: [
-              { nome: 'descricao', rotulo: 'Pendência', tipo: 'texto' },
-              { nome: 'providencia', rotulo: 'Providência tomada', tipo: 'texto' },
-              { nome: 'comunicado', rotulo: 'Profissional comunicado', tipo: 'texto' },
+              { nome: 'descricao', rotulo: 'Ocorrência', tipo: 'texto', placeholder: 'Ex.: 13/10 - Parecer da nefrologia (ok)' },
               { nome: 'situacao', rotulo: 'Situação', tipo: 'escolha', opcoes: op(['aberta', 'Aberta'], ['resolvida', 'Resolvida']) },
             ] },
         ],

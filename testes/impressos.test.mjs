@@ -22,15 +22,16 @@ const ev = {
     infusoes: { itens: [{ grupo: 'hv', medicamento: 'SORO FISIOLÓGICO 0,9%', vazao: '40' }, { grupo: 'dva', medicamento: 'NORADRENALINA', vazao: '18' }, { grupo: 'sedo', medicamento: 'CETAMINA', vazao: '5' }] },
     pele: { lesoes: [{ tipo: 'lpp', local: 'sacral', estagio: '2' }] },
     dispositivos: { itens: [
-      { tipo: 'cvc', local: 'JUGULAR INTERNA', lado: 'D', lumens: '3', insercao: '2026-10-14' },
+      { tipo: 'cvc', local: 'JUGULAR INTERNA', lado: 'D', lumens: '3', insercao: '2026-10-14', curativoTipo: 'filme', curativoData: '2026-10-15' },
       { tipo: 'avp', local: 'CEFÁLICA', lado: 'E', insercao: '2026-10-12' },
-      { tipo: 'tot', insercao: '2026-10-14' },
+      { tipo: 'tot', numero: '7,5', fixacao: '22', insercao: '2026-10-14' },
       { tipo: 'cvd', insercao: '2026-10-14' },
       { tipo: 'sne', insercao: '2026-10-15' },
       { tipo: 'dreno', subtipo: 'BLAKE', insercao: '2026-10-16' },
       { tipo: 'picc', insercao: '2026-10-01', retirada: '2026-10-10' },
     ] },
-    antimicrobianos: { itens: [{ nome: 'Meropeném', inicio: '2026-10-15', previsto: '7' }] },
+    antimicrobianos: { itens: [{ nome: 'Meropeném', inicio: '2026-10-15', previsto: '7' }], culturas: [{ material: 'Hemocultura', coleta: '2026-10-11', resultado: 'Negativa' }, { material: 'Swab retal' }] },
+    pendencias: { itens: [{ descricao: '13/10 - Parecer da nefrologia (ok)', situacao: 'aberta' }, { descricao: 'Retirou dreno', situacao: 'resolvida' }, { descricao: 'Não chamar visitante X' }] },
   },
 };
 
@@ -82,7 +83,15 @@ test('balanço hídrico: cabeçalho e dias de permanência contados para a data 
 test('ocorrência: identificação, dispositivos, infusões e marcações vêm do sistema', () => {
   const c = camposOcorrencia(internacao, ev, { leitoNum: '01', data: '2026-10-17' });
   assert.equal(c.idade, '68a');
-  assert.equal(c.xClinico, '(X)');
+  assert.equal(c.xClinico, '☒', 'caixa de seleção marcada');
+  assert.equal(c.xCirurgico, '☐');
+  assert.equal(c.viaAerea, 'TOT 7,5 - 22CM - 14/10 (D3)', 'linha abaixo de BIPAP');
+  assert.equal(c.dCurAvc, 'D2/7', 'dia do curativo do CVC (filme: 7 dias)');
+  assert.equal(c.dCurCvti, '');
+  assert.equal(c.oc0, '11/10 - HEMOCULTURA: NEGATIVA');
+  assert.ok(!Object.values(c).some((v) => String(v).includes('RETIROU DRENO')), 'ocorrência resolvida sai do papel');
+  const oc = [0, 1, 2, 3, 4, 5].map((k) => c[`oc${k}`]).join(' | ');
+  assert.ok(oc.includes('SWAB RETAL: EM ANDAMENTO') && oc.includes('13/10 - PARECER DA NEFROLOGIA (OK)') && oc.includes('NÃO CHAMAR VISITANTE X'), oc);
   assert.equal(c.pulseiraS, ' X ');
   assert.equal(c.dih, '12/10/2026');
   assert.equal(c.diasUti, 'D3');
@@ -99,6 +108,19 @@ test('ocorrência: identificação, dispositivos, infusões e marcações vêm d
   assert.equal(c.dOutroNome, 'BLAKE');
   assert.deepEqual(c.lesoes, ['LPP - SACRAL - ESTÁGIO 2']);
   assert.equal(c.medicos, 'ONCOLOGIA CLÍNICA');
+});
+
+test('ocorrências: distribuídas nas 6 linhas do papel, sem perder texto à toa', async () => {
+  const { ocorrenciasEmLinhas } = await import('../js/regras/impressos.js');
+  assert.deepEqual(ocorrenciasEmLinhas([]), ['']);
+  assert.deepEqual(ocorrenciasEmLinhas(['A', 'B']), ['A / B'], 'itens curtos dividem a linha');
+  const longo = 'PALAVRA '.repeat(20).trim();
+  const r = ocorrenciasEmLinhas([longo], { primeira: 46, demais: 62 });
+  assert.ok(r.length > 1 && r.every((t, k) => t.length <= (k ? 62 : 46)), 'item longo continua na linha seguinte');
+  assert.equal(r.join(' '), longo, 'quebra entre palavras, sem perder texto');
+  const muitos = ocorrenciasEmLinhas(Array.from({ length: 12 }, (_, k) => `ITEM ${k} ${'X'.repeat(40)}`));
+  assert.equal(muitos.length, 6);
+  assert.ok(muitos[5].endsWith('…'), 'o que não cabe termina em reticências');
 });
 
 test('modelos: todo marcador é preenchido e o texto é escapado', () => {

@@ -2,12 +2,15 @@
 
 import { MODO_DEMO, VERSAO } from './config.js';
 import { backend } from './dados/backend.js';
-import { h, limpar, carregando, aviso, anexar } from './nucleo/ui.js';
+import { h, limpar, carregando, aviso, anexar, ativarCamposNumericos } from './nucleo/ui.js';
 import { telaEntrada, telaAguardando, telaSolicitarAcesso, sairComSeguranca } from './nucleo/sessao.js';
 import { iniciarBloqueio, bloquear } from './nucleo/bloqueio.js';
 import { iniciarVerificacaoVersao } from './nucleo/versao.js';
 import { estado } from './nucleo/estado.js';
 import { PERFIS } from './regras/opcoes.js';
+
+// Campos numéricos aceitam só números (sinais vitais, volumes etc.).
+ativarCamposNumericos();
 
 const raiz = document.getElementById('app');
 // Não funciona dentro de moldura de outro site (proteção contra "clickjacking":

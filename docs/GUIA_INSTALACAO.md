@@ -265,6 +265,19 @@ Não há regra nem Apps Script novos.
 - Na janela da **Capa da ocorrência**, **Reservas** é um campo livre com **um paciente por linha**, do jeito que o NIR manda no WhatsApp. Pode colar o aviso inteiro ("Reservas de UTI 17/10" + itens numerados): o sistema tira o cabeçalho e a numeração, junta a linha quebrada ao item e mostra quantas reservas reconheceu. **Observações** é um campo à parte.
 - Na folha impressa, cada reserva sai numa linha numerada (a linha longa ocupa duas), com linhas em branco para completar à mão, e as observações logo abaixo.
 
+## 11.11 Versão 0.9.3 (ocorrência impressa e campos numéricos)
+
+Sem regra nem Apps Script novos.
+
+- **Campos numéricos** (sinais vitais, volumes, vazões, número e fixação de dispositivos etc.) só aceitam números, com uma vírgula ou ponto decimal, também ao colar.
+- **Evolução → Ocorrências** (antigo "Pendências"): uma ocorrência por linha (exames, pareceres, avisos à equipe), só com o texto e a situação; saíram "Providência tomada" e "Profissional comunicado". As abertas passam para o dia seguinte e saem no papel; marcada como **Resolvida**, sai da folha impressa.
+- **Ocorrência impressa:**
+  - **Clínico / cirúrgico** com caixa de seleção (☒ / ☐).
+  - Abaixo de **BIPAP**: TOT ou TQT com número, fixação e data de inserção, com o dia (ex.: "TOT 7,5 - 22CM - 14/10 (D3)").
+  - **Curativos:** dia do curativo do AVC (CVC/PICC) e do CVTI, com a validade (filme: /7).
+  - **Eliminações vesicais:** a linha "MANHÃ ( ) TARDE ( ) NOITE ( )" ocupa a largura toda, como no papel.
+  - **Ocorrências:** culturas ("11/10 - HEMOCULTURA: NEGATIVA") e as ocorrências abertas da evolução, distribuídas nas 6 linhas; o que não couber termina em "…".
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

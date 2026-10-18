@@ -70,6 +70,7 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
       const tipo = { texto: 'text', numero: 'text', hora: 'time', data: 'date', datahora: 'datetime-local' }[c.tipo];
       const attrs = { id, type: tipo, value: alvo()[c.nome] ?? '', disabled: ro, autocomplete: 'off' };
       if (c.tipo === 'numero') Object.assign(attrs, { inputmode: 'decimal' });
+      if (c.placeholder) attrs.placeholder = c.placeholder;
       const input = h('input', attrs);
       let lista = null;
       if (c.sugestoes) {
