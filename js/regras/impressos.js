@@ -242,6 +242,18 @@ const primeiro = (lista, tipos) => lista.find((i) => tipos.includes(i.tipo));
 const localCurto = (i) => [i?.local === 'OUTRO' ? i?.localOutro : i?.local, i?.lado === 'D' ? 'D' : i?.lado === 'E' ? 'E' : ''].filter(Boolean).join(' ');
 const ROTULO_SONDA = { sne: 'SNE', soe: 'SOE', sng: 'SNG', sog: 'SOG' };
 
+// --------------------------------------------------------------------------- capa: reservas
+/** Reservas da capa: um paciente por linha (cirurgia ou leito para hemodiálise). */
+export const TIPOS_RESERVA = { cirurgica: 'Cirúrgica', hd: 'Hemodiálise' };
+export const MAX_RESERVAS = 20;
+export function normalizarReservas(lista) {
+  const t = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+  return (Array.isArray(lista) ? lista : [])
+    .map((r) => ({ tipo: r?.tipo in TIPOS_RESERVA ? r.tipo : 'cirurgica', paciente: t(r?.paciente, 120), detalhe: t(r?.detalhe, 200), horario: /^\d{2}:\d{2}$/.test(r?.horario || '') ? r.horario : '' }))
+    .filter((r) => r.paciente)
+    .slice(0, MAX_RESERVAS);
+}
+
 /** Campos de identificação comuns às folhas. */
 export function camposIdentificacao(internacao, leitoNum) {
   const p = internacao.paciente || {};

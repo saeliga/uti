@@ -505,3 +505,12 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
   .campos { padding: 0 10px 12px; gap: 10px 12px; }
   .sub-anterior, .sub-descricao { margin-left: 10px; margin-right: 10px; }
 }
+
+/* capa da ocorrência: reservas (um paciente por linha) */
+.capa-reservas { display: flex; flex-direction: column; gap: 6px; }
+.capa-reserva { display: grid; grid-template-columns: 128px minmax(0, 1.2fr) minmax(0, 1.4fr) 118px 30px; gap: 6px; align-items: center; }
+.capa-reserva input, .capa-reserva select { min-width: 0; }
+@media (max-width: 640px) {
+  .capa-reserva { grid-template-columns: 1fr 1fr 36px; padding-bottom: 8px; border-bottom: 1px dashed var(--ui-borda); }
+  .capa-reserva input[aria-label="Paciente"], .capa-reserva input[aria-label="Cirurgia ou detalhes"] { grid-column: 1 / -1; }
+}

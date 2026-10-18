@@ -151,3 +151,20 @@ test('check-lists de inserção: modelo atual da Liga, preenchimento a partir do
   delete r.respostas.raioX;
   assert.equal(avaliarInsercao(r).status, 'incompleto');
 });
+
+test('capa: reservas com um paciente por linha (cirurgia ou hemodiálise)', async () => {
+  const { normalizarReservas, TIPOS_RESERVA, MAX_RESERVAS } = await import('../js/regras/impressos.js');
+  assert.deepEqual(Object.keys(TIPOS_RESERVA), ['cirurgica', 'hd']);
+  const r = normalizarReservas([
+    { tipo: 'hd', paciente: '  Paciente   A ', detalhe: 'Turno da tarde', horario: '14:00' },
+    { tipo: 'x', paciente: 'Paciente B', horario: '25h' },
+    { tipo: 'cirurgica', paciente: '   ' },
+    null,
+  ]);
+  assert.deepEqual(r, [
+    { tipo: 'hd', paciente: 'Paciente A', detalhe: 'Turno da tarde', horario: '14:00' },
+    { tipo: 'cirurgica', paciente: 'Paciente B', detalhe: '', horario: '' },
+  ]);
+  assert.equal(normalizarReservas(Array.from({ length: 30 }, (_, k) => ({ paciente: `P${k}` }))).length, MAX_RESERVAS);
+  assert.deepEqual(normalizarReservas(undefined), []);
+});

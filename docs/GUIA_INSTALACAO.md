@@ -258,6 +258,13 @@ Não há regra nem Apps Script novos.
 - **"Copiar texto"** copia com os títulos em **negrito** (o editor do PEP mantém); onde a formatação não for aceita, sai como texto simples.
 - **"Imprimir / PDF"** da evolução usa o mesmo texto, com a identificação do paciente no alto e a linha de assinatura.
 
+## 11.10 Versão 0.9.2 (capa: reservas e observações separadas)
+
+**Antes do merge**, publique o `firestore.rules` atualizado (a capa passa a guardar a lista de reservas).
+
+- Na janela da **Capa da ocorrência**, **Reservas** é uma lista com um paciente por linha: tipo (cirúrgica ou leito para hemodiálise), paciente, cirurgia/detalhes e horário previsto. **Observações** é um campo de texto à parte.
+- Na folha impressa, as reservas saem numa tabela (tipo, paciente, cirurgia/detalhes, horário), com linhas em branco para completar à mão, e as observações logo abaixo.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

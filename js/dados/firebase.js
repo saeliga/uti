@@ -456,9 +456,9 @@ export async function lerCapaOcorrencia(id) {
   });
 }
 
-export function salvarCapaOcorrencia(id, { unidade, data, observacoes }) {
+export function salvarCapaOcorrencia(id, { unidade, data, observacoes, reservas }) {
   return F.setDoc(F.doc(db, 'capasOcorrencia', id), {
-    unidade, data, observacoes: String(observacoes || '').slice(0, 4000),
+    unidade, data, observacoes: String(observacoes || '').slice(0, 4000), reservas: (reservas || []).slice(0, 20),
     atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO,
   }).catch((e) => { throw traduzirErro(e); });
 }
