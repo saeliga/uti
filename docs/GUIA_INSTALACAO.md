@@ -340,6 +340,13 @@ Sem regra nem Apps Script novos.
 - Para levar o paciente para a outra UTI, desfaça a saída na UTI de origem e depois use **Trocar de leito**.
 - Saídas registradas antes desta versão só podem ser desfeitas pelo administrador.
 
+## 11.19 Versão 0.12.1 (qualidade ISO/IEC 25010 automatizada)
+
+- O CI passou a se chamar **Qualidade (ISO/IEC 25010)** e roda casos de uso em três navegadores (computador e tablet), segurança operacional, confiabilidade com os simuladores do Firebase, acessibilidade, desempenho, análise estática e, no `main`, a varredura OWASP ZAP. O relatório de cada versão fica no ramo `qualidade`. Detalhes em `docs/QUALIDADE.md`.
+- A verificação de disponibilidade roda de hora em hora (workflow **Disponibilidade**) e grava no ramo `qualidade`.
+- Opcional: SonarCloud (ver `docs/QUALIDADE.md`).
+- Para a coleta da pesquisa, crie a propriedade `GROQ_SEM_RESERVA` = `sim` no Apps Script e publique a nova versão do `Groq.gs`.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.
