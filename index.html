@@ -10,7 +10,8 @@
   <!-- Fonte reserva livre (Montserrat), usada se as fontes da Liga não carregarem. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap"></noscript>
   <link rel="stylesheet" href="css/liga-tokens.css?v=0.12.1">
   <link rel="stylesheet" href="css/app.css?v=0.12.1">
 </head>
@@ -82,6 +83,19 @@
   }
 }
   </script>
+  <!-- pré-carregamento (gerado por ferramentas/versao.mjs) -->
+  <link rel="modulepreload" href="./js/api/appsscript.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/api/catalogo.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/config.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/dados/backend.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/main.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/nucleo/bloqueio.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/nucleo/estado.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/nucleo/sessao.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/nucleo/ui.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/nucleo/versao.js?v=0.12.1">
+  <link rel="modulepreload" href="./js/regras/opcoes.js?v=0.12.1">
+  <!-- /pré-carregamento -->
   <script type="module" src="js/main.js?v=0.12.1"></script>
 </body>
 </html>

@@ -57,6 +57,17 @@ def gravar(caminho, dados):
     _req('PATCH', caminho, {'fields': {k: _valor(v) for k, v in dados.items()}})
 
 
+def uid_no_emulador(email):
+    # O uid do Firebase não é o "sub" da conta Google: lê no simulador de Auth.
+    url = f'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/{PROJETO}/accounts:batchGet?maxResults=100'
+    r = urllib.request.Request(url, headers={'Authorization': 'Bearer owner'})
+    with urllib.request.urlopen(r, timeout=10) as resp:
+        for u in json.loads(resp.read()).get('users', []):
+            if u.get('email') == email:
+                return u['localId']
+    return None
+
+
 def evolucoes():
     docs = _req('GET', 'evolucoes').get('documents', [])
     return [_py({'mapValue': {'fields': d.get('fields', {})}}) for d in docs]
@@ -75,8 +86,6 @@ class SemPerdaDeRegistro(TesteNavegador):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        for c in CONTAS.values():
-            gravar(f"usuarios/{c['uid']}", {'nome': c['nome'], 'coren': '000000', 'email': c['email'], 'perfil': 'enfermeiro', 'ativo': True, 'unidades': ['uti1']})
         gravar('unidades/uti1', {'nome': 'UTI 1', 'ordem': 1, 'leitos': ['01', '02']})
         for n in ('01', '02'):
             gravar(f'leitos/uti1_{n}', {'unidade': 'uti1', 'numero': n, 'internacaoId': None, 'resumo': None, 'bloqueado': False, 'bloqueio': None})
@@ -88,6 +97,17 @@ class SemPerdaDeRegistro(TesteNavegador):
         pagina.goto(f'{self.base}?emulador=1')
         pagina.click('.btn-google')
         try:
+            pagina.wait_for_selector('.grade-leitos, text=Solicitar acesso', timeout=30000)
+            if not pagina.locator('.grade-leitos').count():
+                # Primeiro acesso: o administrador "aprova" a conta (perfil gravado direto no simulador).
+                c = CONTAS[conta]
+                uid = uid_no_emulador(c['email'])
+                self.assertIsNotNone(uid, 'conta criada no simulador de Auth')
+                gravar(f'usuarios/{uid}', {'nome': c['nome'], 'coren': '000000', 'email': c['email'], 'perfil': 'enfermeiro', 'ativo': True, 'unidades': ['uti1']})
+                pagina.reload()
+                pagina.wait_for_selector('.grade-leitos, .btn-google', timeout=30000)
+                if pagina.locator('.btn-google').count():
+                    pagina.click('.btn-google')
             pagina.wait_for_selector('.grade-leitos', timeout=30000)
         except Exception:
             tela = pagina.locator('body').inner_text()[:800]

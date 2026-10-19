@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Verificar o site e registrar
         run: |
           R=$(curl -s -o /dev/null -w '%{http_code},%{time_total}' --max-time 30 "https://saeliga.github.io/uti/versao.json?t=$(date +%s)" || echo "000,30")
