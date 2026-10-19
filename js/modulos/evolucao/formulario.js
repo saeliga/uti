@@ -302,5 +302,15 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
       wrap.append(rotulo(c, id), h('span', {}, String(alvo()[c.nome] ?? '')));
   }
   if (c.ajuda) wrap.append(h('div', { class: 'campo-ajuda' }, c.ajuda));
+  // Guia da escala: botão "i" logo após o rótulo.
+  if (c.info) {
+    const botao = h('button', { type: 'button', class: 'btn-info-escala', 'aria-label': 'Como aplicar esta escala', title: 'Como aplicar esta escala', onclick: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      import('./info-escalas.js').then((m) => m.abrirInfoEscala(c.info));
+    } }, 'i');
+    const rot = wrap.querySelector('.campo-rotulo');
+    if (rot) rot.append(' ', botao); else wrap.prepend(botao);
+  }
   return wrap;
 }

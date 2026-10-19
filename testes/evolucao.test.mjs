@@ -280,3 +280,16 @@ test('texto para o PEP: SBAR em caixa alta, frases curtas e só siglas do manual
   const naoPermitidas = [...new Set(palavras)].filter((w) => !/^D\d+$/.test(w) && !ignorar.has(w) && !manual.permitidas.includes(w));
   assert.deepEqual(naoPermitidas, [], `siglas fora do manual ou ambíguas: ${naoPermitidas}`);
 });
+
+test('guia das escalas: todo campo com "info" tem texto, e os pontos batem com o formulário', async () => {
+  const { INFO_ESCALAS } = await import('../js/regras/escalas-info.js');
+  const campos = BLOCOS.flatMap((b) => b.subblocos.flatMap((s) => s.campos)).filter((c) => c.info);
+  assert.deepEqual([...new Set(campos.map((c) => c.info))].sort(), Object.keys(INFO_ESCALAS).sort(), 'cada escala do guia está ligada a um campo');
+  for (const e of Object.values(INFO_ESCALAS)) {
+    assert.ok(e.titulo && e.resumo && e.fonte && e.secoes.length, e.titulo);
+    for (const s of e.secoes) assert.ok(s.itens.every(([p, t]) => p && t), `${e.titulo} — ${s.titulo}`);
+  }
+  assert.equal(INFO_ESCALAS.glasgow.secoes[2].itens[0][1], 'Obedece a comandos');
+  assert.deepEqual(INFO_ESCALAS.rass.secoes[0].itens.map(([p]) => p).slice(-2), ['−4', '−5']);
+  assert.equal(INFO_ESCALAS.bristol.secoes[0].itens.length, 7);
+});

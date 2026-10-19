@@ -55,7 +55,8 @@ export const BRISTOL = op(
  * escala (opções com pontos), calculado (somente leitura), medidas (lista fixa com
  * 4 estados), lista (itens repetíveis), infusoes e dispositivos (componentes
  * próprios; o texto vem de `texto(valor, ctx)`).
- * `se(dados, contexto)` mostra o campo só quando se aplica.
+ * `se(dados, contexto)` mostra o campo só quando se aplica. `info` liga o campo ao guia da
+ * escala (botão "i" ao lado do rótulo; textos em escalas-info.js).
  * Subbloco `herdavel`: ao abrir o dia, vem preenchido com a evolução anterior
  * (`aoHerdar` ajusta o que recomeça a cada dia).
  */
@@ -92,17 +93,17 @@ export const BLOCOS = [
         campos: [
           { nome: 'consciencia', rotulo: 'Nível de consciência', tipo: 'escolha', obrigatorio: true,
             opcoes: op(['alerta', 'Alerta'], ['sonolento', 'Sonolento'], ['torporoso', 'Torporoso'], ['comatoso', 'Comatoso'], ['sedado', 'Sob sedação']) },
-          { nome: 'gOcular', rotulo: 'Glasgow — abertura ocular', tipo: 'escala', opcoes: GLASGOW.ocular, se: semSedacao },
+          { nome: 'gOcular', rotulo: 'Glasgow — abertura ocular', tipo: 'escala', opcoes: GLASGOW.ocular, se: semSedacao, info: 'glasgow' },
           { nome: 'gVerbal', rotulo: 'Glasgow — resposta verbal', tipo: 'escala', opcoes: GLASGOW.verbal, se: semSedacao },
           { nome: 'gMotora', rotulo: 'Glasgow — resposta motora', tipo: 'escala', opcoes: GLASGOW.motora, se: semSedacao },
           { nome: 'glasgow', rotulo: 'Glasgow', tipo: 'calculado', se: semSedacao, calc: (d) => glasgow({ ocular: d.gOcular, verbal: d.gVerbal, motora: d.gMotora }).texto },
-          { nome: 'rass', rotulo: 'RASS', tipo: 'select', opcoes: RASS, se: sedado },
+          { nome: 'rass', rotulo: 'RASS', tipo: 'select', opcoes: RASS, se: sedado, info: 'rass' },
           { nome: 'metaRass', rotulo: 'Meta de RASS prescrita', tipo: 'select', opcoes: RASS, se: sedado },
           { nome: 'interrupcao', rotulo: 'Interrupção diária da sedação', tipo: 'escolha', opcoes: op(['realizada', 'Realizada'], ['nao_realizada', 'Não realizada'], ['nao_se_aplica', 'Não se aplica']), se: sedado },
           { nome: 'pupilas', rotulo: 'Pupilas', tipo: 'escolha', opcoes: op(['isocoricas', 'Isocóricas'], ['anisocoricas', 'Anisocóricas'], ['puntiformes', 'Puntiformes']) },
           { nome: 'fotoD', rotulo: 'Fotorreação direita', tipo: 'escolha', opcoes: op(['presente', 'Presente'], ['lenta', 'Lenta'], ['ausente', 'Ausente']) },
           { nome: 'fotoE', rotulo: 'Fotorreação esquerda', tipo: 'escolha', opcoes: op(['presente', 'Presente'], ['lenta', 'Lenta'], ['ausente', 'Ausente']) },
-          { nome: 'camAgudo', rotulo: 'Delirium — início agudo ou curso flutuante?', tipo: 'escolha', opcoes: simNao, se: (d) => camDe(d).aplicavel },
+          { nome: 'camAgudo', rotulo: 'Delirium — início agudo ou curso flutuante?', tipo: 'escolha', opcoes: simNao, se: (d) => camDe(d).aplicavel, info: 'cam' },
           { nome: 'camDesatencao', rotulo: 'Delirium — desatenção?', tipo: 'escolha', opcoes: simNao, se: (d) => camDe(d).aplicavel && d.camAgudo === 'sim' },
           { nome: 'camDesorganizado', rotulo: 'Delirium — pensamento desorganizado?', tipo: 'escolha', opcoes: simNao, se: (d) => camDe(d).aplicavel && d.camAgudo === 'sim' && d.camDesatencao === 'sim' && !nivelAlterado(d) },
           { nome: 'cam', rotulo: 'Rastreio de delirium', ajuda: 'Método CAM-ICU.', tipo: 'calculado', se: (d) => !!d.consciencia,
@@ -113,7 +114,7 @@ export const BLOCOS = [
         id: 'dor', titulo: 'Dor', copiavel: false, obrigatorio: true,
         campos: [
           { nome: 'escala', rotulo: 'Escala (conforme a comunicação do paciente)', tipo: 'escolha', obrigatorio: true,
-            opcoes: op(['evn', 'EVN (comunica)'], ['bps', 'BPS (sedado/intubado)'], ['nao_avaliavel', 'Não avaliável']) },
+            opcoes: op(['evn', 'EVN (comunica)'], ['bps', 'BPS (sedado/intubado)'], ['nao_avaliavel', 'Não avaliável']), info: 'dor' },
           { nome: 'escore', rotulo: 'Escore (0 a 10)', tipo: 'escala', opcoes: op(...Array.from({ length: 11 }, (_, i) => String(i))), se: (d) => d.escala === 'evn' || d.escala === 'eva' },
           { nome: 'bpsFacial', rotulo: 'BPS — expressão facial', tipo: 'escala', opcoes: BPS.facial, se: (d) => d.escala === 'bps' },
           { nome: 'bpsMembros', rotulo: 'BPS — membros superiores', tipo: 'escala', opcoes: BPS.membros, se: (d) => d.escala === 'bps' },
@@ -154,12 +155,12 @@ export const BLOCOS = [
           { nome: 'auscultaCardiaca', rotulo: 'Ausculta cardíaca', tipo: 'marcar',
             opcoes: op(['bnf2t', 'BNF em 2T'], ['hipofoneticas', 'Bulhas hipofonéticas'], ['arritmicas', 'Bulhas arrítmicas'], ['sopro', 'Sopro'], ['acessorias', 'Bulhas acessórias']),
             excludentes: [['bnf2t', 'hipofoneticas']] },
-          { nome: 'tec', rotulo: 'TEC', tipo: 'escolha', opcoes: op(['ate3', 'Até 3 s'], ['mais3', 'Mais de 3 s']) },
+          { nome: 'tec', rotulo: 'TEC', tipo: 'escolha', opcoes: op(['ate3', 'Até 3 s'], ['mais3', 'Mais de 3 s']), info: 'tec' },
           { nome: 'pulsos', rotulo: 'Pulsos periféricos', tipo: 'escolha', opcoes: op(['presentes', 'Presentes e cheios'], ['finos', 'Finos'], ['ausentes', 'Ausentes']) },
           { nome: 'extremidades', rotulo: 'Extremidades', tipo: 'escolha', opcoes: op(['aquecidas', 'Aquecidas'], ['frias', 'Frias'], ['cianoticas', 'Cianóticas']) },
           { nome: 'edemaLocais', rotulo: 'Edema', tipo: 'marcar',
             opcoes: op(['sem', 'Sem edema'], ['mmii', 'MMII'], ['mmss', 'MMSS'], ['sacral', 'Sacral'], ['facial', 'Facial'], ['anasarca', 'Anasarca']), exclusivos: ['sem'] },
-          { nome: 'edemaGrau', rotulo: 'Grau do edema (cacifo)', tipo: 'escolha', opcoes: op(['1', '+1'], ['2', '+2'], ['3', '+3'], ['4', '+4'], ['na', 'Não se aplica']), se: temEdema },
+          { nome: 'edemaGrau', rotulo: 'Grau do edema (cacifo)', tipo: 'escolha', opcoes: op(['1', '+1'], ['2', '+2'], ['3', '+3'], ['4', '+4'], ['na', 'Não se aplica']), se: temEdema, info: 'edema' },
         ],
       },
       {
@@ -213,7 +214,7 @@ export const BLOCOS = [
           { nome: 'ultimaEvacuacao', rotulo: 'Última evacuação registrada', tipo: 'calculado', se: (d) => d.evacuou !== 'sim',
             calc: (d, ctx) => (ctx.ultimaEvacuacao ? `${formatarData(ctx.ultimaEvacuacao)} (há ${diasEntre(ctx.ultimaEvacuacao, ctx.dataTurno)} dia(s))` : 'sem registro anterior no sistema') },
           { nome: 'episodios', rotulo: 'Número de episódios', tipo: 'numero', se: (d) => d.evacuou === 'sim' },
-          { nome: 'bristol', rotulo: 'Consistência (escala de Bristol)', tipo: 'escala', opcoes: BRISTOL, se: (d) => d.evacuou === 'sim' },
+          { nome: 'bristol', rotulo: 'Consistência (escala de Bristol)', tipo: 'escala', opcoes: BRISTOL, se: (d) => d.evacuou === 'sim', info: 'bristol' },
           { nome: 'fezesAspecto', rotulo: 'Aspecto das fezes', tipo: 'marcar', se: (d) => d.evacuou === 'sim',
             opcoes: op(['habitual', 'Coloração habitual'], ['melena', 'Melena'], ['sangue', 'Com sangue vivo'], ['acolica', 'Acólica'], ['muco', 'Com muco'], ['restos', 'Com restos alimentares']),
             excludentes: [['habitual', 'melena', 'acolica']] },
