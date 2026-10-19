@@ -363,6 +363,29 @@ export async function salvarChecklistIras(id, dados, { leitos, novo } = {}) {
   return espera(120);
 }
 
+// --------------------------------------------------------------------------- fotos das lesões
+const fotos = {};
+export async function salvarFotoLesao(dados) {
+  await espera(150);
+  const id = `foto${Object.keys(fotos).length + 1}`;
+  const { imagem, ...meta } = dados;
+  fotos[id] = { ...clone(meta), legenda: meta.legenda || '', ordem: Date.now(), autor: USUARIO.uid, excluida: false, imagem };
+  return id;
+}
+export async function listarFotosLesao(internacaoId, lesaoId) {
+  await espera(80);
+  return Object.entries(fotos).filter(([, f]) => f.internacaoId === internacaoId && f.lesaoId === lesaoId)
+    .map(([id, { imagem, ...f }]) => ({ id, ...clone(f) }));
+}
+export async function lerImagemFoto(id) {
+  await espera(80);
+  return fotos[id]?.imagem || null;
+}
+export async function excluirFotoLesao(id, motivo) {
+  await espera(80);
+  Object.assign(fotos[id], { excluida: true, motivoExclusao: motivo, excluidaPor: USUARIO.uid });
+}
+
 // --------------------------------------------------------------------------- capa da ocorrência (observações)
 const capas = {};
 export async function lerCapaOcorrencia(id) {

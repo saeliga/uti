@@ -312,6 +312,17 @@ Sem regra nem Apps Script novos.
 - **Dia do curativo no padrão da Liga:** o dia da aplicação é **D1**; filme transparente vai de **D1 a D8** (gaze: D1 a D2). Aparece no cartão do dispositivo ("D4/8"), no texto do PEP e na ocorrência impressa (AVC, CVTI e, em OUTROS, o cateter de HD). Alerta "trocar hoje" no último dia e "troca vencida" depois dele.
 - **Nível de consciência:** Consciente, Vigil, Sonolento, Torporoso, Comatoso ou Sob sedação; para quem está consciente, vigil ou sonolento, **Orientado** ou **Desorientado**. Registros antigos marcados como "Alerta" aparecem como "Consciente".
 
+## 11.16 Versão 0.11.0 (fotos das lesões)
+
+**Antes do merge**, publique o `firestore.rules` atualizado (coleção nova `fotosLesoes`). Antes de usar com pacientes, confirme com o DPO da Liga o termo de consentimento para registro fotográfico.
+
+- Em **Pele e lesões**, cada lesão tem o botão **📷 Fotos da lesão**: tira a foto pela câmera dentro da página (no computador, escolhe um arquivo), com a orientação "enquadre só a lesão; evite rosto, tatuagens, pulseira e documentos".
+- A foto é reduzida no aparelho (cerca de 1280 px, em geral 100 a 300 KB) e redesenhada, o que apaga os dados escondidos do arquivo (local, modelo do aparelho). Fica só no sistema, não na galeria.
+- **Linha do tempo** com data, legenda e quem registrou; **comparar 2 fotos lado a lado**.
+- Foto errada: **Excluir (foto errada)** com motivo. Sai da galeria, mas o registro da exclusão fica; só o administrador apaga de vez.
+- As fotos ficam ligadas à lesão e passam de um dia para o outro com ela. A equipe da UTI para onde o paciente for transferido também vê as fotos. Não entram no texto do PEP nem nos impressos. Cada foto aberta fica no registro de operações.
+- Espaço: com uso típico (cerca de 55 fotos por mês), uns 150 MB por ano, dentro do 1 GB do plano gratuito.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.
