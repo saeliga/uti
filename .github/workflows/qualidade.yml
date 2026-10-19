@@ -20,36 +20,6 @@ permissions:
   contents: read
 
 jobs:
-  # Temporário: gera package-lock.json e requirements-testes.txt (com hashes) e grava no ramo do PR.
-  travar:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: 22
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.12'
-      - name: Gerar e gravar
-        env:
-          RAMO: ${{ github.event.pull_request.head.ref }}
-        run: |
-          [ -f package-lock.json ] && [ -f requirements-testes.txt ] && exit 0
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          python -m pip install pip==24.2 pip-tools==7.4.1
-          python -m piptools compile --generate-hashes --strip-extras -q -o requirements-testes.txt requirements-testes.in
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json requirements-testes.txt
-          git commit -qm "Trava as versões das ferramentas de teste (lockfile e hashes)"
-          git push -q origin "HEAD:refs/heads/$RAMO"
-
   testes:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
