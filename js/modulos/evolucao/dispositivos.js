@@ -7,7 +7,7 @@ import { h, limpar, abrirJanela, confirmar, campo, lerFormulario, mostrarErros }
 import { backend } from '../../dados/backend.js';
 import {
   CATALOGO_DISPOSITIVOS, ROTULOS_CAMPO, LADOS, LUMENS, CURATIVOS, SITIO,
-  ativo, definicao, rotuloDispositivo, alertasDispositivo,
+  ativo, definicao, rotuloDispositivo, alertasDispositivo, diaCurativo,
 } from '../../regras/dispositivos.js';
 import { contagemDia, formatarData } from '../../regras/datas.js';
 import { tipoChecklistDe } from '../../regras/impressos.js';
@@ -81,7 +81,8 @@ export function campoDispositivos(c, { obter, definir, ro, contexto, atualizador
             if (!(await confirmar(`Apagar "${rotuloDispositivo(i)}"? Use só para lançamento feito por engano; para dispositivo removido, use "Retirar".`, { sim: 'Apagar', perigo: true }))) return;
             salvar(lista().filter((x) => x.id !== i.id));
           } }, '×'))),
-      def.curativo && h('div', { class: 'disp-meta' }, i.curativoTipo ? `Curativo: ${CURATIVOS[i.curativoTipo].toLowerCase()}${i.curativoData ? `, aplicado em ${formatarData(i.curativoData)}` : ''}` : 'Curativo: sem registro'),
+      def.curativo && h('div', { class: 'disp-meta' }, i.curativoTipo ? `Curativo: ${CURATIVOS[i.curativoTipo].toLowerCase()}${i.curativoData ? `, aplicado em ${formatarData(i.curativoData)}` : ''}` : 'Curativo: sem registro',
+        diaCurativo(i, hoje()) && h('strong', { class: 'disp-dia-curativo' }, ` · ${diaCurativo(i, hoje()).texto}`)),
       alertas.length ? h('div', { class: 'chips disp-alertas' }, alertas.map((a) => h('span', { class: `chip ${a.nivel === 'alto' ? 'chip-alerta' : 'chip-atencao'}` }, `⚠ ${a.texto}`))) : null,
       def.sitio && linhaDia('Sítio hoje', chipsDia(i, 'sitio', SITIO, { multiplo: true, exclusivo: 'sem_alteracoes' })),
       def.debito && linhaDia('Débito no período', h('div', { class: 'disp-debito' },

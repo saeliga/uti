@@ -192,7 +192,8 @@ const FRASES = {
     if (d.consciencia === 'sedado') nivel = juntar('sob sedação', d.rass && `RASS ${rassTexto(d.rass)}`, d.metaRass && `meta RASS ${rassTexto(d.metaRass).split(' ')[0]}`);
     else {
       const g = glasgowDe({ ocular: d.gOcular, verbal: d.gVerbal, motora: d.gMotora });
-      nivel = juntar(minus(op1('neuro', 'consciencia', d.consciencia)), g.completo && `Glasgow ${g.texto} (O${d.gOcular} V${d.gVerbal} M${d.gMotora})`);
+      const orient = vis('neuro', 'orientacao', d, {}) && d.orientacao ? minus(op1('neuro', 'orientacao', d.orientacao)) : '';
+      nivel = juntar(minus(op1('neuro', 'consciencia', d.consciencia)), orient, g.completo && `Glasgow ${g.texto} (O${d.gOcular} V${d.gVerbal} M${d.gMotora})`);
     }
     const pup = d.pupilas && juntar(`pupilas ${minus(op1('neuro', 'pupilas', d.pupilas))}`,
       d.fotoD === 'presente' && d.fotoE === 'presente' ? 'fotorreagentes' : d.fotoD === 'ausente' && d.fotoE === 'ausente' ? 'sem fotorreação'

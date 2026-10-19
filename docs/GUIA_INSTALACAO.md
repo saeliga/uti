@@ -305,6 +305,13 @@ Sem regra nem Apps Script novos.
 
 - Botão **i** ao lado do campo abre um guia rápido da escala: pontuação, como aplicar à beira-leito e a referência original. Escalas: **Glasgow**, **RASS**, **CAM-ICU**, **dor (EVN e BPS)**, **Bristol**, **grau do edema (cacifo)** e **TEC**. Os pontos do guia vêm das mesmas listas do formulário.
 
+## 11.15 Versão 0.10.3 (dia do curativo e consciência)
+
+Sem regra nem Apps Script novos.
+
+- **Dia do curativo no padrão da Liga:** o dia da aplicação é **D1**; filme transparente vai de **D1 a D8** (gaze: D1 a D2). Aparece no cartão do dispositivo ("D4/8"), no texto do PEP e na ocorrência impressa (AVC, CVTI e, em OUTROS, o cateter de HD). Alerta "trocar hoje" no último dia e "troca vencida" depois dele.
+- **Nível de consciência:** Consciente, Vigil, Sonolento, Torporoso, Comatoso ou Sob sedação; para quem está consciente, vigil ou sonolento, **Orientado** ou **Desorientado**. Registros antigos marcados como "Alerta" aparecem como "Consciente".
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

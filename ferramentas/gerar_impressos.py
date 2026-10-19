@@ -78,6 +78,7 @@ MARC_OC = {
     'A54': '({{cCvti}}) CVTI {{dCurCvti}} ({{cCirurgico}})  CIRÚRGICO   ({{cLpp}})  LESÃO P/ PRESSÃO',
     # Abaixo de BIPAP: via aérea artificial (TOT ou TQT) e data de inserção
     'A27': '{{viaAerea}}',
+    'A55': 'OUTROS: {{curOutros}}',
     # Ocorrências: culturas e ocorrências abertas da evolução, uma por linha
     'E51': 'OCORRÊNCIAS: {{oc0}}', **{f'E{51 + k}': f'{{{{oc{k}}}}}' for k in range(1, 6)},
 }

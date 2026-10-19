@@ -148,7 +148,7 @@ test('dispositivos: alertas, texto e passagem para o dia seguinte', () => {
   const al = alertasDispositivo(cvc, '2026-10-16').map((a) => a.texto).join(' | ');
   assert.match(al, /troca vencida/);
   assert.match(al, /sítio: hiperemia/);
-  assert.match(textoDispositivo(cvc, '2026-10-16'), /^CVC, subclávia, lado esquerdo, 2 lúmens, inserção 01\/10\/2026 \(D15\), curativo filme transparente aplicado em 08\/10\/2026, sítio: hiperemia/);
+  assert.match(textoDispositivo(cvc, '2026-10-16'), /^CVC, subclávia, lado esquerdo, 2 lúmens, inserção 01\/10\/2026 \(D15\), curativo filme transparente aplicado em 08\/10\/2026 \(D9\/8\), sítio: hiperemia/);
   const tot = { tipo: 'tot', numero: '7,5', fixacao: '22', insercao: '2026-10-14' };
   assert.match(textoDispositivo(tot, '2026-10-16'), /TOT, número 7,5, fixação 22 cm/);
   const dia = dispositivosParaNovoDia([cvc, { ...tot, retirada: '2026-10-16' }, { tipo: 'cvd', necessario: 'sim' }]);
@@ -292,4 +292,23 @@ test('guia das escalas: todo campo com "info" tem texto, e os pontos batem com o
   assert.equal(INFO_ESCALAS.glasgow.secoes[2].itens[0][1], 'Obedece a comandos');
   assert.deepEqual(INFO_ESCALAS.rass.secoes[0].itens.map(([p]) => p).slice(-2), ['−4', '−5']);
   assert.equal(INFO_ESCALAS.bristol.secoes[0].itens.length, 7);
+});
+
+test('curativo no padrão da Liga (D1 a D8) e consciência com orientação', async () => {
+  const { diaCurativo, alertasDispositivo, textoDispositivo } = await import('../js/regras/dispositivos.js');
+  const cvc = { tipo: 'cvc', insercao: '2026-10-10', curativoTipo: 'filme', curativoData: '2026-10-11', sitio: ['sem_alteracoes'] };
+  assert.equal(diaCurativo(cvc, '2026-10-11').texto, 'D1/8', 'dia da aplicação = D1');
+  assert.equal(diaCurativo(cvc, '2026-10-13').texto, 'D3/8');
+  assert.ok(alertasDispositivo(cvc, '2026-10-18').some((a) => a.texto.includes('D8/8: trocar hoje')));
+  assert.ok(alertasDispositivo(cvc, '2026-10-19').some((a) => a.texto.includes('troca vencida')));
+  assert.ok(!alertasDispositivo(cvc, '2026-10-17').some((a) => a.texto.includes('curativo')), 'D7: sem alerta');
+  assert.match(textoDispositivo(cvc, '2026-10-13'), /aplicado em 11\/10\/2026 \(D3\/8\)/);
+  assert.equal(diaCurativo({ tipo: 'cvc', curativoTipo: 'gaze', curativoData: '2026-10-11' }, '2026-10-12').texto, 'D2/2');
+  // Consciência
+  const neuro = BLOCOS[0].subblocos.find((x) => x.id === 'neuro');
+  const cons = neuro.campos.find((c) => c.nome === 'consciencia');
+  assert.deepEqual(Object.values(cons.opcoes).slice(0, 2), ['Consciente', 'Vigil']);
+  const ori = neuro.campos.find((c) => c.nome === 'orientacao');
+  assert.ok(visivel(ori, { consciencia: 'alerta' }, {}) && !visivel(ori, { consciencia: 'sedado' }, {}));
+  assert.equal(camDe({ consciencia: 'vigil' }).aplicavel, true);
 });

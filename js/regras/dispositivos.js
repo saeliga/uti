@@ -40,8 +40,18 @@ export const ROTULOS_CAMPO = {
 export const LADOS = { D: 'Direito', E: 'Esquerdo', NA: 'Não se aplica' };
 export const LUMENS = { 1: '1 (mono)', 2: '2 (duplo)', 3: '3 (triplo)', 4: '4 ou mais' };
 export const CURATIVOS = { filme: 'Filme transparente', gaze: 'Gaze e fita adesiva', filme_clorexidina: 'Filme com gel de clorexidina', outro: 'Outro' };
-// Dias para a troca do curativo (protocolo usual: filme até 7 dias; gaze diária).
-const TROCA_CURATIVO = { filme: 7, filme_clorexidina: 7, gaze: 1 };
+// Curativo contado como na Liga: o dia da aplicação é D1. Filme: D1 a D8 (troca no D8);
+// gaze: D1 e D2. Depois do último dia, o curativo está vencido.
+export const DIAS_CURATIVO = { filme: 8, filme_clorexidina: 8, gaze: 2 };
+
+/** Dia do curativo no padrão da Liga: { n, limite, texto: 'D3/8' } ou null sem data. */
+export function diaCurativo(i, dataTurno) {
+  if (!i?.curativoData || !dataTurno) return null;
+  const n = diasEntre(i.curativoData, dataTurno) + 1;
+  if (n < 1) return null;
+  const limite = DIAS_CURATIVO[i.curativoTipo] || null;
+  return { n, limite, texto: `D${n}${limite ? `/${limite}` : ''}` };
+}
 export const SITIO = { sem_alteracoes: 'Sem alterações', hiperemia: 'Hiperemia', secrecao: 'Secreção purulenta', dor: 'Dor à palpação', edema: 'Edema', sangramento: 'Sangramento' };
 
 export const ativo = (i) => !!i?.tipo && !i.retirada;
@@ -74,9 +84,10 @@ export function alertasDispositivo(i, dataTurno) {
   if (def.curativo) {
     if (!i.curativoTipo || !i.curativoData) a.push({ nivel: 'medio', texto: 'curativo sem registro de tipo e data' });
     else {
-      const limite = TROCA_CURATIVO[i.curativoTipo];
-      const d = diasEntre(i.curativoData, dataTurno);
-      if (limite && d != null && d >= limite) a.push({ nivel: 'alto', texto: `curativo (${CURATIVOS[i.curativoTipo].toLowerCase()}) aplicado há ${d} dia(s): troca vencida` });
+      const dc = diaCurativo(i, dataTurno);
+      const tipo = CURATIVOS[i.curativoTipo].toLowerCase();
+      if (dc?.limite && dc.n === dc.limite) a.push({ nivel: 'medio', texto: `curativo (${tipo}) no ${dc.texto}: trocar hoje` });
+      else if (dc?.limite && dc.n > dc.limite) a.push({ nivel: 'alto', texto: `curativo (${tipo}) no D${dc.n}: troca vencida (limite D${dc.limite})` });
     }
   }
   const alterado = (i.sitio || []).filter((s) => s !== 'sem_alteracoes');
@@ -90,7 +101,10 @@ export function textoDispositivo(i, dataTurno) {
   const partes = [rotuloDispositivo(i)];
   if (i.insercao) partes.push(`inserção ${formatarData(i.insercao)} (${contagemDia(i.insercao, dataTurno)})`);
   if (i.implantadoUti === 'nao') partes.push('implantado fora da UTI');
-  if (def.curativo && i.curativoTipo) partes.push(`curativo ${CURATIVOS[i.curativoTipo].toLowerCase()}${i.curativoData ? ` aplicado em ${formatarData(i.curativoData)}` : ''}`);
+  if (def.curativo && i.curativoTipo) {
+    const dc = diaCurativo(i, dataTurno);
+    partes.push(`curativo ${CURATIVOS[i.curativoTipo].toLowerCase()}${i.curativoData ? ` aplicado em ${formatarData(i.curativoData)}` : ''}${dc ? ` (${dc.texto})` : ''}`);
+  }
   if (def.sitio && i.sitio?.length) partes.push(`sítio: ${i.sitio.map((s) => SITIO[s].toLowerCase()).join(', ')}`);
   if (def.debito && (i.volume || i.aspecto)) partes.push(`débito ${i.volume ? `${String(i.volume).replace('.', ',')} mL` : 'não medido'}${i.aspecto ? `, aspecto ${i.aspecto}` : ''}`);
   if (i.necessario) partes.push(`necessário: ${i.necessario === 'sim' ? 'sim' : 'não'}`);
