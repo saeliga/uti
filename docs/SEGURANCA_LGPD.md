@@ -42,6 +42,8 @@ Revisão feita em 17/10/2026, na versão 0.7.0. Este texto é técnico e serve d
 
 **Para valer, publique o `firestore.rules` novo e a nova versão do Apps Script (`Codigo.gs`) antes do merge.**
 
+**Saída desfeita (0.12.0):** uma saída registrada por engano pode ser desfeita (enfermeiro da unidade em até 24 h; administrador sem prazo), com motivo obrigatório; a saída original não é apagada, fica no histórico da internação e na auditoria. O leito guarda o nome do último paciente que saiu, visível só para a equipe da unidade, até a próxima saída daquele leito.
+
 **Fotos das lesões (0.11.0):** guardadas no Firestore (São Paulo), reduzidas e sem metadados do arquivo; incluídas só por quem tem o paciente na sua UTI; vistas pela equipe da unidade (e pela da unidade atual, se transferido); nunca apagadas por enfermeiro (exclusão com motivo, registrada); cada abertura vai para a auditoria. Fora da pesquisa do mestrado. Depende de termo de consentimento para registro fotográfico (a confirmar com o DPO). Desde a 0.11.1, a foto do dia também vai para o prontuário (PEP) junto com a evolução copiada, e pode ser enviada de uma foto já tirada: nesse caso, a cópia que ficou no aparelho deve ser apagada depois do envio.
 
 **Revisão de 18/10/2026 (0.10.0), nas regras:**

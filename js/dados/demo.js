@@ -7,6 +7,7 @@ import { ErroSistema } from './erros.js';
 import { idPaciente, resumoParaLeito } from '../regras/validacao.js';
 import { agoraLocalISO, somarDias, hojeISO } from '../regras/datas.js';
 import { diaAssistencial, diaAnterior, idEvolucao } from '../regras/turnos.js';
+import { podeDesfazerSaida, historicoAposReversao, validarReversao } from '../regras/saidas.js';
 
 export const modo = 'demo';
 
@@ -232,9 +233,35 @@ export async function encerrarInternacao(id, desfecho) {
   await espera(200);
   const i = ativa(id);
   i.historicoLeitos[i.historicoLeitos.length - 1].ate = desfecho.dataHora;
-  Object.assign(leitos[i.leitoId], { internacaoId: null, resumo: null });
-  Object.assign(i, { status: 'encerrada', desfecho: { ...desfecho, registradoPor: USUARIO.uid }, versao: i.versao + 1 });
+  const registradoEm = new Date().toISOString();
+  Object.assign(leitos[i.leitoId], { internacaoId: null, resumo: null,
+    ultimaSaida: { internacaoId: id, nome: i.paciente?.nome || '', tipo: desfecho.tipo, dataHora: desfecho.dataHora, registradoEm } });
+  Object.assign(i, { status: 'encerrada', desfecho: { ...desfecho, registradoPor: USUARIO.uid, registradoEm }, versao: i.versao + 1 });
   auditar('desfecho', { internacaoId: id });
+  notificar();
+}
+export async function reverterSaida(id, { leitoId, motivo, porNome, admin = false }) {
+  await espera(200);
+  if (Object.keys(validarReversao({ leitoId, motivo })).length) throw new ErroSistema('dados_invalidos');
+  const i = internacoes[id];
+  if (!i) throw new ErroSistema('internacao_inexistente');
+  if (i.status === 'ativa') throw new ErroSistema('saida_ja_desfeita');
+  if (!podeDesfazerSaida(i.desfecho?.registradoEm, { admin })) throw new ErroSistema('saida_fora_prazo');
+  if (Object.entries(internacoes).some(([k, x]) => k !== id && x.pacienteId === i.pacienteId && x.historicoLeitos[0].de > i.historicoLeitos[0].de)) throw new ErroSistema('saida_readmitido');
+  const l = leitos[leitoId];
+  if (!l) throw new ErroSistema('leito_inexistente');
+  if (l.unidade !== i.unidade) throw new ErroSistema('saida_outra_unidade');
+  if (l.internacaoId) throw new ErroSistema('leito_ocupado');
+  if (l.bloqueado) throw new ErroSistema('leito_bloqueado');
+  const quando = agoraLocalISO();
+  i.historicoLeitos = historicoAposReversao(i.historicoLeitos, leitoId, l.unidade, quando);
+  i.saidasRevertidas = [...(i.saidasRevertidas || []), { desfecho: clone(i.desfecho), motivo: motivo.trim(), revertidoPor: USUARIO.uid, revertidoPorNome: porNome || null, revertidoEm: quando, leitoId }];
+  if (leitoId !== i.leitoId && leitos[i.leitoId]?.ultimaSaida?.internacaoId === id) leitos[i.leitoId].ultimaSaida = null;
+  const evDia = evolucoes[idEvolucao(id, diaAssistencial())];
+  if (evDia) evDia.leitoId = leitoId;
+  Object.assign(i, { status: 'ativa', desfecho: null, leitoId, versao: i.versao + 1 });
+  Object.assign(l, { internacaoId: id, resumo: resumoParaLeito(i), ultimaSaida: null });
+  auditar('saida_desfeita', { internacaoId: id, motivo: motivo.trim() });
   notificar();
 }
 

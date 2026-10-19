@@ -6,6 +6,8 @@ import { FIREBASE_CONFIG, ADMIN_INICIAL, DOMINIO_INSTITUCIONAL } from '../config
 import { ErroSistema, traduzirErro } from './erros.js';
 import { idPaciente, resumoParaLeito } from '../regras/validacao.js';
 import { diaAssistencial, idEvolucao } from '../regras/turnos.js';
+import { podeDesfazerSaida, historicoAposReversao, validarReversao } from '../regras/saidas.js';
+import { agoraLocalISO } from '../regras/datas.js';
 
 const V = '10.14.1';
 const CDN = `https://www.gstatic.com/firebasejs/${V}`;
@@ -343,11 +345,65 @@ export async function encerrarInternacao(id, desfecho) {
       const { ref, i } = await lerAtiva(tx, id);
       const hist = i.historicoLeitos.map((h, k, arr) => (k === arr.length - 1 ? { ...h, ate: desfecho.dataHora } : h));
       tx.update(ref, {
-        status: 'encerrada', desfecho: { ...desfecho, registradoPor: uid() }, historicoLeitos: hist,
+        status: 'encerrada', desfecho: { ...desfecho, registradoPor: uid(), registradoEm: agora() }, historicoLeitos: hist,
         atualizadoEm: agora(), atualizadoPor: uid(), versao: i.versao + 1,
       });
-      tx.update(F.doc(db, 'leitos', i.leitoId), { internacaoId: null, resumo: null, atualizadoEm: agora(), atualizadoPor: uid() });
+      // O leito guarda a última saída por um tempo, para dar para desfazer se foi por engano.
+      tx.update(F.doc(db, 'leitos', i.leitoId), {
+        internacaoId: null, resumo: null, atualizadoEm: agora(), atualizadoPor: uid(),
+        ultimaSaida: { internacaoId: id, nome: i.paciente?.nome || '', tipo: desfecho.tipo, dataHora: desfecho.dataHora, registradoEm: agora() },
+      });
       auditoria(tx, 'desfecho', { internacaoId: id, tipo: desfecho.tipo, unidade: i.unidade });
+    }),
+  );
+}
+
+/**
+ * Desfaz uma saída registrada por engano: a internação volta a ficar ativa num leito livre
+ * da mesma UTI. Enfermeiro: até 24 h depois do registro; administrador: sem prazo.
+ * Não funciona se o paciente já foi readmitido depois (há internação mais nova).
+ */
+export async function reverterSaida(id, { leitoId, motivo, porNome, admin = false }) {
+  const erros = validarReversao({ leitoId, motivo });
+  if (Object.keys(erros).length) throw new ErroSistema('dados_invalidos');
+  return executar(() =>
+    F.runTransaction(db, async (tx) => {
+      const ref = F.doc(db, 'internacoes', id);
+      const s = await tx.get(ref);
+      if (!s.exists()) throw new ErroSistema('internacao_inexistente');
+      const i = s.data();
+      if (i.status === 'ativa') throw new ErroSistema('saida_ja_desfeita');
+      if (!podeDesfazerSaida(i.desfecho?.registradoEm, { admin })) throw new ErroSistema('saida_fora_prazo');
+      const ps = await tx.get(F.doc(db, 'pacientes', i.pacienteId));
+      if (ps.exists() && ps.data().ultimaInternacaoId && ps.data().ultimaInternacaoId !== id) throw new ErroSistema('saida_readmitido');
+      const lRef = F.doc(db, 'leitos', leitoId);
+      const ls = await tx.get(lRef);
+      if (!ls.exists()) throw new ErroSistema('leito_inexistente');
+      const l = ls.data();
+      if (l.unidade !== i.unidade) throw new ErroSistema('saida_outra_unidade');
+      if (l.internacaoId) throw new ErroSistema('leito_ocupado');
+      if (l.bloqueado) throw new ErroSistema('leito_bloqueado');
+      const origemRef = F.doc(db, 'leitos', i.leitoId);
+      const origem = leitoId === i.leitoId ? null : await tx.get(origemRef);
+      const evRef = F.doc(db, 'evolucoes', idEvolucao(id, diaAssistencial()));
+      const evDia = leitoId === i.leitoId ? null : await tx.get(evRef);
+      const quando = agoraLocalISO();
+      const { registradoEm, ...desfechoAnterior } = i.desfecho || {};
+      const registro = {
+        desfecho: { ...desfechoAnterior, registradoEm: registradoEm?.toDate ? registradoEm.toDate().toISOString() : registradoEm || '' },
+        motivo: motivo.trim(), revertidoPor: uid(), revertidoPorNome: porNome || null, revertidoEm: quando, leitoId,
+      };
+      tx.update(ref, {
+        status: 'ativa', desfecho: null, leitoId,
+        historicoLeitos: historicoAposReversao(i.historicoLeitos, leitoId, l.unidade, quando),
+        saidasRevertidas: [...(i.saidasRevertidas || []), registro],
+        atualizadoEm: agora(), atualizadoPor: uid(), versao: i.versao + 1,
+      });
+      tx.update(lRef, { internacaoId: id, resumo: resumoParaLeito({ ...i, leitoId }), ultimaSaida: null, atualizadoEm: agora(), atualizadoPor: uid() });
+      // O leito de origem (se o paciente voltou para outro) deixa de oferecer o "desfazer".
+      if (origem?.exists() && origem.data().ultimaSaida?.internacaoId === id) tx.update(origemRef, { ultimaSaida: null, atualizadoEm: agora(), atualizadoPor: uid() });
+      if (evDia?.exists()) tx.update(evRef, { leitoId, atualizadoPor: uid(), atualizadoEm: agora(), atualizadoNo: DISPOSITIVO });
+      auditoria(tx, 'saida_desfeita', { internacaoId: id, tipo: desfechoAnterior.tipo || '', leitoId, unidade: i.unidade, motivo: motivo.trim() });
     }),
   );
 }
