@@ -82,7 +82,7 @@ export function nomeProfissional(autor) {
 }
 
 /** Campos do cabeçalho da folha (mesmos rótulos da prescrição médica, no que se aplica). */
-export function camposPrescricao(internacao, ev, { leitoNum, unidadeNome = '', data }) {
+export function camposPrescricao(internacao, ev, { leitoNum, unidadeNome = '', data, quemImprime } = {}) {
   const id = camposIdentificacao(internacao, leitoNum);
   const nasc = internacao.paciente?.dataNascimento;
   return {
@@ -90,7 +90,8 @@ export function camposPrescricao(internacao, ev, { leitoNum, unidadeNome = '', d
     nascimento: nasc ? `${formatarData(nasc)} (${idadeEm(nasc, data)} anos)` : '',
     setor: unidadeNome,
     leito: leitoNum ? `LEITO ${leitoNum}` : '',
-    profissional: nomeProfissional(ev?.finalizadoPorNome),
+    // Evolução ainda não finalizada: sai o nome de quem está imprimindo (e assina).
+    profissional: nomeProfissional(ev?.finalizadoPorNome || quemImprime),
     data: formatarData(data),
     validade: formatarData(somarDias(data, 1)),
     alergias: id.alergias,

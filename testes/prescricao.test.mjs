@@ -72,5 +72,8 @@ test('cabeçalho: validade no dia seguinte, idade e enfermeiro com Coren', () =>
   assert.equal(c.alergias, 'DIPIRONA');
   assert.equal(c.leito, 'LEITO 03');
   assert.equal(nomeProfissional('Fulano'), 'Fulano');
+  const rascunho = camposPrescricao(internacao, { status: 'rascunho' }, { leitoNum: '03', data: '2026-12-31', quemImprime: { nome: 'Bia', coren: '111' } });
+  assert.equal(rascunho.profissional, 'Bia (Coren 111)', 'antes de finalizar: quem imprime');
+  assert.equal(camposPrescricao(internacao, { finalizadoPorNome: { nome: 'Ana', coren: '999' } }, { data: '2026-12-31', quemImprime: { nome: 'Bia' } }).profissional, 'Ana (Coren 999)', 'finalizada: quem finalizou');
   assert.equal(siglaResponsavel('Enfermeiro (pós-graduado)'), 'ENF');
 });

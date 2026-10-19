@@ -139,11 +139,18 @@ service cloud.firestore {
       // Listar o cadastro inteiro de pacientes não é permitido a ninguém (minimização, LGPD).
       allow get: if clinico();
       allow list: if false;
+      // O cadastro só muda junto com uma internação ativa deste paciente numa unidade
+      // do usuário (admissão ou correção, na mesma transação): quem não tem o paciente
+      // internado na sua UTI não altera os dados dele.
       allow create, update: if clinico()
-        && request.resource.data.keys().hasOnly(['nome', 'dataNascimento', 'registro', 'convenio', 'atualizadoEm', 'atualizadoPor'])
+        && request.resource.data.keys().hasOnly(['nome', 'dataNascimento', 'registro', 'convenio', 'ultimaInternacaoId', 'atualizadoEm', 'atualizadoPor'])
         && request.resource.data.nome is string && request.resource.data.nome.size() <= 150
         && request.resource.data.registro is string && request.resource.data.registro.size() <= 30
         && (resource == null || request.resource.data.registro == resource.data.registro)
+        && request.resource.data.ultimaInternacaoId is string
+        && getAfter(caminho('internacoes', request.resource.data.ultimaInternacaoId)).data.pacienteId == pacienteId
+        && getAfter(caminho('internacoes', request.resource.data.ultimaInternacaoId)).data.status == 'ativa'
+        && naUnidade(getAfter(caminho('internacoes', request.resource.data.ultimaInternacaoId)).data.unidade)
         && autoria();
       allow delete: if false;
     }
@@ -193,7 +200,11 @@ service cloud.firestore {
       function caminhoVersao(v) { return /databases/$(database)/documents/evolucoes/$(id)/versoes/$(v); }
 
       // resource == null: consultar se a evolução de um dia já existe (não revela nada).
-      allow read: if ativo() && (resource == null || naUnidade(resource.data.unidade));
+      // Uma evolução também pode ser lida pela equipe da unidade onde o paciente está
+      // agora (paciente transferido de UTI: histórico, herança e evolução da admissão).
+      allow get: if ativo() && (resource == null || naUnidade(resource.data.unidade)
+        || naUnidade(internacao(resource.data.internacaoId).unidade));
+      allow list: if ativo() && naUnidade(resource.data.unidade);
 
       allow create: if clinico() && naUnidade(d().unidade)
         && id == d().internacaoId + '_' + d().data
@@ -204,16 +215,27 @@ service cloud.firestore {
         && internacao(d().internacaoId).status == 'ativa'
         && internacao(d().internacaoId).unidade == d().unidade;
 
+      function mudou() { return request.resource.data.diff(resource.data).affectedKeys(); }
       allow update: if clinico() && naUnidade(resource.data.unidade)
-        && inalterados(['internacaoId', 'unidade', 'leitoId', 'data', 'turnoInicio', 'criadoPor', 'criadoEm'])
+        && inalterados(['internacaoId', 'data', 'turnoInicio', 'criadoPor', 'criadoEm'])
         && autoria()
         && (
-          // (1) edição do rascunho
-          (resource.data.status == 'rascunho' && d().status == 'rascunho' && d().versao == resource.data.versao)
+          // (0) troca de leito do paciente (mesma transação da internação): só unidade e leito mudam
+          (mudou().hasOnly(['unidade', 'leitoId', 'atualizadoEm', 'atualizadoPor', 'atualizadoNo'])
+            && naUnidade(d().unidade)
+            && getAfter(caminho('internacoes', resource.data.internacaoId)).data.leitoId == d().leitoId
+            && getAfter(caminho('internacoes', resource.data.internacaoId)).data.unidade == d().unidade)
+          ||
+          // Nos demais casos, unidade e leito não mudam.
+          (inalterados(['unidade', 'leitoId']) && (
+          // (1) edição do rascunho: só os dados, as confirmações e o carimbo de atualização
+          (resource.data.status == 'rascunho' && d().status == 'rascunho' && d().versao == resource.data.versao
+            && mudou().hasOnly(['dados', 'confirmados', 'atualizadoEm', 'atualizadoPor', 'atualizadoNo']))
           ||
           // (2) finalização (autor e hora do servidor)
           (resource.data.status == 'rascunho' && d().status == 'finalizada' && d().versao == resource.data.versao
-            && d().finalizadoPor == request.auth.uid && d().finalizadoEm == request.time)
+            && d().finalizadoPor == request.auth.uid && d().finalizadoEm == request.time
+            && mudou().hasOnly(['status', 'finalizadoPor', 'finalizadoPorNome', 'finalizadoEm', 'finalizadoEmTexto', 'pendenciasAutomaticas', 'atualizadoEm', 'atualizadoPor', 'atualizadoNo']))
           ||
           // (3) marcar como transcrita ao PEP (só esse campo muda)
           (resource.data.status == 'finalizada' && d().status == 'finalizada'
@@ -223,14 +245,16 @@ service cloud.firestore {
           // (4) retificação: versão anterior guardada na mesma operação
           (resource.data.status == 'finalizada' && d().status == 'rascunho' && d().versao == resource.data.versao + 1
             && d().retificacao.por == request.auth.uid
+            && mudou().hasOnly(['status', 'versao', 'retificacao', 'atualizadoEm', 'atualizadoPor', 'atualizadoNo'])
             && existsAfter(caminhoVersao(string(resource.data.versao))))
+          ))
         );
 
       allow delete: if false;
 
       match /versoes/{v} {
         function evolucao() { return get(/databases/$(database)/documents/evolucoes/$(id)).data; }
-        allow read: if naUnidade(evolucao().unidade);
+        allow read: if naUnidade(evolucao().unidade) || naUnidade(internacao(evolucao().internacaoId).unidade);
         // A versão guardada tem de ser cópia fiel da evolução finalizada (não dá para forjar).
         allow create: if clinico() && naUnidade(evolucao().unidade)
           && evolucao().status == 'finalizada' && v == string(evolucao().versao)

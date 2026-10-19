@@ -2,7 +2,7 @@
 
 import { backend } from '../dados/backend.js';
 import { MODO_DEMO } from '../config.js';
-import { h, limpar, campo, lerFormulario, mostrarErros, abrirJanela, confirmar, aviso } from './ui.js';
+import { h, limpar, campo, lerFormulario, mostrarErros, abrirJanela, confirmar, aviso, anexar } from './ui.js';
 import { limparCache } from '../api/catalogo.js';
 
 const SAIR_GOOGLE_URL = 'https://accounts.google.com/Logout';
@@ -83,9 +83,13 @@ export function telaEntrada(raiz) {
       btn.disabled = false;
     }
   });
-  limpar(raiz).append(h('main', { class: 'acesso' }, h('div', { class: 'acesso-cartao' },
+  // Na última saída, os dados guardados no aparelho não puderam ser apagados (sistema aberto em outra aba).
+  let cacheNaoApagado = false;
+  try { cacheNaoApagado = localStorage.getItem('uti_cache_nao_apagado') === '1'; localStorage.removeItem('uti_cache_nao_apagado'); } catch { /* sem armazenamento */ }
+  anexar(limpar(raiz), h('main', { class: 'acesso' }, h('div', { class: 'acesso-cartao' },
     cabecalhoAcesso(),
     MODO_DEMO && h('div', { class: 'faixa-demo' }, 'MODO DEMONSTRAÇÃO — dados fictícios. Clique em "Entrar com Google" (não abre o Google).'),
+    cacheNaoApagado && h('div', { class: 'caixa caixa-atencao' }, 'Atenção: o sistema estava aberto em outra aba e os dados guardados neste aparelho não foram apagados ao sair. Feche as outras abas do sistema, entre e saia de novo.'),
     h('div', { class: 'acesso-form' },
       btn,
       erro,

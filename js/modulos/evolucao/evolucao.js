@@ -72,6 +72,9 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   const formularios = {};
   const timers = {};
   const editadoEm = {};
+  // Subblocos alterados neste aparelho e ainda não confirmados pelo servidor (o número
+  // muda a cada edição: uma gravação antiga não "limpa" uma edição mais nova).
+  const sujos = {};
   let pendentes = 0;
   let blocoAtual = sessionStorage.getItem(`bloco_${id}`) || 'b2';
 
@@ -217,8 +220,14 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
       indicador.textContent = `Não salvo: ${erro}`;
     }
   }
+  function gravar(subId) {
+    const marca = sujos[subId];
+    return backend.salvarSubbloco(id, subId, formularios[subId].dados(), ev.confirmados?.[subId] || null)
+      .then(() => { if (sujos[subId] === marca) delete sujos[subId]; });
+  }
   function agendarSalvar(subId, imediato = false) {
     editadoEm[subId] = Date.now();
+    sujos[subId] = (sujos[subId] || 0) + 1;
     clearTimeout(timers[subId]);
     const salvar = () => {
       marcarSalvando();
@@ -226,8 +235,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         indicador.className = 'salvamento offline';
         indicador.textContent = 'Salvo neste aparelho · ainda não sincronizado';
       }
-      backend.salvarSubbloco(id, subId, formularios[subId].dados(), ev.confirmados?.[subId] || null)
-        .then(() => marcarSalvo(true), (e) => marcarSalvo(false, e.message));
+      gravar(subId).then(() => marcarSalvo(true), (e) => marcarSalvo(false, e.message));
     };
     if (imediato) salvar(); else timers[subId] = setTimeout(salvar, 700);
   }
@@ -401,7 +409,9 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     for (const sid of Object.keys(timers)) clearTimeout(timers[sid]);
     const prazo = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('sem_conexao')), ms))]);
     try {
-      await prazo(Promise.all(Object.keys(formularios).map((sid) => backend.salvarSubbloco(id, sid, formularios[sid].dados(), ev.confirmados?.[sid] || null))), 10000);
+      // Grava só o que foi alterado NESTE aparelho: regravar tudo apagaria o que outro
+      // enfermeiro registrou ao mesmo tempo em outros subblocos.
+      await prazo(Promise.all(Object.keys(sujos).filter((sid) => formularios[sid]).map(gravar)), 10000);
       await prazo(backend.finalizarEvolucao(id, { autor: autor(), pendenciasAutomaticas: pendenciasAutomaticas(atual), emTexto: formatarDataHora(agoraLocalISO()) }), 10000);
       aviso('Evolução finalizada. Agora copie para o PEP.', 'ok');
       sessionStorage.setItem(`bloco_${id}`, 'fim');
@@ -452,7 +462,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
 
   async function imprimirPrescricao() {
     const m = await import('../../impressos/impressos.js');
-    m.imprimirFolhas([m.folhaPrescricao(internacao, evolucaoAtual(), { leitoNum, unidadeNome, data: ev.data })], { unidade: ev.unidade, internacaoId: internacao.id });
+    m.imprimirFolhas([m.folhaPrescricao(internacao, evolucaoAtual(), { leitoNum, unidadeNome, data: ev.data, quemImprime: autor() })], { unidade: ev.unidade, internacaoId: internacao.id });
   }
 
   function imprimir() {
@@ -522,15 +532,18 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
       indicador.textContent = `✓ Sincronizado às ${horaAgora()}`;
     }
     if (meta.deOutroAparelho) {
-      const recente = Object.values(editadoEm).some((t) => Date.now() - t < 4000);
       if (statusMudou) {
         avisoOutro.hidden = false;
         avisoOutro.replaceChildren('Esta evolução mudou de situação em outro aparelho. ', h('button', { class: 'btn btn-pequeno', type: 'button', onclick: redesenhar }, 'Atualizar'));
-      } else if (!recente) {
-        // Atualiza os subblocos que este aparelho não está editando.
+      } else {
+        // Atualiza os subblocos que este aparelho NÃO está editando (cada um por si:
+        // digitar no exame físico não impede de receber o PE feito por outro colega).
         for (const [sid, f] of Object.entries(formularios)) {
+          const emEdicao = sujos[sid] || Date.now() - (editadoEm[sid] || 0) < 4000
+            || corpo.querySelector(`[data-sub="${sid}"]`)?.contains(document.activeElement);
+          if (emEdicao) continue;
           const remoto = JSON.stringify(novo.dados?.[sid] || {});
-          if (remoto !== JSON.stringify(f.dados()) && !corpo.querySelector(`[data-sub="${sid}"]`)?.contains(document.activeElement)) {
+          if (remoto !== JSON.stringify(f.dados())) {
             f.definirDados(novo.dados?.[sid] || {});
             atualizarEstadoSub(sid);
           }
@@ -575,7 +588,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     // Ao sair da tela, envia o que estiver aguardando.
     for (const [sid, t] of Object.entries(timers)) {
       clearTimeout(t);
-      if (Date.now() - (editadoEm[sid] || 0) < 800) backend.salvarSubbloco(id, sid, formularios[sid].dados(), ev.confirmados?.[sid] || null).catch(() => {});
+      if (sujos[sid]) gravar(sid).catch(() => {});
     }
     parar?.();
     window.removeEventListener('beforeunload', antesDeSair);

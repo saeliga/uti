@@ -222,6 +222,9 @@ export async function transferirLeito(id, destino, dataHora = agoraLocalISO()) {
   Object.assign(leitos[i.leitoId], { internacaoId: null, resumo: null });
   Object.assign(d, { internacaoId: id, resumo: resumoParaLeito(i) });
   Object.assign(i, { leitoId: destino, unidade: d.unidade, versao: i.versao + 1 });
+  // A evolução do dia acompanha o paciente (igual ao Firebase).
+  const evDia = evolucoes[idEvolucao(id, diaAssistencial())];
+  if (evDia) Object.assign(evDia, { unidade: d.unidade, leitoId: destino });
   auditar('transferencia_leito', { internacaoId: id });
   notificar();
 }
@@ -351,8 +354,12 @@ export async function lerChecklistIras(id) {
   await espera(60);
   return checklistsIras[id] ? { id, ...clone(checklistsIras[id]) } : null;
 }
-export async function salvarChecklistIras(id, dados) {
-  checklistsIras[id] = { ...clone(dados), atualizadoPor: USUARIO.uid };
+export async function salvarChecklistIras(id, dados, { leitos, novo } = {}) {
+  const atual = checklistsIras[id];
+  if (atual && !novo && leitos?.length) {
+    for (const n of leitos) atual.respostas[n] = clone(dados.respostas[n] || {});
+    atual.enfermeiro = dados.enfermeiro;
+  } else checklistsIras[id] = { ...clone(dados), respostas: { ...(atual?.respostas || {}), ...clone(dados.respostas) }, atualizadoPor: USUARIO.uid };
   return espera(120);
 }
 

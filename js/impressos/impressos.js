@@ -208,8 +208,8 @@ export function folhaCapa(unidade, data, { observacoes = '', reservas = [] } = {
  * cabeçalho repetido em cada página, itens numerados com frequência, responsável
  * e os horários marcados nas 24 colunas (07 às 06), observação abaixo do item.
  */
-export function folhaPrescricao(internacao, ev, { leitoNum, unidadeNome, data }) {
-  const c = camposPrescricao(internacao, ev, { leitoNum, unidadeNome, data });
+export function folhaPrescricao(internacao, ev, { leitoNum, unidadeNome, data, quemImprime }) {
+  const c = camposPrescricao(internacao, ev, { leitoNum, unidadeNome, data, quemImprime });
   const { grupos, diagnosticos } = itensPrescricao(ev?.dados?.sae);
   const ncol = 3 + HORAS.length;
   const campo = (rot, val, cls = '') => `<div class="${cls}"><b>${rot}:</b> <span>${esc(val || '')}</span></div>`;

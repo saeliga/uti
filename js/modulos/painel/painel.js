@@ -72,7 +72,7 @@ function desenhar(conteudo, unidade, leitos, evolucoes, dia) {
       h('strong', {}, `Evoluções do ${rotuloDia(dia).toLowerCase()}`), ' (07h às 07h): ',
       faltam ? `${faltam} de ${ocupados.length} a concluir` : 'todas finalizadas',
       semPEP ? ` · ${semPEP} a copiar ao PEP` : '') : null,
-    h('div', { class: 'grade-leitos' }, leitos.map((l) => cartao(l, unidade, evolucoes[l.internacaoId]))));
+    h('div', { class: 'grade-leitos' }, leitos.map((l) => cartao(l, unidade, evolucoes[l.internacaoId], dia))));
   window.scrollTo(0, rolagem);
 }
 
@@ -88,17 +88,18 @@ function chipIsolamento(iso) {
   return h('span', { class: 'chip chip-isolamento' }, 'Isolamento: ', ISOLAMENTOS[iso.tipo]?.replace(/ \(.*\)$/, '') || iso.tipo);
 }
 
-function cartao(l, unidade, ev) {
+function cartao(l, unidade, ev, dia) {
   const rotulo = `Leito ${l.numero}`;
   if (l.internacaoId && l.resumo) {
     const r = l.resumo;
+    // Dia de UTI pelo dia assistencial (vira às 07h), igual à evolução; idade pelo calendário.
     const hoje = hojeISO();
     const sit = situacaoEvolucao(ev);
     return h('div', { class: `leito leito-ocupado sit-borda-${sit}` },
       h('button', { class: 'leito-abrir', type: 'button', 'aria-label': `${rotulo}, ${r.nome}: abrir dados da internação`, onclick: () => abrirDetalhe(l, unidade) },
         h('div', { class: 'leito-topo' },
           h('span', { class: 'leito-num' }, rotulo),
-          h('span', { class: 'leito-dia', title: 'Dias de UTI (admissão = D0)' }, `UTI ${contagemDia(r.admissaoUti, hoje)}`)),
+          h('span', { class: 'leito-dia', title: 'Dias de UTI (admissão = D0)' }, `UTI ${contagemDia(r.admissaoUti, dia || hoje)}`)),
         h('div', { class: 'leito-nome' }, r.nome),
         h('div', { class: 'leito-ident' }, `${idade(r.dataNascimento, hoje)} anos · Reg. ${r.registro}`),
         h('div', { class: 'leito-diag' }, r.diagnosticoMedico),
