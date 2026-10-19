@@ -9,7 +9,8 @@ rules_version = '2';
 // - Login somente com conta Google institucional (@liga.org.br).
 // - Só usuário cadastrado, aprovado (ativo) e da unidade lê dados clínicos.
 // - Ninguém altera o próprio perfil; só administrador aprova e muda perfis.
-// - Internação encerrada não muda mais. Nada clínico é apagado.
+// - Internação encerrada não muda mais, exceto para desfazer uma saída registrada por engano
+//   (até 24 h pelo enfermeiro; sem prazo pelo administrador), com motivo. Nada clínico é apagado.
 // - Leito e internação só mudam juntos e de forma coerente (transação).
 // - Auditoria só recebe inclusões, com autor e hora do servidor.
 // =============================================================================
@@ -91,7 +92,18 @@ service cloud.firestore {
     match /leitos/{leitoId} {
       function camposLeito() {
         return request.resource.data.keys().hasOnly(
-          ['unidade', 'numero', 'internacaoId', 'resumo', 'bloqueado', 'bloqueio', 'atualizadoEm', 'atualizadoPor']);
+          ['unidade', 'numero', 'internacaoId', 'resumo', 'bloqueado', 'bloqueio', 'ultimaSaida', 'atualizadoEm', 'atualizadoPor']);
+      }
+      // Última saída (para desfazer por engano): só é gravada ao encerrar a internação que
+      // estava no leito; depois só pode ficar como está ou ser limpa.
+      function ultimaSaidaOk() {
+        return request.resource.data.get('ultimaSaida', null) == resource.data.get('ultimaSaida', null)
+          || request.resource.data.get('ultimaSaida', null) == null
+          || (resource.data.internacaoId != null && request.resource.data.internacaoId == null
+            && request.resource.data.ultimaSaida.keys().hasOnly(['internacaoId', 'nome', 'tipo', 'dataHora', 'registradoEm'])
+            && request.resource.data.ultimaSaida.internacaoId == resource.data.internacaoId
+            && request.resource.data.ultimaSaida.registradoEm == request.time
+            && internacaoDepois(resource.data.internacaoId).status == 'encerrada');
       }
       function internacaoDepois(id) { return getAfter(caminho('internacoes', id)).data; }
 
@@ -106,7 +118,7 @@ service cloud.firestore {
       allow delete: if admin() && resource.data.internacaoId == null;
 
       allow update: if clinico() && naUnidade(resource.data.unidade) && camposLeito()
-        && inalterados(['unidade', 'numero']) && autoria()
+        && inalterados(['unidade', 'numero']) && autoria() && ultimaSaidaOk()
         && (
           // (1) Ocupar: leito livre e desbloqueado, internação ativa apontando para ele.
           (resource.data.internacaoId == null && request.resource.data.internacaoId != null
@@ -169,22 +181,45 @@ service cloud.firestore {
         && leitoDepois(d().leitoId).internacaoId == id
         && leitoDepois(d().leitoId).unidade == d().unidade;
 
+      // Desfazer saída por engano: volta a ativa num leito livre da MESMA unidade, com motivo,
+      // só se o paciente não foi readmitido depois. Enfermeiro: até 24 h do registro da saída.
+      function ultimaReversao() { return d().saidasRevertidas[d().saidasRevertidas.size() - 1]; }
+      function desfazSaida() {
+        return resource.data.status == 'encerrada' && d().status == 'ativa' && d().desfecho == null
+          && d().unidade == resource.data.unidade
+          && d().diff(resource.data).affectedKeys().hasOnly(
+               ['status', 'desfecho', 'leitoId', 'historicoLeitos', 'saidasRevertidas', 'versao', 'atualizadoEm', 'atualizadoPor'])
+          && d().saidasRevertidas is list
+          && d().saidasRevertidas.size() == resource.data.get('saidasRevertidas', []).size() + 1
+          && ultimaReversao().motivo is string
+          && ultimaReversao().motivo.size() >= 10 && ultimaReversao().motivo.size() <= 500
+          && ultimaReversao().revertidoPor == request.auth.uid
+          && (admin()
+              || (resource.data.desfecho.get('registradoEm', null) is timestamp
+                  && request.time < resource.data.desfecho.registradoEm + duration.value(24, 'h')))
+          && get(caminho('pacientes', resource.data.pacienteId)).data.get('ultimaInternacaoId', id) == id
+          && leitoDepois(d().leitoId).internacaoId == id
+          && leitoDepois(d().leitoId).unidade == d().unidade;
+      }
+
       allow update: if clinico()
-        && resource.data.status == 'ativa'                       // encerrada não muda mais
         && naUnidade(resource.data.unidade) && naUnidade(d().unidade)
         && inalterados(['pacienteId', 'criadoEm', 'criadoPor'])
         && d().paciente.registro == resource.data.paciente.registro
         && d().versao == resource.data.versao + 1
         && autoria()
         && (
-          (d().status == 'ativa'
+          (resource.data.status == 'ativa' && d().status == 'ativa'
             && leitoDepois(d().leitoId).internacaoId == id
             && leitoDepois(d().leitoId).unidade == d().unidade)
           ||
-          (d().status == 'encerrada' && d().desfecho != null
+          (resource.data.status == 'ativa' && d().status == 'encerrada' && d().desfecho != null
             && d().desfecho.registradoPor == request.auth.uid
+            && d().desfecho.registradoEm == request.time
             && inalterados(['leitoId', 'unidade'])
             && leitoDepois(resource.data.leitoId).internacaoId != id)
+          ||
+          desfazSaida()                                          // fora isso, encerrada não muda mais
         );
 
       allow delete: if false;

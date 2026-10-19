@@ -7,6 +7,7 @@ import { h, abrirJanela, campo, lerFormulario, mostrarErros, aviso, carregando, 
 import { validarPaciente, validarInternacao, validarDesfecho, montarInternacao } from '../../regras/validacao.js';
 import { agoraLocalISO, contagemDia, formatarData, formatarDataHora, hojeISO, idade } from '../../regras/datas.js';
 import { ISOLAMENTOS, ALERGIA_SITUACAO, TIPOS_INTERNACAO, DESFECHOS } from '../../regras/opcoes.js';
+import { PRAZO_DESFAZER_HORAS, MOTIVO_MIN, validarReversao, leitosParaVoltar, podeDesfazerSaida, limiteDesfazer } from '../../regras/saidas.js';
 
 const nomeUnidade = (id) => estado.unidades.find((u) => u.id === id)?.nome || id;
 const secao = (titulo, ...filhos) => h('fieldset', { class: 'secao' }, h('legend', {}, titulo), ...filhos);
@@ -144,10 +145,10 @@ export async function detalheInternacao({ leito, unidade }) {
       linhaInfo('Convênio', i.paciente.convenio),
       linhaInfo('Pulseira de identificação', i.pulseira ? 'Conferida' : 'Não conferida'),
       i.historicoLeitos.length > 1 && linhaInfo('Leitos nesta internação',
-        i.historicoLeitos.map((x) => `${nomeUnidade(x.unidade)} · leito ${x.leitoId.split('_')[1]} desde ${formatarDataHora(x.de)}`).join(' → '))),
+        i.historicoLeitos.map((x) => `${nomeUnidade(x.unidade)} · leito ${x.leitoId.split('_')[1]} desde ${formatarDataHora(x.de)}`).join(' → ')),
+      i.saidasRevertidas?.length ? linhaInfo('Saídas desfeitas',
+        i.saidasRevertidas.map((r) => `${DESFECHOS[r.desfecho?.tipo] || 'Saída'} de ${formatarDataHora(r.desfecho?.dataHora)} desfeita por ${r.revertidoPorNome?.nome || '—'} em ${formatarDataHora(String(r.revertidoEm || '').slice(0, 16))}: ${r.motivo}`).join(' · ')) : null),
     h('a', { class: 'btn btn-primario btn-largo', href: `#/evolucao/${i.id}`, onclick: () => fechar() }, 'Evolução do turno'),
-    h('div', { class: 'detalhe-proximos' },
-      h('p', {}, 'Processo de Enfermagem, prescrição de enfermagem, BH e checklists entram nas próximas entregas.')),
     podeEditar() && h('div', { class: 'detalhe-acoes' },
       h('button', { class: 'btn btn-secundario', type: 'button', onclick: () => { fechar(); formularioInternacao({ leito, unidade, internacao: i }); } }, 'Corrigir dados'),
       h('button', { class: 'btn btn-secundario', type: 'button', onclick: () => { fechar(); trocarLeito(i); } }, 'Trocar de leito'),
@@ -198,7 +199,7 @@ async function trocarLeito(i) {
 
 function registrarSaida(i, leito) {
   const form = h('form', { class: 'formulario' },
-    h('p', {}, `${i.paciente.nome} — leito ${leito.numero}. Depois de registrada, a internação fica encerrada e não pode ser alterada.`),
+    h('p', {}, `${i.paciente.nome} — leito ${leito.numero}. Depois de registrada, a internação fica encerrada. Se for registrada por engano, dá para desfazer em até ${PRAZO_DESFAZER_HORAS} horas pelo painel da UTI.`),
     campo({ nome: 'tipo', rotulo: 'Desfecho', tipo: 'radio', opcoes: DESFECHOS, obrigatorio: true }),
     campo({ nome: 'dataHora', rotulo: 'Data e hora', tipo: 'datetime-local', valor: agoraLocalISO(), obrigatorio: true }),
     campo({ nome: 'destino', rotulo: 'Destino (setor ou instituição)' }));
@@ -222,6 +223,48 @@ function registrarSaida(i, leito) {
           try {
             await backend.encerrarInternacao(i.id, desfecho);
             aviso(`Saída registrada. Leito ${leito.numero} livre.`, 'ok');
+          } catch (e) {
+            aviso(e.message, 'erro', 8000);
+            return false;
+          }
+        },
+      },
+    ],
+  });
+}
+
+/**
+ * Desfazer saída registrada por engano (alta, transferência ou óbito indevidos).
+ * saida: { internacaoId, nome, tipo, dataHora, registradoEm, leitoId } (guardada no leito).
+ */
+export async function desfazerSaida(saida, unidade, leitos) {
+  const admin = estado.perfil?.perfil === 'admin';
+  if (!podeDesfazerSaida(saida.registradoEm, { admin }))
+    return aviso(`Passou o prazo de ${PRAZO_DESFAZER_HORAS} horas para desfazer esta saída. Peça ao administrador do sistema.`, 'atencao', 8000);
+  const livres = leitosParaVoltar(leitos, unidade.id, saida.leitoId);
+  if (!livres.length) return aviso('Não há leito livre e desbloqueado nesta UTI para o paciente voltar. Libere ou desbloqueie um leito primeiro.', 'atencao', 8000);
+  const opcoes = Object.fromEntries(livres.map((l) => [l.id, `Leito ${l.numero}${l.id === saida.leitoId ? ' (o mesmo de antes)' : ''}`]));
+  const form = h('form', { class: 'formulario' },
+    h('p', {}, h('strong', {}, saida.nome || 'Paciente'), ` — ${DESFECHOS[saida.tipo] || 'saída'} registrada para ${formatarDataHora(saida.dataHora)}.`),
+    h('p', { class: 'ajuda' }, 'Use só quando a saída foi registrada por engano (paciente errado, alta suspensa, digitação). A internação volta a ficar ativa, com as evoluções e os dispositivos de antes. A saída desfeita fica registrada na internação e na auditoria.'),
+    !admin && h('p', { class: 'ajuda' }, `Prazo para desfazer: até ${limiteDesfazer(saida.registradoEm)}.`),
+    campo({ nome: 'leitoId', rotulo: 'Voltar para o leito', tipo: 'select', opcoes, valor: livres[0].id, obrigatorio: true }),
+    campo({ nome: 'motivo', rotulo: 'Motivo', tipo: 'textarea', obrigatorio: true, ajuda: `Mínimo de ${MOTIVO_MIN} letras. Ex.: alta suspensa pela equipe médica; saída registrada no paciente errado.` }));
+  abrirJanela({
+    titulo: 'Desfazer saída da UTI',
+    conteudo: form,
+    acoes: [
+      { texto: 'Cancelar', classe: 'btn-secundario' },
+      {
+        texto: 'Desfazer saída', classe: 'btn-primario',
+        aoClicar: async () => {
+          const d = lerFormulario(form);
+          if (!mostrarErros(form, validarReversao(d))) return false;
+          try {
+            await backend.reverterSaida(saida.internacaoId, {
+              leitoId: d.leitoId, motivo: d.motivo, admin, porNome: { nome: estado.perfil?.nome || '', coren: estado.perfil?.coren || '' },
+            });
+            aviso(`Saída desfeita. ${saida.nome || 'Paciente'} de volta ao leito ${opcoes[d.leitoId].replace(/^Leito | \(.*$/g, '')}.`, 'ok');
           } catch (e) {
             aviso(e.message, 'erro', 8000);
             return false;

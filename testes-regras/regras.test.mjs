@@ -257,3 +257,67 @@ test('fotos: paciente transferido — a equipe da UTI nova vê as fotos antigas'
   await assertSucceeds(fotosDaLesao('enf2'));
   await assertSucceeds(getDoc(doc(db('enf2'), 'fotosLesoes', 'f1', 'arquivo', 'imagem')));
 });
+
+// --------------------------------------------------------------------------- desfazer saída
+async function encerrar(uid) {
+  const f = db(uid);
+  return runTransaction(f, async (tx) => {
+    const ref = doc(f, 'internacoes', 'i1');
+    const i = (await tx.get(ref)).data();
+    tx.update(ref, {
+      status: 'encerrada', desfecho: { tipo: 'alta', dataHora: '2026-10-18T10:00', destino: 'ENFERMARIA', registradoPor: uid, registradoEm: serverTimestamp() },
+      historicoLeitos: [{ ...i.historicoLeitos[0], ate: '2026-10-18T10:00' }], versao: i.versao + 1, ...carimbo(uid),
+    });
+    tx.update(doc(f, 'leitos', 'uti1_01'), {
+      internacaoId: null, resumo: null, ...carimbo(uid),
+      ultimaSaida: { internacaoId: 'i1', nome: 'PACIENTE TESTE', tipo: 'alta', dataHora: '2026-10-18T10:00', registradoEm: serverTimestamp() },
+    });
+  });
+}
+function reverter(uid, { leito = 'uti1_01', motivo = 'alta suspensa pela equipe médica' } = {}) {
+  const f = db(uid);
+  return runTransaction(f, async (tx) => {
+    const ref = doc(f, 'internacoes', 'i1');
+    const i = (await tx.get(ref)).data();
+    await tx.get(doc(f, 'leitos', leito));
+    tx.update(ref, {
+      status: 'ativa', desfecho: null, leitoId: leito,
+      historicoLeitos: [{ ...i.historicoLeitos[0], ate: '' }],
+      saidasRevertidas: [{ desfecho: { tipo: 'alta' }, motivo, revertidoPor: uid, revertidoEm: '2026-10-18T11:00', leitoId: leito }],
+      versao: i.versao + 1, ...carimbo(uid),
+    });
+    tx.update(doc(f, 'leitos', leito), { internacaoId: 'i1', resumo: { nome: 'PACIENTE TESTE' }, ultimaSaida: null, ...carimbo(uid) });
+  });
+}
+
+test('desfazer saída por engano: mesma UTI, com motivo, enfermeiro em até 24 h', async () => {
+  await assertSucceeds(encerrar('enf1'));
+  await assertFails(reverter('enf2'), 'outra UTI');
+  await assertFails(reverter('leit1'), 'perfil leitura');
+  await assertFails(reverter('enf1', { motivo: 'erro' }), 'motivo curto');
+  await assertFails(reverter('enf1', { leito: 'uti2_02' }), 'leito de outra UTI');
+  await assertSucceeds(reverter('enf1', { leito: 'uti1_03' }), 'outro leito livre da mesma UTI');
+});
+
+test('desfazer saída: fora do prazo só o administrador; readmitido, ninguém', async () => {
+  await assertSucceeds(encerrar('enf1'));
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), 'internacoes', 'i1'), { 'desfecho.registradoEm': new Date('2026-01-01T00:00:00Z') });
+  });
+  await assertFails(reverter('enf1'), 'passou de 24 h');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), 'pacientes', 'R1'), { ultimaInternacaoId: 'i9' });
+  });
+  await assertFails(reverter('admin'), 'paciente readmitido em outra internação');
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), 'pacientes', 'R1'), { ultimaInternacaoId: 'i1' });
+  });
+  await assertSucceeds(reverter('admin'), 'administrador sem prazo');
+});
+
+test('última saída do leito não pode ser inventada', async () => {
+  await assertFails(updateDoc(doc(db('enf1'), 'leitos', 'uti1_03'), {
+    ultimaSaida: { internacaoId: 'i1', nome: 'X', tipo: 'alta', dataHora: '2026-10-18T10:00', registradoEm: serverTimestamp() }, ...carimbo('enf1'),
+  }));
+  await assertFails(encerrar('enf2'));
+});

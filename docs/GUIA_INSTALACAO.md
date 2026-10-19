@@ -329,6 +329,17 @@ Sem regra nem Apps Script novos.
 - **Foto no PEP**: ao **Copiar para o PEP**, as fotos das lesões com a data do dia da evolução entram logo depois de PELE E LESÕES, com o título "FOTO DA LESÃO - tipo local (data)". A janela avisa quantas fotos vão junto. Se o PEP não aceitar a imagem colada, anexe a foto pelo próprio PEP. O texto simples (sem formatação) continua sem imagens.
 - **Infusões**: "Outras infusões venosas" ficou por último. No computador, os grupos aparecem lado a lado (2 colunas a partir de 1100 px de largura e 4 colunas em telas largas); no tablet e no celular, continuam um abaixo do outro.
 
+## 11.18 Versão 0.12.0 (desfazer saída registrada por engano)
+
+**Antes do merge**, publique o `firestore.rules` atualizado (a internação encerrada agora pode voltar a ativa, só por esse caminho). Mescle primeiro o PR das fotos (#24).
+
+- Quando uma alta, transferência ou óbito é registrado por engano, o leito livre mostra a faixa **Saída: NOME · tipo · data** com o botão **↩ Desfazer saída**. No topo do painel aparece **↩ Saídas recentes (n)**, que lista a última saída de cada leito, inclusive se o leito já recebeu outro paciente.
+- Para desfazer, escolha o leito de volta (o mesmo, se estiver livre, ou outro livre da mesma UTI) e escreva o **motivo** (mínimo de 10 letras). A internação volta a ficar ativa, com as evoluções, os dispositivos e as fotos de antes.
+- **Prazo:** enfermeiro, até 24 horas depois do registro da saída; administrador, sem prazo. Não dá para desfazer se o paciente já foi readmitido numa internação nova.
+- Nada é apagado: a saída desfeita (tipo, data, motivo, quem desfez e quando) aparece nos dados da internação, em "Saídas desfeitas", e vai para a auditoria.
+- Para levar o paciente para a outra UTI, desfaça a saída na UTI de origem e depois use **Trocar de leito**.
+- Saídas registradas antes desta versão só podem ser desfeitas pelo administrador.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

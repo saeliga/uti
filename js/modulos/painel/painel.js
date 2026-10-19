@@ -9,6 +9,8 @@ import { diaAssistencial, rotuloDia } from '../../regras/turnos.js';
 import { situacaoEvolucao, ROTULO_SITUACAO } from '../../regras/evolucao.js';
 import { ROTULO_STATUS_PE } from '../../regras/sae.js';
 import { barraImpressos } from './impressos.js';
+import { saidasRecentes, podeDesfazerSaida, limiteDesfazer } from '../../regras/saidas.js';
+import { DESFECHOS } from '../../regras/opcoes.js';
 
 const ordenar = (a, b) => a.numero.localeCompare(b.numero, 'pt', { numeric: true });
 
@@ -68,11 +70,12 @@ function desenhar(conteudo, unidade, leitos, evolucoes, dia) {
         h('span', {}, h('strong', {}, livres), ' livres'),
         bloqueados ? h('span', {}, h('strong', {}, bloqueados), ' bloqueados') : null)),
     barraImpressos(unidade, leitos),
+    barraSaidas(unidade, leitos),
     ocupados.length ? h('div', { class: 'painel-turno' },
       h('strong', {}, `Evoluções do ${rotuloDia(dia).toLowerCase()}`), ' (07h às 07h): ',
       faltam ? `${faltam} de ${ocupados.length} a concluir` : 'todas finalizadas',
       semPEP ? ` · ${semPEP} a copiar ao PEP` : '') : null,
-    h('div', { class: 'grade-leitos' }, leitos.map((l) => cartao(l, unidade, evolucoes[l.internacaoId], dia))));
+    h('div', { class: 'grade-leitos' }, leitos.map((l) => cartao(l, unidade, evolucoes[l.internacaoId], dia, leitos))));
   window.scrollTo(0, rolagem);
 }
 
@@ -88,7 +91,7 @@ function chipIsolamento(iso) {
   return h('span', { class: 'chip chip-isolamento' }, 'Isolamento: ', ISOLAMENTOS[iso.tipo]?.replace(/ \(.*\)$/, '') || iso.tipo);
 }
 
-function cartao(l, unidade, ev, dia) {
+function cartao(l, unidade, ev, dia, leitos = []) {
   const rotulo = `Leito ${l.numero}`;
   if (l.internacaoId && l.resumo) {
     const r = l.resumo;
@@ -115,8 +118,13 @@ function cartao(l, unidade, ev, dia) {
       h('div', { class: 'leito-motivo' }, l.bloqueio?.motivo || ''),
       podeEditar() && h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onclick: () => desbloquear(l) }, 'Desbloquear'));
   }
+  const us = l.ultimaSaida;
+  const desfazivel = podeEditar() && us?.internacaoId && podeDesfazerSaida(us.registradoEm, { admin: estado.perfil?.perfil === 'admin' });
   return h('div', { class: 'leito leito-livre' },
     h('div', { class: 'leito-topo' }, h('span', { class: 'leito-num' }, rotulo), h('span', { class: 'leito-status' }, 'Livre')),
+    desfazivel ? h('div', { class: 'leito-saida' },
+      h('span', {}, `Saída: ${us.nome} · ${(DESFECHOS[us.tipo] || '').replace(/ \(.*\)$/, '')} · ${formatarCurta(us.dataHora)}`),
+      h('button', { class: 'btn btn-link btn-pequeno', type: 'button', onclick: () => desfazer({ ...us, leitoId: l.id }, unidade, leitos) }, '↩ Desfazer saída')) : null,
     podeEditar() && h('div', { class: 'leito-acoes' },
       h('button', { class: 'btn btn-secundario', type: 'button', onclick: () => admitir(l, unidade) }, '+ Admitir paciente'),
       h('button', { class: 'btn btn-link', type: 'button', onclick: () => bloquearLeito(l) }, 'Bloquear leito')));
@@ -125,6 +133,32 @@ function cartao(l, unidade, ev, dia) {
 async function admitir(leito, unidade) {
   const { formularioInternacao } = await import('../internacao/internacao.js');
   formularioInternacao({ leito, unidade });
+}
+
+const formatarCurta = (dh) => (dh ? `${dh.slice(8, 10)}/${dh.slice(5, 7)} ${dh.slice(11, 16)}` : '');
+
+async function desfazer(saida, unidade, leitos) {
+  const { desfazerSaida } = await import('../internacao/internacao.js');
+  desfazerSaida(saida, unidade, leitos);
+}
+
+/** Saídas das últimas 24 h (inclusive de leitos já ocupados por outro paciente), para desfazer engano. */
+function barraSaidas(unidade, leitos) {
+  if (!podeEditar()) return null;
+  const lista = saidasRecentes(leitos, { admin: estado.perfil?.perfil === 'admin' });
+  if (!lista.length) return null;
+  const abrir = () => abrirJanela({
+    titulo: 'Saídas recentes',
+    conteudo: h('div', {},
+      h('p', { class: 'ajuda' }, 'Última saída registrada em cada leito nas últimas 24 horas. Desfaça só se foi registrada por engano.'),
+      h('ul', { class: 'lista-saidas' }, lista.map((s) => h('li', {},
+        h('div', {}, h('strong', {}, s.nome), ` — leito ${s.leitoNumero} · ${DESFECHOS[s.tipo] || 'Saída'} · ${formatarCurta(s.dataHora)}`),
+        h('div', { class: 'ajuda' }, estado.perfil?.perfil === 'admin' ? '' : `Pode desfazer até ${limiteDesfazer(s.registradoEm)}`),
+        h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onclick: (e) => { e.target.closest('.janela-fundo')?.remove(); desfazer(s, unidade, leitos); } }, '↩ Desfazer saída'))))),
+    acoes: [{ texto: 'Fechar', classe: 'btn-secundario' }],
+  });
+  return h('div', { class: 'painel-saidas' },
+    h('button', { class: 'btn btn-link btn-pequeno', type: 'button', onclick: abrir }, `↩ Saídas recentes (${lista.length}) · desfazer engano`));
 }
 
 async function abrirDetalhe(leito, unidade) {
