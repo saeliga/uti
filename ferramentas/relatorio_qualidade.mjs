@@ -114,7 +114,9 @@ for (const perfil of ['desktop', 'celular']) {
     add('Capacidade de interação', 'Violações WCAG 2.1 A/AA (axe-core) nas telas principais — graves/críticas', `${graves.length} (total de regras violadas: ${new Set(ocorr.map((v) => v.id)).size})`, 'nenhuma grave ou crítica', graves.length === 0 ? 'sim' : 'nao');
     const porRegra = {};
     for (const v of ocorr) (porRegra[v.id] ||= { ...v, telas: new Set() }).telas.add(`${v.tela} (${v.onde})`);
-    detalhes.push(['Acessibilidade (axe-core)', Object.values(porRegra).map((v) => `- **${v.id}** (${v.impacto}): ${v.ajuda} — ${[...v.telas].join('; ')}`).join('\n') || 'Nenhuma violação.']);
+    const exemplos = {};
+    for (const v of ocorr) for (const e of v.exemplos || []) (exemplos[v.id] ||= new Set()).add(e);
+    detalhes.push(['Acessibilidade (axe-core)', Object.values(porRegra).map((v) => `- **${v.id}** (${v.impacto}): ${v.ajuda} — telas: ${[...new Set([...v.telas].map((t) => t.replace(/ \(.*\)$/, '')))].join('; ')}\n${[...(exemplos[v.id] || [])].slice(0, 8).map((e) => `    - ${e}`).join('\n')}`).join('\n') || 'Nenhuma violação.']);
   } else add('Capacidade de interação', 'Violações WCAG 2.1 A/AA (axe-core)', '—', 'nenhuma grave ou crítica', 'sem');
   const man = json('lighthouse-celular/manifest.json');
   const rep = man?.find((r) => r.isRepresentativeRun) || man?.[0];

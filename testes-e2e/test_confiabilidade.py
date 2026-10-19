@@ -90,28 +90,40 @@ class SemPerdaDeRegistro(TesteNavegador):
         for n in ('01', '02'):
             gravar(f'leitos/uti1_{n}', {'unidade': 'uti1', 'numero': n, 'internacaoId': None, 'resumo': None, 'bloqueado': False, 'bloqueio': None})
 
+    def _estado(self, pagina, segundos=30):
+        """Espera a tela assentar: 'painel', 'primeiro_acesso' ou 'entrada'."""
+        fim = time.time() + segundos
+        while time.time() < fim:
+            if pagina.locator('.grade-leitos').count():
+                return 'painel'
+            if pagina.get_by_role('button', name='Solicitar acesso').count():
+                return 'primeiro_acesso'
+            pagina.wait_for_timeout(300)
+        return 'entrada' if pagina.locator('.btn-google').count() else 'outra'
+
     def _entrar(self, pagina, conta):
         console = []
         pagina.on('console', lambda m: console.append(f'{m.type}: {m.text}'))
         pagina.add_init_script(f"sessionStorage.setItem('uti_emulador_conta', {json.dumps(json.dumps(CONTAS[conta]))});")
         pagina.goto(f'{self.base}?emulador=1')
-        pagina.click('.btn-google')
-        try:
-            pagina.wait_for_selector('.grade-leitos, text=Solicitar acesso', timeout=30000)
-            if not pagina.locator('.grade-leitos').count():
-                # Primeiro acesso: o administrador "aprova" a conta (perfil gravado direto no simulador).
+        passos = []
+        for _ in range(3):
+            if pagina.locator('.btn-google').count():
+                pagina.click('.btn-google')
+            estado = self._estado(pagina)
+            passos.append(estado)
+            if estado == 'painel':
+                return
+            if estado == 'primeiro_acesso':
+                # O administrador "aprova" a conta: perfil gravado direto no simulador, pelo uid real.
                 c = CONTAS[conta]
                 uid = uid_no_emulador(c['email'])
                 self.assertIsNotNone(uid, 'conta criada no simulador de Auth')
                 gravar(f'usuarios/{uid}', {'nome': c['nome'], 'coren': '000000', 'email': c['email'], 'perfil': 'enfermeiro', 'ativo': True, 'unidades': ['uti1']})
                 pagina.reload()
-                pagina.wait_for_selector('.grade-leitos, .btn-google', timeout=30000)
-                if pagina.locator('.btn-google').count():
-                    pagina.click('.btn-google')
-            pagina.wait_for_selector('.grade-leitos', timeout=30000)
-        except Exception:
-            tela = pagina.locator('body').inner_text()[:800]
-            raise AssertionError(f'painel não abriu para {conta}. Tela: {tela!r}. Console: {console[-15:]!r}')
+                pagina.wait_for_timeout(1500)
+        tela = pagina.locator('body').inner_text()[:600]
+        raise AssertionError(f'painel não abriu para {conta}. Passos: {passos}. Tela: {tela!r}. Console: {console[-12:]!r}')
 
     def _esperar(self, cond, segundos=30):
         fim = time.time() + segundos

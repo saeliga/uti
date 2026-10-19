@@ -24,7 +24,10 @@ class Acessibilidade(TesteNavegador):
         r = p.evaluate("""async () => {
             const r = await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } });
             return r.violations.map((v) => ({ id: v.id, impacto: v.impact, ajuda: v.help, url: v.helpUrl, ocorrencias: v.nodes.length,
-              exemplos: v.nodes.slice(0, 3).map((n) => n.target.join(' ')) }));
+              exemplos: v.nodes.slice(0, 6).map((n) => {
+                const d = (n.any && n.any[0] && n.any[0].data) || {};
+                return [n.target.join(' '), d.contrastRatio ? `${d.fgColor} sobre ${d.bgColor} = ${d.contrastRatio}:1` : '', (n.html || '').slice(0, 90)].filter(Boolean).join(' | ');
+              }) }));
         }""")
         return {'tela': nome, 'violacoes': r}
 
