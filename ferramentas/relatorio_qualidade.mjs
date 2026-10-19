@@ -101,7 +101,16 @@ for (const perfil of ['desktop', 'celular']) {
   const rep = man?.find((r) => r.isRepresentativeRun) || man?.[0];
   if (!rep) { add('Eficiência de desempenho', `Lighthouse (${perfil})`, '—', 'desempenho ≥ 0,80', 'sem'); continue; }
   let lcp = null;
-  try { lcp = JSON.parse(fs.readFileSync(path.join(DIR, `lighthouse-${perfil}`, path.basename(rep.jsonPath)), 'utf8')).audits['largest-contentful-paint'].numericValue; } catch { /* sem detalhe */ }
+  try {
+    const lhr = JSON.parse(fs.readFileSync(path.join(DIR, `lighthouse-${perfil}`, path.basename(rep.jsonPath)), 'utf8'));
+    lcp = lhr.audits['largest-contentful-paint'].numericValue;
+    const el = lhr.audits['largest-contentful-paint-element']?.details?.items || [];
+    const no = el[0]?.items?.[0]?.node;
+    const fases = (el[1]?.items || []).map((f) => `${f.phase}: ${Math.round(f.timing)} ms`).join(', ');
+    const bloq = (lhr.audits['render-blocking-resources']?.details?.items || []).map((i) => `${i.url.replace(/^https?:\/\/[^/]+/, '')} (${Math.round(i.wastedMs)} ms)`).join(', ');
+    const fcp = lhr.audits['first-contentful-paint']?.numericValue;
+    detalhes.push([`Lighthouse (${perfil})`, [`- LCP ${Math.round(lcp)} ms; FCP ${Math.round(fcp)} ms`, no && `- Elemento do LCP: \`${no.selector}\` — ${String(no.snippet || '').slice(0, 120)}`, fases && `- Fases do LCP: ${fases}`, bloq && `- Recursos que bloqueiam a renderização: ${bloq}`].filter(Boolean).join('\n')]);
+  } catch { /* sem detalhe */ }
   add('Eficiência de desempenho', `Pontuação de desempenho do Lighthouse (${perfil})`, num(rep.summary.performance, 2), '≥ 0,80', rep.summary.performance >= 0.8 ? 'sim' : 'nao');
   if (lcp != null) add('Eficiência de desempenho', `Maior elemento visível carregado, LCP (${perfil})`, `${num(lcp / 1000, 2)} s`, '≤ 2,5 s', lcp <= 2500 ? 'sim' : 'nao');
 }
