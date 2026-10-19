@@ -93,7 +93,7 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
       break;
     }
     case 'area': {
-      const ta = h('textarea', { id, rows: c.linhas || 2, disabled: ro });
+      const ta = h('textarea', { id, rows: c.linhas || 2, disabled: ro, placeholder: c.placeholder || null });
       ta.value = alvo()[c.nome] ?? '';
       ta.addEventListener('input', () => definir(ta.value));
       wrap.append(rotulo(c, id), ta);
