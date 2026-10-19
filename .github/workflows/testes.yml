@@ -32,3 +32,9 @@ jobs:
         run: npm test
       - name: Testes das regras do Firestore (simulador)
         run: npm run test:regras
+      - name: Resumo
+        if: always()
+        run: |
+          if [ -f regras.tap ]; then
+            echo "::notice title=Regras do Firestore::$(grep -E '^# (tests|pass|fail)' regras.tap | tr '\n' ' ')"
+          fi
