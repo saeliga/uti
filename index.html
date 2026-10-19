@@ -17,7 +17,14 @@
   <link rel="stylesheet" href="css/app.css?v=0.12.1">
 </head>
 <body>
-  <div id="app"><div class="carregando"><span class="giro" aria-hidden="true"></span>Carregando…</div></div>
+  <div id="app">
+    <!-- Tela de entrada desenhada já no HTML (aparece antes de o JavaScript carregar; o sistema a substitui pela mesma tela). -->
+    <main class="acesso"><div class="acesso-cartao">
+      <div class="acesso-topo"><img src="assets/logo/logo_liga_cor_400.webp" alt="Liga Contra o Câncer" class="acesso-logo" width="170" height="94" fetchpriority="high"><h1>Evolução e Processo de Enfermagem</h1><p class="acesso-sub">UTI 1 e UTI 2</p></div>
+      <div class="acesso-form"><div class="carregando"><span class="giro" aria-hidden="true"></span>Carregando…</div>
+      <p class="acesso-nota">Use sua conta Google institucional (@liga.org.br). No primeiro acesso, você informa nome e Coren, e o administrador do sistema aprova.</p></div>
+    </div></main>
+  </div>
   <noscript>Este sistema precisa de JavaScript ativado.</noscript>
   <script>
     // Se os arquivos do sistema não carregarem (cache antigo depois de uma atualização,
