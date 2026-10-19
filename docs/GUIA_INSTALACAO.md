@@ -299,6 +299,12 @@ Sem regra nem Apps Script novos.
 - **Ocorrências:** o campo de texto ocupa a largura toda, com três linhas.
 - **Testes automáticos no GitHub:** a cada pull request e a cada mudança no `main`, o GitHub roda os testes do sistema e testa as regras do Firestore no simulador oficial, com contas fictícias (UTI 1, UTI 2, as duas, leitura, pendente e conta pessoal). O resultado aparece no pull request (✓ ou ✗) e na aba **Actions** do repositório. Nenhum dado real é usado. O site continua sem precisar de npm; o `package.json` serve só para os testes.
 
+## 11.14 Versão 0.10.2 (guia das escalas)
+
+Sem regra nem Apps Script novos.
+
+- Botão **i** ao lado do campo abre um guia rápido da escala: pontuação, como aplicar à beira-leito e a referência original. Escalas: **Glasgow**, **RASS**, **CAM-ICU**, **dor (EVN e BPS)**, **Bristol**, **grau do edema (cacifo)** e **TEC**. Os pontos do guia vêm das mesmas listas do formulário.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.
