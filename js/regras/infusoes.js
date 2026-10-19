@@ -4,9 +4,9 @@
 
 export const GRUPOS_INFUSAO = [
   { id: 'hv', titulo: 'Hidratação venosa', texto: 'hidratação venosa', selecao: ['SORO FISIOLÓGICO 0,9%', 'SORO GLICOSADO 5%', 'SORO GLICOSADO 10%', 'RINGER LACTATO', 'SORO GLICOFISIOLÓGICO'] },
-  { id: 'outras', titulo: 'Outras infusões venosas', texto: 'outras infusões', fixos: ['INSULINA REGULAR'], livre: '+ Adicionar infusão' },
   { id: 'dva', titulo: 'DVA em uso', texto: 'DVA', fixos: ['NORADRENALINA', 'ADRENALINA', 'VASOPRESSINA', 'DOPAMINA', 'DOBUTAMINA', 'NITROGLICERINA', 'NITROPRUSSIATO', 'AMIODARONA'], livre: '+ Outra DVA' },
   { id: 'sedo', titulo: 'Sedoanalgesia', texto: 'sedoanalgesia', fixos: ['FENTANIL', 'MIDAZOLAM', 'PROPOFOL', 'CETAMINA', 'DEXMEDETOMIDINA'], livre: '+ Outra sedoanalgesia' },
+  { id: 'outras', titulo: 'Outras infusões venosas', texto: 'outras infusões', fixos: ['INSULINA REGULAR'], livre: '+ Adicionar infusão' },
 ];
 
 export const MEDICAMENTOS_FIXOS = GRUPOS_INFUSAO.flatMap((g) => [...(g.fixos || []), ...(g.selecao || [])]);

@@ -7,7 +7,7 @@ import { estado, podeEditar } from '../../nucleo/estado.js';
 import { h, limpar, carregando, aviso, abrirJanela, confirmar, campo, lerFormulario, mostrarErros } from '../../nucleo/ui.js';
 import { BLOCOS, contextoEvolucao } from '../../regras/evolucao-esquema.js';
 import {
-  validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP, htmlParaPEP, estruturaPEP, linhasPEP,
+  validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP, htmlParaPEP, estruturaPEP, linhasPEP, comFotos,
   resumoSubbloco, subblocoRegistrado, dadosIniciais,
 } from '../../regras/evolucao.js';
 import { diaAssistencial, diaAnterior, rotuloDia, idEvolucao, turnoDe, TURNOS } from '../../regras/turnos.js';
@@ -23,11 +23,28 @@ const redesenhar = () => window.dispatchEvent(new HashChangeEvent('hashchange'))
 const autor = () => ({ nome: estado.perfil.nome, coren: estado.perfil.coren });
 
 /** Parágrafos da evolução em SBAR (caixa alta, títulos em negrito) para a prévia e a impressão. */
-function paragrafosPEP(est) {
-  return linhasPEP(est).flatMap((l) => [
+function paragrafosPEP(est, fotos = []) {
+  return comFotos(linhasPEP(est), fotos).flatMap((l) => [
     ...(l.novaSecao ? [h('div', { class: 'impressao-sep' })] : []),
     h('p', {}, l.negrito ? h('strong', {}, l.negrito) : null, l.negrito && l.texto ? ' ' : null, l.texto || null),
+    ...(l.foto ? [h('p', {}, h('img', { src: l.foto, class: 'pep-foto', alt: l.negrito }))] : []),
   ]);
+}
+
+/** Fotos das lesões tiradas no dia da evolução (vão junto ao copiar para o PEP). */
+async function fotosDoDia(ev, internacao) {
+  const lesoes = (ev.dados?.pele?.lesoes || []).filter((l) => l.id);
+  const TIPO = { lpp: 'LPP', cirurgica: 'Incisão cirúrgica', oncologica: 'Lesão oncológica', dermatite: 'Dermatite associada à incontinência', friccao: 'Lesão por fricção', outra: 'Lesão' };
+  const saida = [];
+  for (const l of lesoes) {
+    const lista = (await backend.listarFotosLesao(internacao.id, l.id).catch(() => [])).filter((f) => !f.excluida && f.data === ev.data)
+      .sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
+    for (const f of lista) {
+      const src = await backend.lerImagemFoto(f.id).catch(() => null);
+      if (src) saida.push({ titulo: `Foto da lesão – ${[TIPO[l.tipo] || 'Lesão', l.local].filter(Boolean).join(' ')} (${formatarData(f.data)})`, src });
+    }
+  }
+  return saida;
 }
 
 /** Procura a evolução mais recente antes do dia informado (até 3 dias para trás). */
@@ -421,17 +438,20 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     }
   }
 
-  function copiarPEP() {
+  async function copiarPEP() {
     backend.registrarEvento?.('evolucao_copiada', { evolucaoId: id, unidade: ev.unidade });
     const atual = evolucaoAtual();
+    // Fotos das lesões do dia: o editor do PEP aceita imagens coladas.
+    const fotos = await fotosDoDia(atual, internacao).catch(() => []);
     const texto = textoParaPEP(atual, internacao, { unidadeNome });
-    const html = htmlParaPEP(atual, internacao, { unidadeNome });
-    const area = h('div', { class: 'texto-pep previa-pep', tabindex: '0', 'aria-label': 'Texto para o PEP' }, ...paragrafosPEP(estruturaPEP(atual, internacao, { unidadeNome })));
+    const html = htmlParaPEP(atual, internacao, { unidadeNome, fotos });
+    const area = h('div', { class: 'texto-pep previa-pep', tabindex: '0', 'aria-label': 'Texto para o PEP' }, ...paragrafosPEP(estruturaPEP(atual, internacao, { unidadeNome }), fotos));
     const selecionar = () => { const r = document.createRange(); r.selectNodeContents(area); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
     abrirJanela({
       titulo: 'Copiar para o PEP',
       conteudo: h('div', {},
         h('p', { class: 'ajuda' }, 'Formato SBAR, em caixa alta, com os títulos em negrito. Copie, cole no campo de evolução do PEP e depois marque como transcrito.'),
+        fotos.length ? h('p', { class: 'caixa caixa-ok' }, `${fotos.length} foto(s) de lesão do dia desta evolução vão junto, logo após PELE E LESÕES. Se o PEP não aceitar a imagem colada, anexe a foto pelo próprio PEP.`) : null,
         area),
       acoes: [
         { texto: 'Fechar', classe: 'btn-secundario' },

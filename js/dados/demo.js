@@ -262,7 +262,7 @@ function notificarEvol() {
         infusoes: { itens: [{ grupo: 'hv', medicamento: 'SORO FISIOLÓGICO 0,9%', vazao: '40' }, { grupo: 'dva', medicamento: 'NORADRENALINA', vazao: '18' }, { grupo: 'sedo', medicamento: 'MIDAZOLAM', vazao: '8' }, { grupo: 'sedo', medicamento: 'FENTANIL', vazao: '3' }] },
         gi: { via: ['sne'], dieta: 'Enteral padrão a 40 mL/h', evacuou: 'nao' },
         herdado: { ultimaEvacuacao: somarDias(hoje, -3) },
-        pele: { inspecao: ['hipocorada', 'acianotica', 'anicterica', 'nao_integra'], mucosas: 'ressecadas', lesoes: [{ tipo: 'lpp', local: 'sacral', estagio: '2', medidas: '3 x 2', cobertura: 'Hidrocoloide', evolucao: 'estavel' }] },
+        pele: { inspecao: ['hipocorada', 'acianotica', 'anicterica', 'nao_integra'], mucosas: 'ressecadas', lesoes: [{ id: 'lesao_demo1', tipo: 'lpp', local: 'sacral', estagio: '2', medidas: '3 x 2', cobertura: 'Hidrocoloide', evolucao: 'estavel' }] },
         dispositivos: { itens: [
           { id: 'demo1', tipo: 'cvc', local: 'JUGULAR INTERNA', lado: 'D', lumens: '3', insercao: somarDias(hoje, -3), implantadoUti: 'sim', curativoTipo: 'filme', curativoData: somarDias(hoje, -3), sitio: ['sem_alteracoes'], necessario: 'sim' },
           { id: 'demo2', tipo: 'tot', numero: '7,5', fixacao: '22', insercao: somarDias(hoje, -3), necessario: 'sim' },

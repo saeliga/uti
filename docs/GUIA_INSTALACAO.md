@@ -320,8 +320,14 @@ Sem regra nem Apps Script novos.
 - A foto é reduzida no aparelho (cerca de 1280 px, em geral 100 a 300 KB) e redesenhada, o que apaga os dados escondidos do arquivo (local, modelo do aparelho). Fica só no sistema, não na galeria.
 - **Linha do tempo** com data, legenda e quem registrou; **comparar 2 fotos lado a lado**.
 - Foto errada: **Excluir (foto errada)** com motivo. Sai da galeria, mas o registro da exclusão fica; só o administrador apaga de vez.
-- As fotos ficam ligadas à lesão e passam de um dia para o outro com ela. A equipe da UTI para onde o paciente for transferido também vê as fotos. Não entram no texto do PEP nem nos impressos. Cada foto aberta fica no registro de operações.
+- As fotos ficam ligadas à lesão e passam de um dia para o outro com ela. A equipe da UTI para onde o paciente for transferido também vê as fotos. Não entram nos impressos. Cada foto aberta fica no registro de operações.
 - Espaço: com uso típico (cerca de 55 fotos por mês), uns 150 MB por ano, dentro do 1 GB do plano gratuito.
+
+## 11.17 Versão 0.11.1 (enviar foto já tirada, foto no PEP, infusões em colunas)
+
+- **🖼 Enviar foto já tirada**: escolhe uma foto da galeria do celular ou de uma pasta do computador. O campo **Data da foto** vem com a data do arquivo (entre a admissão na UTI e o dia da evolução) e pode ser corrigido. Depois de enviar, apague a foto do aparelho.
+- **Foto no PEP**: ao **Copiar para o PEP**, as fotos das lesões com a data do dia da evolução entram logo depois de PELE E LESÕES, com o título "FOTO DA LESÃO - tipo local (data)". A janela avisa quantas fotos vão junto. Se o PEP não aceitar a imagem colada, anexe a foto pelo próprio PEP. O texto simples (sem formatação) continua sem imagens.
+- **Infusões**: "Outras infusões venosas" ficou por último. No computador, os grupos aparecem lado a lado (2 colunas a partir de 1100 px de largura e 4 colunas em telas largas); no tablet e no celular, continuam um abaixo do outro.
 
 ## 12. Publicar uma versão nova
 

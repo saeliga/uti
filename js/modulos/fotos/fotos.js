@@ -10,7 +10,7 @@ import { FOTO, dimensoes, galeria, novoIdLesao } from '../../regras/fotos.js';
 
 export { novoIdLesao };
 
-const ORIENTACAO = 'Enquadre só a lesão, com boa luz. Evite rosto, tatuagens, pulseira e documentos. A foto fica só no sistema, não na galeria do aparelho.';
+const ORIENTACAO = 'Enquadre só a lesão, com boa luz. Evite rosto, tatuagens, pulseira e documentos. Tirada pelo botão da câmera, a foto fica só no sistema. Se enviar uma foto já salva no aparelho, apague-a do aparelho depois de enviar.';
 
 /** Redesenha a imagem no tamanho pedido e devolve JPEG em base64 que caiba no limite. */
 async function reduzir(arquivo, ladoMaior, limite) {
@@ -145,14 +145,25 @@ async function abrirGaleria({ item, garantirId, contexto, ro, titulo }) {
 
   // Nova foto: câmera traseira no tablet/celular; no computador, escolher arquivo.
   const entrada = h('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
+  // Foto tirada antes (em outro momento): escolher da galeria ou de uma pasta, sem abrir a câmera.
+  const arquivo = h('input', { type: 'file', accept: 'image/*', hidden: true });
+  const hojeDia = ctx.dataTurno;
+  const minDia = String(internacao.admissaoUti || '').slice(0, 10) || undefined;
+  const dataFoto = h('input', { type: 'date', value: hojeDia, max: hojeDia, min: minDia, 'aria-label': 'Data em que a foto foi tirada' });
   const legenda = h('input', { type: 'text', maxlength: FOTO.maxLegenda, placeholder: 'Legenda (opcional). Ex.: após desbridamento' });
   const previa = h('div', { class: 'foto-previa' });
   let pronta = null;
   const salvar = h('button', { type: 'button', class: 'btn btn-primario btn-pequeno', hidden: true }, 'Salvar foto');
-  entrada.addEventListener('change', async () => {
-    const arq = entrada.files?.[0];
-    entrada.value = '';
+  const aoEscolher = async (campo, daGaleria) => {
+    const arq = campo.files?.[0];
+    campo.value = '';
     if (!arq) return;
+    // Foto da galeria: sugere a data do arquivo (dentro da internação); câmera: hoje.
+    if (daGaleria && arq.lastModified) {
+      const d = new Date(arq.lastModified);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      dataFoto.value = iso > hojeDia ? hojeDia : minDia && iso < minDia ? minDia : iso;
+    } else dataFoto.value = hojeDia;
     previa.replaceChildren(h('p', { class: 'ajuda' }, 'Preparando a foto…'));
     try {
       const grande = await reduzir(arq, FOTO.ladoMaior, FOTO.maxImagem);
@@ -165,14 +176,17 @@ async function abrirGaleria({ item, garantirId, contexto, ro, titulo }) {
       salvar.hidden = true;
       previa.replaceChildren(h('p', { class: 'campo-erro' }, e.message));
     }
-  });
+  };
+  entrada.addEventListener('change', () => aoEscolher(entrada, false));
+  arquivo.addEventListener('change', () => aoEscolher(arquivo, true));
   salvar.addEventListener('click', async () => {
     if (!pronta) return;
+    if (!dataFoto.value || dataFoto.value > hojeDia || (minDia && dataFoto.value < minDia)) return aviso('Data da foto inválida: use uma data entre a admissão na UTI e o dia da evolução.', 'atencao');
     salvar.disabled = true;
     try {
       const lesaoId = garantirId();
       await backend.salvarFotoLesao({
-        unidade: ctx.unidade?.id || internacao.unidade, internacaoId: internacao.id, lesaoId, data: ctx.dataTurno,
+        unidade: ctx.unidade?.id || internacao.unidade, internacaoId: internacao.id, lesaoId, data: dataFoto.value || hojeDia,
         legenda: legenda.value.trim(), autorNome: estado.perfil ? `${estado.perfil.nome}${estado.perfil.coren ? ` (Coren ${estado.perfil.coren})` : ''}` : '',
         ...pronta,
       });
@@ -194,9 +208,14 @@ async function abrirGaleria({ item, garantirId, contexto, ro, titulo }) {
     conteudo: h('div', { class: 'fotos formulario' },
       podeIncluir && h('div', { class: 'fotos-nova' },
         h('p', { class: 'caixa caixa-atencao' }, ORIENTACAO),
-        entrada,
-        h('div', { class: 'linha-acoes' }, h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: () => entrada.click() }, '📷 Tirar ou escolher foto'), salvar),
-        previa, legenda),
+        entrada, arquivo,
+        h('div', { class: 'linha-acoes' },
+          h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: () => entrada.click() }, '📷 Tirar foto'),
+          h('button', { type: 'button', class: 'btn btn-secundario btn-pequeno', onclick: () => arquivo.click() }, '🖼 Enviar foto já tirada'),
+          salvar),
+        previa,
+        h('label', { class: 'foto-data' }, h('span', { class: 'campo-rotulo' }, 'Data da foto'), dataFoto),
+        legenda),
       h('div', { class: 'linha-acoes' }, h('strong', {}, 'Linha do tempo'), comparar),
       lista),
     acoes: [{ texto: 'Fechar', classe: 'btn-primario' }],

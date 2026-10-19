@@ -393,10 +393,25 @@ export function textoParaPEP(ev, internacao, opcoes = {}) {
 
 const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** Mesmo texto em HTML simples (títulos em negrito), para colar no editor do PEP. */
+/**
+ * Coloca as fotos das lesões (do dia) logo depois da linha de PELE E LESÕES
+ * (ou no fim da avaliação). fotos: [{ titulo, src }] → linhas { foto }.
+ */
+export function comFotos(linhas, fotos = []) {
+  if (!fotos.length) return linhas;
+  const itens = fotos.map((f) => ({ negrito: `${caixaAltaPEP(f.titulo)}:`, texto: '', foto: f.src }));
+  let k = linhas.findIndex((l) => l.negrito?.startsWith('PELE E LESÕES'));
+  if (k < 0) k = linhas.findIndex((l) => l.negrito?.startsWith('R - ')) - 1;
+  if (k < 0) k = linhas.length - 1;
+  return [...linhas.slice(0, k + 1), ...itens, ...linhas.slice(k + 1)];
+}
+
+/** Mesmo texto em HTML simples (títulos em negrito), para colar no editor do PEP. Aceita fotos (imagens coladas). */
 export function htmlParaPEP(ev, internacao, opcoes = {}) {
-  return linhasPEP(estruturaPEP(ev, internacao, opcoes))
-    .map((l) => `<p>${l.negrito ? `<b>${escHtml(l.negrito)}</b>${l.texto ? ' ' : ''}` : ''}${escHtml(l.texto)}</p>`).join('');
+  return comFotos(linhasPEP(estruturaPEP(ev, internacao, opcoes)), opcoes.fotos)
+    .map((l) => (l.foto
+      ? `<p><b>${escHtml(l.negrito)}</b></p><p><img src="${escHtml(l.foto)}" width="360" alt="${escHtml(l.negrito)}"></p>`
+      : `<p>${l.negrito ? `<b>${escHtml(l.negrito)}</b>${l.texto ? ' ' : ''}` : ''}${escHtml(l.texto)}</p>`)).join('');
 }
 
 /**
