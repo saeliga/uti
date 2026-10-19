@@ -61,8 +61,8 @@ export const BRISTOL = op(
  */
 export const BLOCOS = [
   {
-    id: 'b2', titulo: '2. Avaliação atual',
-    descricao: 'Valores de hoje. A evolução anterior aparece para consulta; para reaproveitar, confirme "sem alteração".',
+    id: 'b2', titulo: '2. Avaliação',
+    descricao: 'Valores de hoje, intercorrências, ocorrências e narrativa. A evolução anterior aparece para consulta; para reaproveitar, confirme "sem alteração". Ocorrências abertas da evolução anterior já vêm preenchidas e seguem até serem marcadas como resolvidas.',
     subblocos: [
       {
         id: 'cuidado', titulo: 'Limitação de suporte e objetivo de cuidado', copiavel: true, herdavel: true,
@@ -301,12 +301,7 @@ export const BLOCOS = [
           },
         ],
       },
-    ],
-  },
-  {
-    id: 'b6', titulo: '6. Intercorrências, ocorrências e narrativa',
-    descricao: 'Ocorrências abertas da evolução anterior já vêm para cá e seguem até serem marcadas como resolvidas.',
-    subblocos: [
+      // Antes eram o bloco 6 (aba própria); agora fecham a avaliação, na mesma aba.
       {
         id: 'intercorrencias', titulo: 'Intercorrências', copiavel: false,
         campos: [
@@ -329,7 +324,7 @@ export const BLOCOS = [
           { nome: 'itens', rotulo: 'Ocorrências', tipo: 'lista', rotuloItem: 'ocorrência',
             textoItem: (i) => [i.descricao, i.situacao === 'resolvida' ? 'resolvida' : 'aberta'].filter(Boolean).join(', '),
             campos: [
-              { nome: 'descricao', rotulo: 'Ocorrência', tipo: 'texto', placeholder: 'Ex.: 13/10 - Parecer da nefrologia (ok)' },
+              { nome: 'descricao', rotulo: 'Ocorrência', tipo: 'area', linhas: 3, placeholder: 'Ex.: 13/10 - Parecer da nefrologia (ok)' },
               { nome: 'situacao', rotulo: 'Situação', tipo: 'escolha', opcoes: op(['aberta', 'Aberta'], ['resolvida', 'Resolvida']) },
             ] },
         ],

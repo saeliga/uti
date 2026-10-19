@@ -291,6 +291,14 @@ Sem regra nem Apps Script novos.
 - **Sem internet:** a evolução do dia só é criada com conexão (antes, um rascunho criado sem internet podia ser recusado depois). Quem já abriu o paciente no aparelho continua trabalhando sem Wi-Fi.
 - **Regras mais rígidas:** cada etapa da evolução (rascunho, finalização, retificação) só aceita os campos dela; o cadastro do paciente só muda junto com uma internação ativa dele na unidade de quem altera.
 
+## 11.13 Versão 0.10.1 (abas da evolução e testes automáticos)
+
+Sem regra nem Apps Script novos.
+
+- **Evolução em três abas:** **2. Avaliação** (exame, intercorrências, ocorrências e narrativa, na mesma aba), **3. Processo de Enfermagem** e **Finalizar e enviar ao PEP**.
+- **Ocorrências:** o campo de texto ocupa a largura toda, com três linhas.
+- **Testes automáticos no GitHub:** a cada pull request e a cada mudança no `main`, o GitHub roda os testes do sistema e testa as regras do Firestore no simulador oficial, com contas fictícias (UTI 1, UTI 2, as duas, leitura, pendente e conta pessoal). O resultado aparece no pull request (✓ ou ✗) e na aba **Actions** do repositório. Nenhum dado real é usado. O site continua sem precisar de npm; o `package.json` serve só para os testes.
+
 ## 12. Publicar uma versão nova
 
 As entregas chegam por pull request já com o número da versão atualizado. O Claude roda `node ferramentas/versao.mjs X.Y.Z`, que atualiza o número em `js/config.js` e `versao.json` e o mapa de importação do `index.html`.

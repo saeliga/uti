@@ -1,0 +1,14 @@
+{
+  "name": "uti-liga-sae",
+  "private": true,
+  "description": "Testes do sistema de evolução e Processo de Enfermagem (o site em si não precisa de npm).",
+  "scripts": {
+    "test": "node --test testes/*.test.mjs",
+    "test:regras": "firebase emulators:exec --only firestore --project demo-uti-liga \"node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=regras.tap testes-regras/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.14.1",
+    "firebase-tools": "^13.29.0"
+  }
+}

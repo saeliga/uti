@@ -1,4 +1,5 @@
-// Tela da evolução de enfermagem: bloco 2 (avaliação), blocos 3 a 5 (Processo de Enfermagem) e bloco 6.
+// Tela da evolução de enfermagem em três abas: 2. Avaliação (inclui intercorrências, ocorrências e
+// narrativa), 3. Processo de Enfermagem e Finalizar e enviar ao PEP.
 // Um rascunho por paciente e turno, salvo por subbloco enquanto se digita.
 
 import { backend } from '../../dados/backend.js';
@@ -185,10 +186,9 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   // ------------------------------------------------------------------ navegação por blocos
   const navegacao = h('nav', { class: 'evo-nav', 'aria-label': 'Blocos da evolução' });
   const ABAS = [
-    ...BLOCOS.filter((b) => b.id !== 'b6').map((b) => [b.id, b.titulo]),
-    ['b345', '3 a 5. Processo de Enfermagem'],
-    ['b6', BLOCOS.find((b) => b.id === 'b6').titulo],
-    ['fim', 'Finalizar e copiar ao PEP'],
+    ...BLOCOS.map((b) => [b.id, b.titulo]),
+    ['b345', '3. Processo de Enfermagem'],
+    ['fim', 'Finalizar e enviar ao PEP'],
   ];
   const corpo = h('div', { class: 'evo-corpo' });
 
@@ -360,7 +360,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
   });
   formularios.sae = sae;
   corpo.append(h('section', { class: 'evo-bloco', dataset: { bloco: 'b345' }, hidden: true },
-    h('h2', {}, '3 a 5. Processo de Enfermagem'),
+    h('h2', {}, '3. Processo de Enfermagem'),
     h('p', { class: 'ajuda' }, 'Diagnósticos (NANDA-I), resultados (NOC) e intervenções (NIC) somente das ligações aprovadas. A IA sugere; o enfermeiro decide cada item.'),
     h('div', { dataset: { sub: 'sae' } }, sae.el),
     navegacaoRodape('b345')));
@@ -373,7 +373,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     const { erros, avisos } = validarFinalizacao(atual);
     const sit = situacaoEvolucao(ev);
     limpar(fim).append(...[
-      h('h2', {}, 'Finalizar e copiar ao PEP'),
+      h('h2', {}, 'Finalizar e enviar ao PEP'),
       ev.status === 'rascunho' && h('div', {},
         erros.length ? h('div', { class: 'caixa caixa-erro' }, h('strong', {}, 'Falta para finalizar:'), h('ul', {}, erros.map((e) => h('li', {}, e))))
           : h('div', { class: 'caixa caixa-ok' }, 'Todos os itens obrigatórios estão preenchidos.'),

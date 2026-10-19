@@ -63,7 +63,7 @@ export function validarFinalizacao(ev) {
   }
   for (const i of (ev.dados?.dispositivos?.itens || []).filter(dispositivoAtivo))
     for (const a of alertasDispositivo(i, ev.data)) avisos.push(`Dispositivo ${rotuloDispositivo(i)}: ${a.texto}`);
-  if (ev.dados?.sae?.status !== 'concluido') erros.push('Processo de Enfermagem (blocos 3 a 5): conclua o PE antes de finalizar');
+  if (ev.dados?.sae?.status !== 'concluido') erros.push('Processo de Enfermagem: conclua o PE antes de finalizar');
   for (const pa of pendenciasAutomaticas(ev)) avisos.push(`Pendência: ${pa}`);
   return { erros, avisos };
 }
