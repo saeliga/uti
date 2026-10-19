@@ -5,7 +5,8 @@
 #  - e2e: casos de uso, segurança operacional, compatibilidade e acessibilidade em
 #    Chromium, Firefox e WebKit (Safari), no computador e no tablet;
 #  - zap: varredura de segurança do site publicado (só no main);
-#  - relatorio: junta tudo num relatório por versão (resumo do Actions e ramo "qualidade").
+#  - relatorio: junta tudo num relatório por versão (resumo do Actions e ramo "qualidade"),
+#    com as métricas da análise automática do SonarCloud.
 name: Qualidade (ISO/IEC 25010)
 
 on:
@@ -93,9 +94,11 @@ jobs:
         with:
           python-version: '3.12'
       - name: Instalar navegador e axe-core
+        env:
+          NAVEGADOR: ${{ matrix.navegador }}
         run: |
           pip install playwright
-          python -m playwright install --with-deps ${{ matrix.navegador }}
+          python -m playwright install --with-deps "$NAVEGADOR"
           npm install --no-save --no-audit --no-fund axe-core@4
       - name: Casos de uso, segurança operacional, compatibilidade e acessibilidade
         env:
@@ -131,31 +134,6 @@ jobs:
           name: resultados-zap
           path: resultados/
 
-  sonar:
-    runs-on: ubuntu-24.04
-    needs: testes
-    steps:
-      - name: Conferir se o SonarCloud está configurado
-        id: cfg
-        env:
-          TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: echo "ativo=$([ -n "$TOKEN" ] && echo sim || echo nao)" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v5
-        if: steps.cfg.outputs.ativo == 'sim'
-        with:
-          fetch-depth: 0
-      - uses: actions/download-artifact@v4
-        if: steps.cfg.outputs.ativo == 'sim'
-        with:
-          name: resultados-testes
-          path: resultados
-      - name: SonarCloud
-        if: steps.cfg.outputs.ativo == 'sim'
-        uses: SonarSource/sonarqube-scan-action@v5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-
   relatorio:
     if: always()
     needs: [testes, e2e, zap]
@@ -176,6 +154,12 @@ jobs:
           merge-multiple: true
       - name: Disponibilidade registrada (ramo qualidade)
         run: git show origin/qualidade:disponibilidade.csv > resultados/disponibilidade.csv 2>/dev/null || rm -f resultados/disponibilidade.csv
+      - name: Métricas do SonarCloud (análise automática do repositório)
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          ALVO=$([ -n "$PR" ] && echo "pullRequest=$PR" || echo "branch=main")
+          curl -sf "https://sonarcloud.io/api/measures/component?component=saeliga_uti&$ALVO&metricKeys=sqale_rating,security_rating,reliability_rating,duplicated_lines_density,code_smells,bugs,vulnerabilities,security_hotspots,ncloc" -o resultados/sonar.json || rm -f resultados/sonar.json
       - name: Gerar relatório
         run: node ferramentas/relatorio_qualidade.mjs resultados resultados/relatorio.md
       - uses: actions/upload-artifact@v4

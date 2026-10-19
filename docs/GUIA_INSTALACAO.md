@@ -344,7 +344,7 @@ Sem regra nem Apps Script novos.
 
 - O CI passou a se chamar **Qualidade (ISO/IEC 25010)** e roda casos de uso em três navegadores (computador e tablet), segurança operacional, confiabilidade com os simuladores do Firebase, acessibilidade, desempenho, análise estática e, no `main`, a varredura OWASP ZAP. O relatório de cada versão fica no ramo `qualidade`. Detalhes em `docs/QUALIDADE.md`.
 - A verificação de disponibilidade roda de hora em hora (workflow **Disponibilidade**) e grava no ramo `qualidade`.
-- Opcional: SonarCloud (ver `docs/QUALIDADE.md`).
+- O SonarCloud já analisa o repositório automaticamente; as notas dele entram no relatório.
 - Para a coleta da pesquisa, crie a propriedade `GROQ_SEM_RESERVA` = `sim` no Apps Script e publique a nova versão do `Groq.gs`.
 
 ## 12. Publicar uma versão nova

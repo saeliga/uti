@@ -140,6 +140,20 @@ for (const perfil of ['desktop', 'celular']) {
   add('Manutenibilidade', 'Código duplicado (jscpd)', p != null ? `${num(p, 2)}%` : '—', '≤ 3%', p != null ? (p <= 3 ? 'sim' : 'nao') : 'sem');
 }
 
+// SonarCloud (análise automática do repositório)
+{
+  const so = json('sonar.json');
+  const m = Object.fromEntries((so?.component?.measures || []).map((x) => [x.metric, x.value ?? x.period?.value]));
+  const nota = (v) => (v ? 'ABCDE'[Math.round(Number(v)) - 1] : null);
+  const linha = (c, metrica, chave, extra) => {
+    const n = nota(m[chave]);
+    add(c, `${metrica} (SonarCloud)`, n ? `${n}${extra ? ` (${extra})` : ''}` : '—', 'A', n ? (n === 'A' ? 'sim' : 'nao') : 'sem');
+  };
+  linha('Manutenibilidade', 'Nota de manutenibilidade', 'sqale_rating', m.code_smells != null ? `${m.code_smells} code smells` : '');
+  linha('Segurança da informação', 'Nota de segurança do código', 'security_rating', m.vulnerabilities != null ? `${m.vulnerabilities} vulnerabilidades, ${m.security_hotspots ?? '?'} pontos a revisar` : '');
+  linha('Confiabilidade', 'Nota de confiabilidade do código', 'reliability_rating', m.bugs != null ? `${m.bugs} bugs` : '');
+}
+
 // Flexibilidade
 {
   const combos = e2e.map((r) => {
@@ -181,3 +195,6 @@ fs.writeFileSync(SAIDA, md);
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
 console.log(`::notice title=Qualidade ${versao}::${atende} de ${avaliados} critérios atendidos`);
 for (const l of linhas.filter((x) => x[4] === SIT.nao)) console.log(`::warning title=${l[0]}::${l[1]}: ${l[2]} (critério ${l[3]})`);
+// Detalhes também como uma anotação (lidos no resumo do PR).
+const esc = (t) => String(t).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, '%0A');
+for (const [t, c] of detalhes) console.log(`::notice title=Detalhe: ${t}::${esc(c.slice(0, 3500))}`);

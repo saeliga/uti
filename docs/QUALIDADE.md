@@ -22,6 +22,7 @@ A cada pull request e a cada mudança no `main`, o GitHub Actions (workflow **Qu
 | Capacidade de interação | Pontuação de acessibilidade (celular) | ≥ 0,90 | Lighthouse CI | — |
 | Manutenibilidade | Erros de análise estática | 0 | ESLint | `eslint.config.mjs` |
 | Manutenibilidade | Código duplicado | ≤ 3% | jscpd | `.jscpd.json` |
+| Manutenibilidade, segurança, confiabilidade | Notas do código (A a E) | A | SonarCloud (análise automática) | — |
 | Flexibilidade | Casos de uso em Chromium, Firefox e WebKit; computador e tablet | todas as combinações | Playwright | matriz do job `e2e` |
 | Compatibilidade | Cópia ao PEP (HTML e texto simples) e impressos | 100% | Playwright | `test_compatibilidade.py` |
 
@@ -44,12 +45,9 @@ npm run relatorio                # gera resultados/relatorio.md
 - `?demo=1&falhaia=erro` ou `?demo=1&falhaia=tempo`: simula a IA falhando no modo demonstração.
 - `?emulador=1`: liga o app aos simuladores do Firebase (Auth na porta 9099, Firestore na 8080). Só funciona em `localhost`/`127.0.0.1`; no site publicado é ignorado.
 
-## SonarCloud (opcional)
+## SonarCloud
 
-1. Entre em [sonarcloud.io](https://sonarcloud.io) com a conta do GitHub e importe o repositório `saeliga/uti` (plano gratuito para repositório público).
-2. Em *My Account → Security*, gere um token.
-3. No GitHub: *Settings → Secrets and variables → Actions → New repository secret*, nome `SONAR_TOKEN`.
-Sem o segredo, o CI pula esta etapa.
+O repositório já tem a análise automática do SonarCloud (projeto `saeliga_uti`), que comenta em cada pull request com o *Quality Gate*. O relatório de qualidade lê as notas públicas desse projeto (manutenibilidade, segurança e confiabilidade do código, de A a E) e as inclui na tabela.
 
 ## Coleta da pesquisa (versão congelada)
 

@@ -82,10 +82,16 @@ class SemPerdaDeRegistro(TesteNavegador):
             gravar(f'leitos/uti1_{n}', {'unidade': 'uti1', 'numero': n, 'internacaoId': None, 'resumo': None, 'bloqueado': False, 'bloqueio': None})
 
     def _entrar(self, pagina, conta):
+        console = []
+        pagina.on('console', lambda m: console.append(f'{m.type}: {m.text}'))
         pagina.add_init_script(f"sessionStorage.setItem('uti_emulador_conta', {json.dumps(json.dumps(CONTAS[conta]))});")
         pagina.goto(f'{self.base}?emulador=1')
         pagina.click('.btn-google')
-        pagina.wait_for_selector('.grade-leitos', timeout=30000)
+        try:
+            pagina.wait_for_selector('.grade-leitos', timeout=30000)
+        except Exception:
+            tela = pagina.locator('body').inner_text()[:800]
+            raise AssertionError(f'painel não abriu para {conta}. Tela: {tela!r}. Console: {console[-15:]!r}')
 
     def _esperar(self, cond, segundos=30):
         fim = time.time() + segundos
