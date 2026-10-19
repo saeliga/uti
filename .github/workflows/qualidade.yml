@@ -1,0 +1,202 @@
+# Qualidade do produto (ISO/IEC 25010:2023), a cada pull request e a cada mudança no main.
+# Tudo com dados fictícios: modo demonstração e simuladores oficiais do Firebase.
+#  - testes: unitários + cobertura, regras de acesso, confiabilidade (Wi-Fi instável e
+#    dois aparelhos), análise estática, duplicação e desempenho (Lighthouse);
+#  - e2e: casos de uso, segurança operacional, compatibilidade e acessibilidade em
+#    Chromium, Firefox e WebKit (Safari), no computador e no tablet;
+#  - zap: varredura de segurança do site publicado (só no main);
+#  - relatorio: junta tudo num relatório por versão (resumo do Actions e ramo "qualidade").
+name: Qualidade (ISO/IEC 25010)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar ferramentas
+        run: |
+          npm install --no-audit --no-fund
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          mkdir -p resultados
+      - name: Adequação funcional — testes unitários e cobertura
+        run: npm run test:cobertura
+      - name: Segurança da informação — regras do Firestore (simulador)
+        if: always()
+        run: npm run test:regras
+      - name: Confiabilidade — Wi-Fi instável e dois aparelhos (simuladores do Firebase)
+        if: always()
+        run: npm run test:confiabilidade
+      - name: Manutenibilidade — análise estática e duplicação
+        if: always()
+        run: |
+          npm install --no-save --no-audit --no-fund eslint@9 @eslint/js@9 globals@15
+          npx eslint . -f json -o resultados/eslint.json || true
+          npx --yes jscpd@4 --config .jscpd.json || true
+      - name: Eficiência de desempenho — Lighthouse (computador e celular)
+        if: always()
+        run: |
+          npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc-desktop.json || true
+          npx --yes @lhci/cli@0.14.0 autorun --config=lighthouserc-celular.json || true
+      - name: Resumo
+        if: always()
+        run: |
+          for f in unidade regras; do
+            [ -f resultados/$f.tap ] && echo "::notice title=$f::$(grep -E '^# (tests|pass|fail)' resultados/$f.tap | tr '\n' ' ')"
+          done
+          true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-testes
+          path: resultados/
+          include-hidden-files: true
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { navegador: chromium, perfil: desktop }
+          - { navegador: chromium, perfil: tablet }
+          - { navegador: firefox, perfil: desktop }
+          - { navegador: webkit, perfil: desktop }
+          - { navegador: webkit, perfil: tablet }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar navegador e axe-core
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps ${{ matrix.navegador }}
+          npm install --no-save --no-audit --no-fund axe-core@4
+      - name: Casos de uso, segurança operacional, compatibilidade e acessibilidade
+        env:
+          NAVEGADOR: ${{ matrix.navegador }}
+          PERFIL: ${{ matrix.perfil }}
+          RESULTADOS: ${{ github.workspace }}/resultados
+        run: cd testes-e2e && python apoio.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-e2e-${{ matrix.navegador }}-${{ matrix.perfil }}
+          path: resultados/
+
+  zap:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Varredura OWASP ZAP (linha de base) do site publicado
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: https://saeliga.github.io/uti/?demo=1
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-bruto
+      - name: Guardar resultado
+        if: always()
+        run: mkdir -p resultados/zap && cp report_json.json report_md.md resultados/zap/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-zap
+          path: resultados/
+
+  sonar:
+    runs-on: ubuntu-24.04
+    needs: testes
+    steps:
+      - name: Conferir se o SonarCloud está configurado
+        id: cfg
+        env:
+          TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: echo "ativo=$([ -n "$TOKEN" ] && echo sim || echo nao)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v5
+        if: steps.cfg.outputs.ativo == 'sim'
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        if: steps.cfg.outputs.ativo == 'sim'
+        with:
+          name: resultados-testes
+          path: resultados
+      - name: SonarCloud
+        if: steps.cfg.outputs.ativo == 'sim'
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+  relatorio:
+    if: always()
+    needs: [testes, e2e, zap]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: resultados-*
+          path: resultados
+          merge-multiple: true
+      - name: Disponibilidade registrada (ramo qualidade)
+        run: git show origin/qualidade:disponibilidade.csv > resultados/disponibilidade.csv 2>/dev/null || rm -f resultados/disponibilidade.csv
+      - name: Gerar relatório
+        run: node ferramentas/relatorio_qualidade.mjs resultados resultados/relatorio.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-qualidade
+          path: resultados/relatorio.md
+      - name: Guardar o relatório da versão no ramo "qualidade"
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          V=$(node -p "require('./versao.json').versao")
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin qualidade >/dev/null; then
+            git fetch -q origin qualidade && git worktree add -q -B qualidade /tmp/q origin/qualidade
+          else
+            git worktree add -q --orphan -b qualidade /tmp/q
+          fi
+          mkdir -p /tmp/q/relatorios
+          cp resultados/relatorio.md "/tmp/q/relatorios/v$V.md"
+          cp resultados/relatorio.md /tmp/q/relatorios/ultimo.md
+          cd /tmp/q
+          git add relatorios
+          git commit -qm "Relatório de qualidade v$V" || exit 0
+          for i in 1 2 3; do git push -q origin qualidade && break; git pull -q --rebase origin qualidade; done

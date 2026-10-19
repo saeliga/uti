@@ -16,8 +16,14 @@ const { initializeApp } = await import(`${CDN}/firebase-app.js`);
 const A = await import(`${CDN}/firebase-auth.js`);
 const F = await import(`${CDN}/firebase-firestore.js`);
 
-const app = initializeApp(FIREBASE_CONFIG);
+// Modo emulador, SÓ para os testes automáticos de confiabilidade (CI): ?emulador=1
+// num endereço local (localhost/127.0.0.1) liga o app aos simuladores do Firebase.
+// No site publicado o parâmetro é ignorado.
+const EMULADOR = new URLSearchParams(location.search).has('emulador') && ['localhost', '127.0.0.1'].includes(location.hostname);
+
+const app = initializeApp(EMULADOR ? { ...FIREBASE_CONFIG, projectId: 'demo-uti-liga', apiKey: 'demo-chave' } : FIREBASE_CONFIG);
 const auth = A.getAuth(app);
+if (EMULADOR) A.connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
 // Sessão termina ao fechar a aba (tablets compartilhados).
 await A.setPersistence(auth, A.browserSessionPersistence);
 
@@ -25,6 +31,7 @@ await A.setPersistence(auth, A.browserSessionPersistence);
 let db = F.initializeFirestore(app, {
   localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }),
 });
+if (EMULADOR) F.connectFirestoreEmulator(db, '127.0.0.1', 8080);
 
 const agora = () => F.serverTimestamp();
 const uid = () => auth.currentUser?.uid;
@@ -62,7 +69,12 @@ const provedor = new A.GoogleAuthProvider();
 provedor.setCustomParameters({ prompt: 'select_account', hd: DOMINIO_INSTITUCIONAL });
 
 export async function entrarComGoogle() {
-  const r = await executar(() => A.signInWithPopup(auth, provedor));
+  // No emulador, o teste informa a conta fictícia (sessionStorage) e entra com credencial
+  // Google simulada, como a documentação do Firebase recomenda para testes.
+  const conta = EMULADOR && JSON.parse(sessionStorage.getItem('uti_emulador_conta') || 'null');
+  const r = await executar(() => (conta
+    ? A.signInWithCredential(auth, A.GoogleAuthProvider.credential(JSON.stringify({ sub: conta.uid, email: conta.email, email_verified: true, name: conta.nome })))
+    : A.signInWithPopup(auth, provedor)));
   if (!institucional(r.user?.email)) {
     await A.signOut(auth);
     throw new ErroSistema('conta_nao_institucional');

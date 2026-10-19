@@ -24,6 +24,9 @@ function chamarGroq_(mensagens, opcoes) {
   opcoes = opcoes || {};
   var chave = prop_('GROQ_API_KEY', true);
   var modelos = [prop_('GROQ_MODELO') || GROQ_MODELO_PADRAO, prop_('GROQ_MODELO_RESERVA') || GROQ_RESERVA_PADRAO];
+  // Coleta da pesquisa (versão congelada): GROQ_SEM_RESERVA = sim usa só o modelo
+  // principal, para que todas as sugestões avaliadas venham do mesmo modelo.
+  if (String(prop_('GROQ_SEM_RESERVA') || '').toLowerCase() === 'sim') modelos = [modelos[0]];
   var ultimo = 'ia_indisponivel';
   for (var i = 0; i < modelos.length; i++) {
     var inicio = Date.now();

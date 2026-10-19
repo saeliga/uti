@@ -37,7 +37,18 @@ const LIG = { 90001: [[9101], [9201]], 90002: [[9102], [9202]], 90003: [[9103], 
 
 const resumoNanda = (c) => ({ codigo: c, titulo: NANDA[c].titulo, dominio: NANDA[c].dominio, classe: '—', categoria: NANDA[c].categoria, temLigacoes: true });
 
+// Testes de segurança operacional: ?demo=1&falhaia=erro|tempo simula a IA falhando
+// (resposta fora do formato ou servidor que não responde). A evolução e o PE manual
+// devem continuar funcionando.
+const FALHA_IA = new URLSearchParams(location.search).get('falhaia');
+
 export async function responder(acao, dados = {}) {
+  if (FALHA_IA && acao.startsWith('ia.')) {
+    const { ErroApi } = await import('./appsscript.js');
+    await espera(FALHA_IA === 'tempo' ? 2500 : 300);
+    if (FALHA_IA === 'tempo') throw new ErroApi('tempo_esgotado', 'O servidor demorou para responder. Tente de novo.');
+    throw new ErroApi('ia_resposta_invalida', 'A IA respondeu fora do formato. Tente de novo.');
+  }
   await espera(acao === 'ia.sugerirSAE' ? 1800 : acao === 'ia.sugerirAtividades' ? 900 : 350);
   switch (acao) {
     case 'ping':

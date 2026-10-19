@@ -52,7 +52,7 @@ function codigoCatalogo() {
 }
 
 // ------------------------------------------------------------------ simulações do Google
-function criarAmbiente({ perfis = {}, groq = () => ({ status: 200, corpo: { choices: [{ message: { content: 'OK' } }] } }) } = {}) {
+function criarAmbiente({ perfis = {}, groq = () => ({ status: 200, corpo: { choices: [{ message: { content: 'OK' } }] } }), propriedades = {} } = {}) {
   const cache = new Map();
   const chamadas = { firestore: 0, groq: [] };
   const blob = (bytes) => ({ bytes: Buffer.from(bytes), getDataAsString: () => Buffer.from(bytes).toString('utf8') });
@@ -68,7 +68,7 @@ function criarAmbiente({ perfis = {}, groq = () => ({ status: 200, corpo: { choi
       Charset: { UTF_8: 'utf8' },
     },
     CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: (n) => ({ FIREBASE_PROJECT_ID: PROJETO, GROQ_API_KEY: 'chave-teste' })[n] ?? null }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (n) => ({ FIREBASE_PROJECT_ID: PROJETO, GROQ_API_KEY: 'chave-teste', ...propriedades })[n] ?? null }) },
     UrlFetchApp: {
       fetch: (url, opt) => {
         if (url.startsWith('https://firestore.googleapis.com/')) {
@@ -201,6 +201,27 @@ test('Groq: cai para o modelo de reserva em 429 e envia ajustes por modelo', () 
   assert.equal(r.dados.modelo, 'openai/gpt-oss-20b');
   assert.equal(chamadas.groq[0].reasoning_effort, 'none');
   assert.equal(chamadas.groq[1].include_reasoning, false);
+});
+
+test('Groq: coleta da pesquisa (GROQ_SEM_RESERVA=sim) não troca de modelo', () => {
+  const { chamar, chamadas } = criarAmbiente({ perfis: PERFIS, propriedades: { GROQ_SEM_RESERVA: 'sim' }, groq: () => ({ status: 429, corpo: {} }) });
+  assert.equal(chamar({ acao: 'ia.teste', token: token({ sub: 'adm' }) }).erro, 'ia_limite');
+  assert.equal(chamadas.groq.length, 1, 'só o modelo principal foi chamado');
+});
+
+test('Segurança operacional: os dois modelos fora do ar viram erro claro, sem sugestão', () => {
+  const { chamar, chamadas } = criarAmbiente({ perfis: PERFIS, groq: () => ({ status: 503, corpo: {} }) });
+  const r = chamar({ acao: 'ia.sugerirSAE', token: token(), dados: { resumo: 'Paciente em ventilação mecânica por TOT, com CVC em jugular, febre e taquipneia, secreção moderada.' } });
+  assert.equal(r.ok, false);
+  assert.equal(r.erro, 'ia_indisponivel');
+  assert.equal(chamadas.groq.length, 2);
+});
+
+test('Segurança operacional: resposta da IA fora do formato vira erro, sem sugestão', () => {
+  const { chamar } = criarAmbiente({ perfis: PERFIS, groq: () => ({ status: 200, corpo: { choices: [{ message: { content: 'Desculpe, não consigo responder em JSON.' } }] } }) });
+  const r = chamar({ acao: 'ia.sugerirSAE', token: token(), dados: { resumo: 'Paciente em ventilação mecânica por TOT, com CVC em jugular, febre e taquipneia, secreção moderada.' } });
+  assert.equal(r.ok, false);
+  assert.equal(r.erro, 'ia_resposta_invalida');
 });
 
 test('Groq: chave inválida vira erro claro', () => {

@@ -25,6 +25,10 @@ const MENSAGENS = {
   resumo_insuficiente: 'A avaliação ainda tem poucos dados para a IA.',
   ia_resposta_invalida: 'A IA respondeu fora do formato. Tente de novo.',
   fora_das_ligacoes: 'Esta intervenção não está ligada ao diagnóstico.',
+  ia_indisponivel: 'A IA está fora do ar agora. Continue a evolução e monte o PE pela biblioteca.',
+  ia_limite: 'A IA atingiu o limite de pedidos. Tente em alguns minutos ou use a biblioteca.',
+  ia_sem_conexao: 'O servidor não conseguiu falar com a IA. Tente de novo ou use a biblioteca.',
+  ia_chave_invalida: 'A IA não está configurada corretamente. Avise o administrador.',
 };
 
 export async function chamar(acao, dados = {}, { tempoMs = 30000 } = {}) {

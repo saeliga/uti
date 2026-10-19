@@ -1,10 +1,14 @@
 {
   "name": "uti-liga-sae",
   "private": true,
-  "description": "Testes do sistema de evolução e Processo de Enfermagem (o site em si não precisa de npm).",
+  "description": "Testes e relatório de qualidade do sistema (o site em si não precisa de npm).",
   "scripts": {
     "test": "node --test testes/*.test.mjs",
-    "test:regras": "firebase emulators:exec --only firestore --project demo-uti-liga \"node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=regras.tap testes-regras/*.test.mjs\""
+    "test:cobertura": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=resultados/lcov.info --test-reporter=tap --test-reporter-destination=resultados/unidade.tap testes/*.test.mjs",
+    "test:regras": "firebase emulators:exec --only firestore --project demo-uti-liga \"node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=resultados/regras.tap testes-regras/*.test.mjs\"",
+    "test:confiabilidade": "firebase emulators:exec --only firestore,auth --project demo-uti-liga \"cd testes-e2e && EMULADOR=1 NOME_RESULTADO=confiabilidade RESULTADOS=../resultados python3 apoio.py test_confiabilidade.py\"",
+    "test:e2e": "cd testes-e2e && python3 apoio.py",
+    "relatorio": "node ferramentas/relatorio_qualidade.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",
