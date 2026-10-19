@@ -86,7 +86,7 @@ test('ocorrência: identificação, dispositivos, infusões e marcações vêm d
   assert.equal(c.xClinico, '☒', 'caixa de seleção marcada');
   assert.equal(c.xCirurgico, '☐');
   assert.equal(c.viaAerea, 'TOT 7,5 - 22CM - 14/10 (D3)', 'linha abaixo de BIPAP');
-  assert.equal(c.dCurAvc, 'D2/7', 'dia do curativo do CVC (filme: 7 dias)');
+  assert.equal(c.dCurAvc, 'D3/8', 'dia do curativo do CVC no padrão Liga (aplicação = D1; filme até D8)');
   assert.equal(c.dCurCvti, '');
   assert.equal(c.oc0, '11/10 - HEMOCULTURA: NEGATIVA');
   assert.ok(!Object.values(c).some((v) => String(v).includes('RETIROU DRENO')), 'ocorrência resolvida sai do papel');

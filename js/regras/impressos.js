@@ -5,7 +5,7 @@
 // internação e da evolução. A montagem da página fica em js/impressos/.
 
 import { contagemDia, formatarData, idade as idadeEm, diasEntre } from './datas.js';
-import { ativo as dispositivoAtivo } from './dispositivos.js';
+import { ativo as dispositivoAtivo, diaCurativo as diaDoCurativo } from './dispositivos.js';
 import { normalizarInfusoes, caixaAlta } from './infusoes.js';
 import { ISOLAMENTOS } from './opcoes.js';
 import { SUBBLOCOS, subblocoRegistrado } from './evolucao.js';
@@ -363,10 +363,12 @@ export function camposOcorrencia(internacao, ev, { leitoNum, data }) {
   const va = primeiro(disp, ['tot', 'tqt']);
   // Curto para caber na célula: "TOT 7,5 - 22CM - 14/10 (D3)"
   c.viaAerea = va ? [`${va.tipo.toUpperCase()}${va.numero ? ` ${va.numero}` : ''}`, va.fixacao && `${va.fixacao}CM`, va.insercao && `${curta(va.insercao)} (${contagemDia(va.insercao, data)})`].filter(Boolean).join(' - ') : '';
-  // Dia do curativo do CVC e do CVTI (filme vale 7 dias; gaze, 1)
-  const diaCurativo = (i) => (i?.curativoData ? `${contagemDia(i.curativoData, data)}${({ filme: '/7', gaze: '/1' })[i.curativoTipo] || ''}` : '');
+  // Dia do curativo no padrão da Liga (aplicação = D1; filme D1 a D8): AVC, CVTI e cateter de HD
+  const diaCurativo = (i) => diaDoCurativo(i, data)?.texto || '';
   c.dCurAvc = diaCurativo(primeiro(disp, ['cvc', 'picc']));
   c.dCurCvti = diaCurativo(primeiro(disp, ['cti']));
+  const hd = primeiro(disp, ['cateter_dialise']);
+  c.curOutros = hd ? `CAT HD${diaCurativo(hd) ? ` ${diaCurativo(hd)}` : ''}` : '';
   // Ocorrências: culturas e ocorrências abertas da evolução, em até 6 linhas
   const linhasOc = ocorrenciasEmLinhas(itensOcorrencia(ev));
   for (let k = 0; k < 6; k++) c[`oc${k}`] = linhasOc[k] || '';

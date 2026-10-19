@@ -19,9 +19,11 @@ export const ESTADOS_MEDIDA = op(['prescrito', 'Prescrito'], ['realizado', 'Real
 // Neurológico: RASS só para paciente sob sedação; Glasgow para os demais.
 const sedado = (d) => d.consciencia === 'sedado';
 const semSedacao = (d) => !!d.consciencia && d.consciencia !== 'sedado';
-const nivelAlterado = (d) => (sedado(d) ? Number(d.rass) !== 0 : d.consciencia !== 'alerta');
+// 'alerta' é o valor guardado de "Consciente" (registros antigos continuam valendo).
+const despertos = ['alerta', 'vigil'];
+const nivelAlterado = (d) => (sedado(d) ? Number(d.rass) !== 0 : !despertos.includes(d.consciencia));
 export function camDe(d) {
-  const aplicavel = sedado(d) ? camAplicavel(d.rass) : ['alerta', 'sonolento'].includes(d.consciencia);
+  const aplicavel = sedado(d) ? camAplicavel(d.rass) : [...despertos, 'sonolento'].includes(d.consciencia);
   return camIcu({ rass: d.rass, agudo: d.camAgudo, desatencao: d.camDesatencao, desorganizado: d.camDesorganizado, aplicavel, nivelAlterado: nivelAlterado(d) });
 }
 
@@ -92,7 +94,9 @@ export const BLOCOS = [
         id: 'neuro', titulo: 'Neurológico e sedoanalgesia', copiavel: true, obrigatorio: true,
         campos: [
           { nome: 'consciencia', rotulo: 'Nível de consciência', tipo: 'escolha', obrigatorio: true,
-            opcoes: op(['alerta', 'Alerta'], ['sonolento', 'Sonolento'], ['torporoso', 'Torporoso'], ['comatoso', 'Comatoso'], ['sedado', 'Sob sedação']) },
+            opcoes: op(['alerta', 'Consciente'], ['vigil', 'Vigil'], ['sonolento', 'Sonolento'], ['torporoso', 'Torporoso'], ['comatoso', 'Comatoso'], ['sedado', 'Sob sedação']) },
+          { nome: 'orientacao', rotulo: 'Orientação', tipo: 'escolha', opcoes: op(['orientado', 'Orientado'], ['desorientado', 'Desorientado']),
+            se: (d) => [...despertos, 'sonolento'].includes(d.consciencia) },
           { nome: 'gOcular', rotulo: 'Glasgow — abertura ocular', tipo: 'escala', opcoes: GLASGOW.ocular, se: semSedacao, info: 'glasgow' },
           { nome: 'gVerbal', rotulo: 'Glasgow — resposta verbal', tipo: 'escala', opcoes: GLASGOW.verbal, se: semSedacao },
           { nome: 'gMotora', rotulo: 'Glasgow — resposta motora', tipo: 'escala', opcoes: GLASGOW.motora, se: semSedacao },
