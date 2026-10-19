@@ -154,6 +154,10 @@ for (const perfil of ['desktop', 'celular']) {
   linha('Manutenibilidade', 'Nota de manutenibilidade', 'sqale_rating', m.code_smells != null ? `${m.code_smells} code smells` : '');
   linha('Segurança da informação', 'Nota de segurança do código', 'security_rating', m.vulnerabilities != null ? `${m.vulnerabilities} vulnerabilidades, ${m.security_hotspots ?? '?'} pontos a revisar` : '');
   linha('Confiabilidade', 'Nota de confiabilidade do código', 'reliability_rating', m.bugs != null ? `${m.bugs} bugs` : '');
+  const pr = json('sonar-problemas.json');
+  if (pr?.issues?.length) {
+    detalhes.push(['SonarCloud: vulnerabilidades e bugs', pr.issues.map((i) => `- [${i.type === 'BUG' ? 'bug' : 'vulnerabilidade'}, ${i.severity}] ${String(i.component).replace(/^saeliga_uti:/, '')}:${i.line ?? '?'} — ${i.message} (${i.rule})`).join('\n')]);
+  }
 }
 
 // Flexibilidade
