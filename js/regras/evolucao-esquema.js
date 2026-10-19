@@ -247,7 +247,7 @@ export const BLOCOS = [
             excludentes: [['normocorada', 'hipocorada'], ['acianotica', 'cianotica'], ['anicterica', 'icterica'], ['hidratada', 'desidratada'], ['integra', 'nao_integra']] },
           { nome: 'mucosas', rotulo: 'Mucosas', tipo: 'escolha', opcoes: op(['integras', 'Íntegras'], ['ressecadas', 'Ressecadas'], ['mucosite', 'Com mucosite']) },
           {
-            nome: 'lesoes', rotulo: 'Lesões e curativos', tipo: 'lista', rotuloItem: 'lesão',
+            nome: 'lesoes', rotulo: 'Lesões e curativos', tipo: 'lista', rotuloItem: 'lesão', fotos: true,
             tituloItem: (i) => [({ lpp: 'LPP', cirurgica: 'Incisão cirúrgica', oncologica: 'Lesão oncológica', dermatite: 'Dermatite associada à incontinência', friccao: 'Lesão por fricção', outra: 'Outra lesão' })[i.tipo], i.local].filter(Boolean).join(' — '),
             campos: [
               { nome: 'tipo', rotulo: 'Tipo', tipo: 'select', opcoes: op(['lpp', 'LPP'], ['cirurgica', 'Incisão cirúrgica'], ['oncologica', 'Lesão oncológica'], ['dermatite', 'Dermatite associada à incontinência'], ['friccao', 'Lesão por fricção'], ['outra', 'Outra']) },

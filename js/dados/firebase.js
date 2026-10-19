@@ -507,6 +507,47 @@ export function salvarChecklistInsercao(id, dados) {
   }).catch((e) => { throw traduzirErro(e); });
 }
 
+// --------------------------------------------------------------------------- fotos das lesões
+// fotosLesoes/{id}: dados e miniatura (lista da galeria); fotosLesoes/{id}/arquivo/imagem:
+// a foto em si, lida só quando alguém a abre. Nada é apagado: foto errada é marcada como excluída.
+export async function salvarFotoLesao({ unidade, internacaoId, lesaoId, data, legenda, miniatura, imagem, largura, altura, autorNome }) {
+  return executar(async () => {
+    const ref = F.doc(F.collection(db, 'fotosLesoes'));
+    const b = F.writeBatch(db);
+    b.set(ref, {
+      unidade, internacaoId, lesaoId, data, legenda: legenda || '', miniatura, largura, altura, ordem: Date.now(),
+      autor: uid(), autorNome: autorNome || '', tiradaEm: agora(), excluida: false,
+    });
+    b.set(F.doc(db, 'fotosLesoes', ref.id, 'arquivo', 'imagem'), { imagem, autor: uid() });
+    // Sem internet, a foto fica no aparelho e sobe quando a conexão voltar (espera até 4 s;
+    // erro de permissão nesse prazo aparece para o usuário).
+    const envio = b.commit();
+    await Promise.race([envio, new Promise((r) => setTimeout(r, 4000))]);
+    return ref.id;
+  });
+}
+
+export async function listarFotosLesao(internacaoId, lesaoId) {
+  return executar(async () => {
+    const q = F.query(F.collection(db, 'fotosLesoes'), F.where('internacaoId', '==', internacaoId), F.where('lesaoId', '==', lesaoId));
+    const s = await F.getDocs(q);
+    return s.docs.map((d) => ({ id: d.id, ...d.data() }));
+  });
+}
+
+export async function lerImagemFoto(id) {
+  return executar(async () => {
+    const s = await F.getDoc(F.doc(db, 'fotosLesoes', id, 'arquivo', 'imagem'));
+    return s.exists() ? s.data().imagem : null;
+  });
+}
+
+export async function excluirFotoLesao(id, motivo) {
+  return executar(() => F.updateDoc(F.doc(db, 'fotosLesoes', id), {
+    excluida: true, motivoExclusao: String(motivo || '').slice(0, 200), excluidaPor: uid(), excluidaEm: agora(),
+  }));
+}
+
 // --------------------------------------------------------------------------- registro de operações
 /** Registra uma operação (abertura de evolução, impressão…) na auditoria. Nunca guarda conteúdo clínico. */
 export function registrarEvento(acao, dados = {}) {

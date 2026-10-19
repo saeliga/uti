@@ -315,6 +315,43 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ------------------------------------------------------------------ fotos das lesões
+    // Dados e miniatura no documento; a foto em /arquivo/imagem (lida só ao abrir).
+    // Quem cuida do paciente agora (unidade atual da internação) também vê as fotos antigas.
+    // Nada é apagado por enfermeiro: foto errada é marcada como excluída (só o administrador apaga).
+    match /fotosLesoes/{id} {
+      function d() { return request.resource.data; }
+      function internacaoF(iid) { return get(caminho('internacoes', iid)).data; }
+      function podeVer(dados) { return ativo() && (naUnidade(dados.unidade) || naUnidade(internacaoF(dados.internacaoId).unidade)); }
+      allow get, list: if resource == null || podeVer(resource.data);
+      allow create: if clinico() && naUnidade(d().unidade)
+        && internacaoF(d().internacaoId).unidade == d().unidade
+        && internacaoF(d().internacaoId).status == 'ativa'
+        && d().keys().hasOnly(['unidade', 'internacaoId', 'lesaoId', 'data', 'legenda', 'miniatura', 'largura', 'altura', 'ordem', 'autor', 'autorNome', 'tiradaEm', 'excluida'])
+        && d().lesaoId is string && d().lesaoId.size() <= 40
+        && d().data is string && d().data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d().legenda is string && d().legenda.size() <= 200
+        && d().miniatura is string && d().miniatura.size() <= 60000
+        && d().autor == request.auth.uid && d().tiradaEm == request.time && d().excluida == false;
+      allow update: if clinico() && podeVer(resource.data) && resource.data.excluida == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['excluida', 'motivoExclusao', 'excluidaPor', 'excluidaEm'])
+        && d().excluida == true && d().excluidaPor == request.auth.uid && d().excluidaEm == request.time
+        && d().motivoExclusao is string && d().motivoExclusao.size() <= 200;
+      allow delete: if admin();
+
+      match /arquivo/{arq} {
+        function foto() { return get(caminho('fotosLesoes', id)).data; }
+        allow get: if ativo() && (naUnidade(foto().unidade) || naUnidade(get(caminho('internacoes', foto().internacaoId)).data.unidade));
+        allow create: if clinico() && arq == 'imagem'
+          && getAfter(caminho('fotosLesoes', id)).data.autor == request.auth.uid
+          && request.resource.data.keys().hasOnly(['imagem', 'autor'])
+          && request.resource.data.autor == request.auth.uid
+          && request.resource.data.imagem is string && request.resource.data.imagem.size() <= 700000;
+        allow list, update: if false;
+        allow delete: if admin();
+      }
+    }
+
     match /auditoria/{registro} {
       // Registro das operações (LGPD art. 37): só inclusão, com autor e hora do servidor.
       allow create: if ativo()

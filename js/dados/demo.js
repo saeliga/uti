@@ -262,7 +262,7 @@ function notificarEvol() {
         infusoes: { itens: [{ grupo: 'hv', medicamento: 'SORO FISIOLÓGICO 0,9%', vazao: '40' }, { grupo: 'dva', medicamento: 'NORADRENALINA', vazao: '18' }, { grupo: 'sedo', medicamento: 'MIDAZOLAM', vazao: '8' }, { grupo: 'sedo', medicamento: 'FENTANIL', vazao: '3' }] },
         gi: { via: ['sne'], dieta: 'Enteral padrão a 40 mL/h', evacuou: 'nao' },
         herdado: { ultimaEvacuacao: somarDias(hoje, -3) },
-        pele: { inspecao: ['hipocorada', 'acianotica', 'anicterica', 'nao_integra'], mucosas: 'ressecadas', lesoes: [{ tipo: 'lpp', local: 'sacral', estagio: '2', medidas: '3 x 2', cobertura: 'Hidrocoloide', evolucao: 'estavel' }] },
+        pele: { inspecao: ['hipocorada', 'acianotica', 'anicterica', 'nao_integra'], mucosas: 'ressecadas', lesoes: [{ id: 'lesao_demo1', tipo: 'lpp', local: 'sacral', estagio: '2', medidas: '3 x 2', cobertura: 'Hidrocoloide', evolucao: 'estavel' }] },
         dispositivos: { itens: [
           { id: 'demo1', tipo: 'cvc', local: 'JUGULAR INTERNA', lado: 'D', lumens: '3', insercao: somarDias(hoje, -3), implantadoUti: 'sim', curativoTipo: 'filme', curativoData: somarDias(hoje, -3), sitio: ['sem_alteracoes'], necessario: 'sim' },
           { id: 'demo2', tipo: 'tot', numero: '7,5', fixacao: '22', insercao: somarDias(hoje, -3), necessario: 'sim' },
@@ -361,6 +361,29 @@ export async function salvarChecklistIras(id, dados, { leitos, novo } = {}) {
     atual.enfermeiro = dados.enfermeiro;
   } else checklistsIras[id] = { ...clone(dados), respostas: { ...(atual?.respostas || {}), ...clone(dados.respostas) }, atualizadoPor: USUARIO.uid };
   return espera(120);
+}
+
+// --------------------------------------------------------------------------- fotos das lesões
+const fotos = {};
+export async function salvarFotoLesao(dados) {
+  await espera(150);
+  const id = `foto${Object.keys(fotos).length + 1}`;
+  const { imagem, ...meta } = dados;
+  fotos[id] = { ...clone(meta), legenda: meta.legenda || '', ordem: Date.now(), autor: USUARIO.uid, excluida: false, imagem };
+  return id;
+}
+export async function listarFotosLesao(internacaoId, lesaoId) {
+  await espera(80);
+  return Object.entries(fotos).filter(([, f]) => f.internacaoId === internacaoId && f.lesaoId === lesaoId)
+    .map(([id, { imagem, ...f }]) => ({ id, ...clone(f) }));
+}
+export async function lerImagemFoto(id) {
+  await espera(80);
+  return fotos[id]?.imagem || null;
+}
+export async function excluirFotoLesao(id, motivo) {
+  await espera(80);
+  Object.assign(fotos[id], { excluida: true, motivoExclusao: motivo, excluidaPor: USUARIO.uid });
 }
 
 // --------------------------------------------------------------------------- capa da ocorrência (observações)

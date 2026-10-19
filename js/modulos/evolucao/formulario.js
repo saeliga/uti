@@ -250,6 +250,20 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
           const tituloPadrao = `${c.rotuloItem[0].toUpperCase()}${c.rotuloItem.slice(1)} ${k + 1}`;
           const titulo = h('strong', {}, c.tituloItem?.((alvo()[c.nome] || [])[k] || {}) || tituloPadrao);
           if (c.tituloItem) doItens.push(() => { titulo.textContent = c.tituloItem((alvo()[c.nome] || [])[k] || {}) || tituloPadrao; });
+          // Fotos (lesões): ligadas ao item por um id estável, criado na primeira foto.
+          const fotosEl = c.fotos ? h('div', { class: 'item-fotos' }) : null;
+          if (fotosEl) {
+            const item = () => (alvo()[c.nome] || [])[k] || {};
+            import('../fotos/fotos.js').then((m) => fotosEl.append(m.barraFotos({
+              item, contexto, ro,
+              titulo: () => titulo.textContent,
+              garantirId: () => {
+                const i = item();
+                if (!i.id) { i.id = m.novoIdLesao(); mudou(); }
+                return i.id;
+              },
+            })));
+          }
           itensEl.append(h('div', { class: 'item-lista' },
             h('div', { class: 'item-topo' }, titulo,
               !ro && h('button', { type: 'button', class: 'btn btn-link btn-pequeno', onclick: () => {
@@ -259,7 +273,7 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
                 desenhar();
                 mudou();
               } }, 'Remover')),
-            corpo));
+            corpo, fotosEl));
         });
       };
       desenhar();

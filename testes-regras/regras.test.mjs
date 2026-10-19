@@ -213,3 +213,47 @@ test('capa da ocorrência: reservas em lista, só na própria UTI', async () => 
   await assertFails(setDoc(doc(db('enf2'), 'capasOcorrencia', `uti1_${HOJE}`), { ...dados, ...carimbo('enf2') }));
   await assertFails(setDoc(doc(db('enf1'), 'capasOcorrencia', `uti1_${HOJE}`), { ...dados, reservas: Array.from({ length: 21 }, (_, k) => `P${k}`) }));
 });
+
+// --------------------------------------------------------------------------- fotos das lesões
+import { writeBatch, deleteDoc } from 'firebase/firestore';
+
+async function novaFoto(uid, id = 'f1') {
+  const f = db(uid);
+  const b = writeBatch(f);
+  b.set(doc(f, 'fotosLesoes', id), {
+    unidade: 'uti1', internacaoId: 'i1', lesaoId: 'l1', data: HOJE, legenda: '', miniatura: 'data:image/jpeg;base64,AAAA', largura: 1280, altura: 960, ordem: 1,
+    autor: uid, autorNome: uid.toUpperCase(), tiradaEm: serverTimestamp(), excluida: false,
+  });
+  b.set(doc(f, 'fotosLesoes', id, 'arquivo', 'imagem'), { imagem: 'data:image/jpeg;base64,BBBB', autor: uid });
+  return b.commit();
+}
+const fotosDaLesao = (uid) => getDocs(query(collection(db(uid), 'fotosLesoes'), where('internacaoId', '==', 'i1'), where('lesaoId', '==', 'l1')));
+
+test('fotos: só quem cuida do paciente inclui e vê; a foto em si só por leitura direta', async () => {
+  await assertSucceeds(novaFoto('enf1'));
+  await assertFails(novaFoto('enf2', 'f2'), 'outra UTI não inclui');
+  await assertSucceeds(fotosDaLesao('enf1'));
+  await assertSucceeds(fotosDaLesao('leit1'));
+  await assertFails(fotosDaLesao('enf2'));
+  await assertSucceeds(getDoc(doc(db('enf1'), 'fotosLesoes', 'f1', 'arquivo', 'imagem')));
+  await assertFails(getDoc(doc(db('enf2'), 'fotosLesoes', 'f1', 'arquivo', 'imagem')));
+  await assertFails(setDoc(doc(db('enf1'), 'fotosLesoes', 'f1', 'arquivo', 'outra'), { imagem: 'x', autor: 'enf1' }));
+  await assertFails(updateDoc(doc(db('enf1'), 'fotosLesoes', 'f1'), { legenda: 'trocada' }), 'foto não é editada');
+});
+
+test('fotos: foto errada é marcada como excluída (com motivo); só o administrador apaga', async () => {
+  await novaFoto('enf1');
+  const ref = (u) => doc(db(u), 'fotosLesoes', 'f1');
+  await assertFails(updateDoc(ref('enf1'), { excluida: true, excluidaPor: 'enf1', excluidaEm: serverTimestamp() }), 'sem motivo');
+  await assertSucceeds(updateDoc(ref('enf1'), { excluida: true, motivoExclusao: 'foto de outro paciente', excluidaPor: 'enf1', excluidaEm: serverTimestamp() }));
+  await assertFails(updateDoc(ref('enf1'), { excluida: false, motivoExclusao: '', excluidaPor: 'enf1', excluidaEm: serverTimestamp() }), 'não volta');
+  await assertFails(deleteDoc(ref('enf1')));
+  await assertSucceeds(deleteDoc(ref('admin')));
+});
+
+test('fotos: paciente transferido — a equipe da UTI nova vê as fotos antigas', async () => {
+  await novaFoto('enf1');
+  await assertSucceeds(transferir('enf12'));
+  await assertSucceeds(fotosDaLesao('enf2'));
+  await assertSucceeds(getDoc(doc(db('enf2'), 'fotosLesoes', 'f1', 'arquivo', 'imagem')));
+});

@@ -387,6 +387,12 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 
 /* ---------- Infusões por finalidade ---------- */
 .infusoes { display: flex; flex-direction: column; gap: 14px; }
+/* Computador: grupos de infusão lado a lado */
+@media (min-width: 1100px) {
+  .infusoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; align-items: start; }
+}
+@media (min-width: 1500px) { .infusoes { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .campo .infusoes .inf-linha select { min-width: 0; width: 100%; } .inf-nome { min-width: 0; flex: 1; } }
 .inf-grupo { display: flex; flex-direction: column; gap: 4px; }
 .inf-titulo { font-family: var(--fonte-titulo); font-weight: 700; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--ui-texto-forte); margin-bottom: 2px; }
 .inf-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: var(--toque); }
@@ -520,3 +526,23 @@ h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
 .info-escala ul { margin: 0; padding-left: 20px; font-size: 14px; }
 .info-escala li { margin: 4px 0; }
 .info-escala-fonte { font-size: 12px; color: #6b6b70; margin-top: 14px; }
+
+/* fotos das lesões */
+.item-fotos { padding: 0 10px 10px; }
+.fotos-nova { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.foto-previa { display: flex; align-items: center; gap: 10px; }
+.foto-previa img { max-height: 120px; border-radius: 6px; border: 1px solid var(--ui-borda); }
+.fotos-galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 8px; }
+.foto-card { margin: 0; border: 1px solid var(--ui-borda); border-radius: 8px; overflow: hidden; background: #fff; }
+.foto-mini { display: block; width: 100%; padding: 0; border: 0; background: #f2f3f5; cursor: zoom-in; }
+.foto-mini img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.foto-card figcaption { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; font-size: 13px; }
+.foto-card small { color: #6b6b70; }
+.foto-marcar { display: flex; align-items: center; gap: 6px; }
+.foto-grande { display: block; max-width: 100%; max-height: 70vh; margin: 0 auto; border-radius: 6px; }
+.fotos-comparar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.foto-lado { margin: 0; text-align: center; font-size: 13px; }
+@media (max-width: 640px) { .fotos-comparar { grid-template-columns: 1fr; } }
+.pep-foto { max-width: 360px; width: 100%; border-radius: 4px; border: 1px solid var(--ui-borda); }
+.foto-data { display: flex; flex-direction: column; gap: 4px; max-width: 220px; }
+.fotos-nova input[type=text], .fotos-nova input[type=date] { min-height: 40px; padding: 6px 10px; border: 1px solid #c5c6cb; border-radius: 8px; font: 15px var(--fonte-texto); background: #fff; }
