@@ -99,7 +99,8 @@ function cartao(l, unidade, ev, dia, leitos = []) {
     const hoje = hojeISO();
     const sit = situacaoEvolucao(ev);
     return h('div', { class: `leito leito-ocupado sit-borda-${sit}` },
-      h('button', { class: 'leito-abrir', type: 'button', 'aria-label': `${rotulo}, ${r.nome}: abrir dados da internação`, onclick: () => abrirDetalhe(l, unidade) },
+      h('button', { class: 'leito-abrir', type: 'button', onclick: () => abrirDetalhe(l, unidade) },
+        h('span', { class: 'sr-only' }, 'Abrir dados da internação: '),
         h('div', { class: 'leito-topo' },
           h('span', { class: 'leito-num' }, rotulo),
           h('span', { class: 'leito-dia', title: 'Dias de UTI (admissão = D0)' }, `UTI ${contagemDia(r.admissaoUti, dia || hoje)}`)),

@@ -1,13 +1,14 @@
 // Relatório de qualidade por versão (ISO/IEC 25010:2023), a partir dos resultados do CI.
-// Uso: node ferramentas/relatorio_qualidade.mjs [pasta-de-resultados] [arquivo-de-saída]
+// Uso (na raiz do repositório): node ferramentas/relatorio_qualidade.mjs
 // Lê o que existir na pasta (testes, cobertura, acessibilidade, desempenho, análise
 // estática, disponibilidade, varredura de segurança) e escreve um Markdown com a
 // tabela característica → métrica → valor → critério → situação.
 import fs from 'node:fs';
 import path from 'node:path';
 
-const DIR = process.argv[2] || 'resultados';
-const SAIDA = process.argv[3] || path.join(DIR, 'relatorio.md');
+// Caminhos fixos (sem argumentos de linha de comando): lê e escreve só em resultados/.
+const DIR = path.resolve('resultados');
+const SAIDA = path.join(DIR, 'relatorio.md');
 const ler = (f) => { try { return fs.readFileSync(path.join(DIR, f), 'utf8'); } catch { return null; } };
 const json = (f) => { const t = ler(f); try { return t ? JSON.parse(t) : null; } catch { return null; } };
 const arquivos = (re) => { try { return fs.readdirSync(DIR).filter((f) => re.test(f)); } catch { return []; } };

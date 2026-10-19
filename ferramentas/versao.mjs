@@ -19,7 +19,7 @@ const lerJs = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) 
   const p = path.join(dir, e.name);
   return e.isDirectory() ? lerJs(p) : e.name.endsWith('.js') ? [p] : [];
 });
-const arquivos = lerJs(path.join(raiz, 'js')).map((p) => `./${path.relative(raiz, p).split(path.sep).join('/')}`).sort();
+const arquivos = lerJs(path.join(raiz, 'js')).map((p) => `./${path.relative(raiz, p).split(path.sep).join('/')}`).sort((a, b) => a.localeCompare(b));
 const mapa = { imports: Object.fromEntries(arquivos.map((a) => [a, `${a}?v=${versao}`])) };
 
 let html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
@@ -44,7 +44,7 @@ const visitar = (rel) => {
   }
 };
 visitar('./js/main.js');
-const pre = [...estaticos].sort().map((a) => `  <link rel="modulepreload" href="${a}?v=${versao}">`).join('\n');
+const pre = [...estaticos].sort((a, b) => a.localeCompare(b)).map((a) => `  <link rel="modulepreload" href="${a}?v=${versao}">`).join('\n');
 const blocoPre = `<!-- pré-carregamento (gerado por ferramentas/versao.mjs) -->\n${pre}\n  <!-- /pré-carregamento -->`;
 if (html.includes('<!-- pré-carregamento')) html = html.replace(/<!-- pré-carregamento[\s\S]*?<!-- \/pré-carregamento -->/, blocoPre);
 else html = html.replace('<script type="module" src="js/main.js', `${blocoPre}\n  <script type="module" src="js/main.js`);

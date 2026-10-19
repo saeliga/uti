@@ -11,8 +11,14 @@
     "relatorio": "node ferramentas/relatorio_qualidade.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "9.13.0",
     "@firebase/rules-unit-testing": "^3.0.4",
+    "@lhci/cli": "0.14.0",
+    "axe-core": "4.10.2",
+    "eslint": "9.13.0",
     "firebase": "^10.14.1",
-    "firebase-tools": "^13.29.0"
+    "firebase-tools": "^13.29.0",
+    "globals": "15.11.0",
+    "jscpd": "4.0.5"
   }
 }

@@ -44,7 +44,7 @@ export async function sairComSeguranca() {
 
 function cabecalhoAcesso() {
   return h('div', { class: 'acesso-topo' },
-    h('img', { src: 'assets/logo/logo_liga_cor.png', alt: 'Liga Contra o Câncer', class: 'acesso-logo' }),
+    h('img', { src: 'assets/logo/logo_liga_cor_400.webp', alt: 'Liga Contra o Câncer', class: 'acesso-logo', width: 170, height: 94, fetchpriority: 'high' }),
     h('h1', {}, 'Evolução e Processo de Enfermagem'),
     h('p', { class: 'acesso-sub' }, 'UTI 1 e UTI 2'));
 }
