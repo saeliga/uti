@@ -2,6 +2,7 @@
 // A foto é reduzida no próprio aparelho antes de ir ao banco: cabe com folga no
 // limite de 1 MB por registro do Firestore e não pesa no plano gratuito.
 
+import { idAleatorio } from './ids.js';
 export const FOTO = {
   ladoMaior: 1280, // px da foto guardada
   ladoMiniatura: 240, // px da miniatura da galeria
@@ -25,4 +26,4 @@ export function galeria(fotos = []) {
 }
 
 /** Identificador estável de um item de lista (lesão) para ligar as fotos. */
-export const novoIdLesao = () => `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+export const novoIdLesao = () => idAleatorio('l', 4);

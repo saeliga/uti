@@ -213,4 +213,12 @@ console.log(`::notice title=Qualidade ${versao}::${atende} de ${avaliados} crit�
 for (const l of linhas.filter((x) => x[4] === SIT.nao)) console.log(`::warning title=${l[0]}::${l[1]}: ${l[2]} (critério ${l[3]})`);
 // Detalhes também como uma anotação (lidos no resumo do PR).
 const esc = (t) => String(t).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, '%0A');
-for (const [t, c] of detalhes) console.log(`::notice title=Detalhe: ${t}::${esc(c.slice(0, 3500))}`);
+for (const [t, c] of detalhes) {
+  // Uma anotação tem limite de tamanho: divide por linhas em partes de até 3.500 caracteres.
+  const partes = [];
+  for (const l of c.split('\n')) {
+    if (!partes.length || partes.at(-1).length + l.length > 3500) partes.push(l);
+    else partes[partes.length - 1] += `\n${l}`;
+  }
+  partes.forEach((p, k) => console.log(`::notice title=Detalhe: ${t}${partes.length > 1 ? ` (${k + 1}/${partes.length})` : ''}::${esc(p)}`));
+}

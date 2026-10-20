@@ -8,6 +8,7 @@ import { idPaciente, resumoParaLeito } from '../regras/validacao.js';
 import { diaAssistencial, idEvolucao } from '../regras/turnos.js';
 import { podeDesfazerSaida, historicoAposReversao, validarReversao } from '../regras/saidas.js';
 import { agoraLocalISO } from '../regras/datas.js';
+import { idAleatorio } from '../regras/ids.js';
 
 const V = '10.14.1';
 const CDN = `https://www.gstatic.com/firebasejs/${V}`;
@@ -426,7 +427,7 @@ export async function reverterSaida(id, { leitoId, motivo, porNome, admin = fals
 // conflito quando duas pessoas mexem na mesma evolução. Sem Wi-Fi, a gravação
 // fica no aparelho e sobe sozinha quando a conexão voltar.
 
-const DISPOSITIVO = Math.random().toString(36).slice(2, 10);
+const DISPOSITIVO = idAleatorio('', 8);
 
 export function observarEvolucoesDia(unidade, data, cb, cbErro) {
   const q = F.query(F.collection(db, 'evolucoes'), F.where('unidade', '==', unidade), F.where('data', '==', data));
