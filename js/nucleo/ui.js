@@ -62,6 +62,14 @@ export function limpar(el) {
 
 // --------------------------------------------------------------------------- avisos
 let areaAvisos;
+/**
+ * Dispara uma tarefa sem esperar por ela (cliques, carregamentos), mas sem engolir
+ * erros: se falhar, mostra o aviso. Não devolve a promessa (não fica "solta").
+ */
+export function emSegundoPlano(promessa) {
+  Promise.resolve(promessa).catch((e) => aviso(e?.message || 'Não foi possível concluir a operação.', 'erro', 8000));
+}
+
 export function aviso(texto, tipo = 'info', ms = 4500) {
   if (!areaAvisos) {
     areaAvisos = h('div', { class: 'avisos', role: 'status', 'aria-live': 'polite' });

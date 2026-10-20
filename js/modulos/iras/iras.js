@@ -4,7 +4,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, limpar, carregando, anexar } from '../../nucleo/ui.js';
+import { h, limpar, carregando, anexar, emSegundoPlano } from '../../nucleo/ui.js';
 import { diaAssistencial, diaAnterior, turnoDe, TURNOS, idEvolucao } from '../../regras/turnos.js';
 import { formatarData } from '../../regras/datas.js';
 import { BUNDLES_IRAS, MARCAS_IRAS, adesaoBundle, irasInicial, resumoIras, juntarEvolucoes } from '../../regras/impressos.js';
@@ -26,7 +26,7 @@ export async function telaIras(conteudo, unidade) {
   const pararLeitos = backend.observarLeitos(unidade.id, (ls) => {
     const primeira = !leitos.length;
     leitos = ls.sort(ordenar);
-    if (primeira) carregar();
+    if (primeira) emSegundoPlano(carregar());
   }, (e) => limpar(conteudo).append(h('p', { class: 'vazio' }, e.message)));
 
   const idDoc = () => `${unidade.id}_${data}_${turno}`;
@@ -74,8 +74,8 @@ export async function telaIras(conteudo, unidade) {
     const nums = leitos.map((l) => l.numero);
     const resp = doc.respostas;
     const resumo = resumoIras(resp);
-    const selData = h('input', { type: 'date', value: data, max: diaAssistencial(), onchange: (e) => { if (e.target.value) { if (timer) { clearTimeout(timer); enviar(); } data = e.target.value; carregar(); } } });
-    const selTurno = h('select', { onchange: (e) => { if (timer) { clearTimeout(timer); enviar(); } turno = e.target.value; carregar(); } },
+    const selData = h('input', { type: 'date', value: data, max: diaAssistencial(), onchange: (e) => { if (e.target.value) { if (timer) { clearTimeout(timer); enviar(); } data = e.target.value; emSegundoPlano(carregar()); } } });
+    const selTurno = h('select', { onchange: (e) => { if (timer) { clearTimeout(timer); enviar(); } turno = e.target.value; emSegundoPlano(carregar()); } },
       Object.entries(TURNOS).map(([k, t]) => h('option', { value: k, selected: k === turno }, t.nome)));
     const tabela = h('table', { class: 'iras-tabela' });
     const cab = h('tr', {}, h('th', {}, ''), nums.map((n) => h('th', {}, `L${Number(n)}`)));

@@ -4,7 +4,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, limpar, carregando, aviso, abrirJanela, confirmar, campo, lerFormulario, mostrarErros } from '../../nucleo/ui.js';
+import { h, limpar, carregando, aviso, abrirJanela, confirmar, campo, lerFormulario, mostrarErros, emSegundoPlano } from '../../nucleo/ui.js';
 import { BLOCOS, contextoEvolucao } from '../../regras/evolucao-esquema.js';
 import {
   validarFinalizacao, pendenciasAutomaticas, situacaoEvolucao, ROTULO_SITUACAO, textoParaPEP, htmlParaPEP, estruturaPEP, linhasPEP, comFotos,
@@ -174,7 +174,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
     avisoOutro);
 
   // Evolução da admissão: sempre disponível para consulta.
-  (async () => {
+  emSegundoPlano((async () => {
     if (!internacao.admissaoUti) return;
     let d = diaAssistencial(new Date(internacao.admissaoUti));
     for (let k = 0; k < 4 && d <= ev.data; k++, d = somarDias(d, 1)) {
@@ -198,7 +198,7 @@ export async function telaEvolucao(conteudo, { internacaoId, data }) {
         return;
       }
     }
-  })();
+  })());
 
   // ------------------------------------------------------------------ navegação por blocos
   const navegacao = h('nav', { class: 'evo-nav', 'aria-label': 'Blocos da evolução' });

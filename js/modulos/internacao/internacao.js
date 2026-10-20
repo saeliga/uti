@@ -3,7 +3,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, abrirJanela, campo, lerFormulario, mostrarErros, aviso, carregando, confirmar, trocarFilhos } from '../../nucleo/ui.js';
+import { h, abrirJanela, campo, lerFormulario, mostrarErros, aviso, carregando, confirmar, trocarFilhos, emSegundoPlano } from '../../nucleo/ui.js';
 import { validarPaciente, validarInternacao, validarDesfecho, montarInternacao } from '../../regras/validacao.js';
 import { agoraLocalISO, contagemDia, formatarData, formatarDataHora, hojeISO, idade } from '../../regras/datas.js';
 import { ISOLAMENTOS, ALERGIA_SITUACAO, TIPOS_INTERNACAO, DESFECHOS } from '../../regras/opcoes.js';
@@ -151,7 +151,7 @@ export async function detalheInternacao({ leito, unidade }) {
     h('a', { class: 'btn btn-primario btn-largo', href: `#/evolucao/${i.id}`, onclick: () => fechar() }, 'Evolução do turno'),
     podeEditar() && h('div', { class: 'detalhe-acoes' },
       h('button', { class: 'btn btn-secundario', type: 'button', onclick: () => { fechar(); formularioInternacao({ leito, unidade, internacao: i }); } }, 'Corrigir dados'),
-      h('button', { class: 'btn btn-secundario', type: 'button', onclick: () => { fechar(); trocarLeito(i); } }, 'Trocar de leito'),
+      h('button', { class: 'btn btn-secundario', type: 'button', onclick: () => { fechar(); emSegundoPlano(trocarLeito(i)); } }, 'Trocar de leito'),
       h('button', { class: 'btn btn-perigo', type: 'button', onclick: () => { fechar(); registrarSaida(i, leito); } }, 'Registrar saída da UTI')));
 }
 

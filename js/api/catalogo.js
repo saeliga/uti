@@ -25,7 +25,7 @@ export const detalheDiagnostico = (codigo) =>
 
 /** NOC e NIC ligados a cada diagnóstico (restrito à tabela de ligações). */
 export const ligacoes = (codigos) =>
-  comCache(`lig|${[...codigos].sort().join(',')}`, () => chamar('catalogo.ligacoes', { codigos }));
+  comCache(`lig|${[...codigos].sort((a, b) => String(a).localeCompare(String(b))).join(',')}`, () => chamar('catalogo.ligacoes', { codigos }));
 
 export const detalheResultado = (codigo) => comCache(`noc|${codigo}`, () => chamar('catalogo.noc.detalhe', { codigo }));
 export const detalheIntervencao = (codigo) => comCache(`nic|${codigo}`, () => chamar('catalogo.nic.detalhe', { codigo }));

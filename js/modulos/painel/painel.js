@@ -2,7 +2,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, limpar, carregando, aviso, confirmar, abrirJanela, campo, lerFormulario, anexar } from '../../nucleo/ui.js';
+import { h, limpar, carregando, aviso, confirmar, abrirJanela, campo, lerFormulario, anexar, emSegundoPlano } from '../../nucleo/ui.js';
 import { contagemDia, idade, hojeISO } from '../../regras/datas.js';
 import { ISOLAMENTOS, MOTIVOS_BLOQUEIO } from '../../regras/opcoes.js';
 import { diaAssistencial, rotuloDia } from '../../regras/turnos.js';
@@ -140,7 +140,7 @@ const formatarCurta = (dh) => (dh ? `${dh.slice(8, 10)}/${dh.slice(5, 7)} ${dh.s
 
 async function desfazer(saida, unidade, leitos) {
   const { desfazerSaida } = await import('../internacao/internacao.js');
-  desfazerSaida(saida, unidade, leitos);
+  emSegundoPlano(desfazerSaida(saida, unidade, leitos));
 }
 
 /** Saídas das últimas 24 h (inclusive de leitos já ocupados por outro paciente), para desfazer engano. */
@@ -155,7 +155,7 @@ function barraSaidas(unidade, leitos) {
       h('ul', { class: 'lista-saidas' }, lista.map((s) => h('li', {},
         h('div', {}, h('strong', {}, s.nome), ` — leito ${s.leitoNumero} · ${DESFECHOS[s.tipo] || 'Saída'} · ${formatarCurta(s.dataHora)}`),
         h('div', { class: 'ajuda' }, estado.perfil?.perfil === 'admin' ? '' : `Pode desfazer até ${limiteDesfazer(s.registradoEm)}`),
-        h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onclick: (e) => { e.target.closest('.janela-fundo')?.remove(); desfazer(s, unidade, leitos); } }, '↩ Desfazer saída'))))),
+        h('button', { class: 'btn btn-secundario btn-pequeno', type: 'button', onclick: (e) => { e.target.closest('.janela-fundo')?.remove(); emSegundoPlano(desfazer(s, unidade, leitos)); } }, '↩ Desfazer saída'))))),
     acoes: [{ texto: 'Fechar', classe: 'btn-secundario' }],
   });
   return h('div', { class: 'painel-saidas' },
@@ -164,7 +164,7 @@ function barraSaidas(unidade, leitos) {
 
 async function abrirDetalhe(leito, unidade) {
   const { detalheInternacao } = await import('../internacao/internacao.js');
-  detalheInternacao({ leito, unidade });
+  emSegundoPlano(detalheInternacao({ leito, unidade }));
 }
 
 function bloquearLeito(leito) {

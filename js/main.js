@@ -2,7 +2,7 @@
 
 import { MODO_DEMO, VERSAO } from './config.js';
 import { backend } from './dados/backend.js';
-import { h, limpar, carregando, aviso, anexar, ativarCamposNumericos } from './nucleo/ui.js';
+import { h, limpar, carregando, aviso, anexar, ativarCamposNumericos, emSegundoPlano } from './nucleo/ui.js';
 import { telaEntrada, telaAguardando, telaSolicitarAcesso, sairComSeguranca } from './nucleo/sessao.js';
 import { iniciarBloqueio, bloquear } from './nucleo/bloqueio.js';
 import { iniciarVerificacaoVersao } from './nucleo/versao.js';
@@ -55,7 +55,7 @@ async function iniciarSistema() {
     window.addEventListener('online', atualizarConexao);
     window.addEventListener('offline', atualizarConexao);
   }
-  rotear();
+  emSegundoPlano(rotear());
 }
 
 function unidadesPermitidas() {
