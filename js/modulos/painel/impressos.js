@@ -4,7 +4,7 @@
 // de inserção de CVC e CVD.
 
 import { backend } from '../../dados/backend.js';
-import { h, aviso, abrirJanela } from '../../nucleo/ui.js';
+import { h, aviso, abrirJanela, emSegundoPlano } from '../../nucleo/ui.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
 import { hojeISO, somarDias, formatarData } from '../../regras/datas.js';
 import { diaAssistencial, diaAnterior, idEvolucao } from '../../regras/turnos.js';
@@ -152,7 +152,7 @@ export function barraImpressos(unidade, leitos) {
         } },
       ].filter(Boolean),
     });
-    carregar();
+    emSegundoPlano(carregar());
   };
 
   const ocorrencias = () => {
@@ -222,7 +222,7 @@ export function barraImpressos(unidade, leitos) {
     let tipo = 'cvc';
     const salvos = h('div', { class: 'ins-lista-salvos' });
     const tipos = h('div', { class: 'opcoes' }, Object.entries({ cvc: 'Cateter venoso central (CVC)', cvd: 'Cateter vesical de demora (CVD)' }).map(([v, t]) =>
-      h('label', { class: 'opcao' }, h('input', { type: 'radio', name: 'tipo-ins', value: v, checked: v === tipo, onchange: () => { tipo = v; listar(); } }), h('span', {}, t))));
+      h('label', { class: 'opcao' }, h('input', { type: 'radio', name: 'tipo-ins', value: v, checked: v === tipo, onchange: () => { tipo = v; emSegundoPlano(listar()); } }), h('span', {}, t))));
     let janela = null;
 
     async function contexto() {
@@ -278,7 +278,7 @@ export function barraImpressos(unidade, leitos) {
         } },
       ].filter(Boolean),
     });
-    listar();
+    emSegundoPlano(listar());
   };
 
   return h('div', { class: 'barra-impressos', role: 'toolbar', 'aria-label': 'Impressos da unidade' },

@@ -4,8 +4,9 @@
 
 import { h, limpar } from '../../nucleo/ui.js';
 import { normalizarInfusoes, caixaAlta } from '../../regras/infusoes.js';
+import { idAleatorio } from '../../regras/ids.js';
 
-const novoId = () => `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+const novoId = () => idAleatorio('l', 3);
 
 /**
  * c: campo do esquema ({ nome, grupos }). obter(): objeto do subbloco.

@@ -2,7 +2,7 @@
 // Monta os campos uma vez e, a cada mudança, só atualiza visibilidade, cálculos
 // e alertas (o foco e o teclado do tablet não se perdem).
 
-import { h, limpar } from '../../nucleo/ui.js';
+import { h, limpar, emSegundoPlano } from '../../nucleo/ui.js';
 import { visivel, ESTADOS_MEDIDA } from '../../regras/evolucao-esquema.js';
 import { checarSinal, SINAIS } from '../../regras/calculos.js';
 import { campoInfusoes } from './infusoes.js';
@@ -254,7 +254,7 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
           const fotosEl = c.fotos ? h('div', { class: 'item-fotos' }) : null;
           if (fotosEl) {
             const item = () => (alvo()[c.nome] || [])[k] || {};
-            import('../fotos/fotos.js').then((m) => fotosEl.append(m.barraFotos({
+            emSegundoPlano(import('../fotos/fotos.js').then((m) => fotosEl.append(m.barraFotos({
               item, contexto, ro,
               titulo: () => titulo.textContent,
               garantirId: () => {
@@ -262,7 +262,7 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
                 if (!i.id) { i.id = m.novoIdLesao(); mudou(); }
                 return i.id;
               },
-            })));
+            }))));
           }
           itensEl.append(h('div', { class: 'item-lista' },
             h('div', { class: 'item-topo' }, titulo,
@@ -321,7 +321,7 @@ function criarCampo(c, obter, mudou, contexto, atualizadores, ro) {
     const botao = h('button', { type: 'button', class: 'btn-info-escala', 'aria-label': 'Como aplicar esta escala', title: 'Como aplicar esta escala', onclick: (e) => {
       e.preventDefault();
       e.stopPropagation();
-      import('./info-escalas.js').then((m) => m.abrirInfoEscala(c.info));
+      emSegundoPlano(import('./info-escalas.js').then((m) => m.abrirInfoEscala(c.info)));
     } }, 'i');
     const rot = wrap.querySelector('.campo-rotulo');
     if (rot) rot.append(' ', botao); else wrap.prepend(botao);

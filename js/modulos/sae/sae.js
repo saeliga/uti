@@ -3,7 +3,7 @@
 // NANDA-I permite acrescentar diagnósticos, e NOC/NIC são escolhidos SOMENTE
 // entre os ligados a cada diagnóstico na tabela de ligações.
 
-import { h, limpar, aviso, abrirJanela, confirmar, trocarFilhos } from '../../nucleo/ui.js';
+import { h, limpar, aviso, abrirJanela, confirmar, trocarFilhos, emSegundoPlano } from '../../nucleo/ui.js';
 import * as cat from '../../api/catalogo.js';
 import {
   CATEGORIA, ORIGEM, STATUS_ATIVIDADE, DECISOES, ROTULO_STATUS_PE,
@@ -102,7 +102,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
       }
       return aceitar(s, s.evidencias, '', 'ia_aceito');
     }
-    editarEvidencias({ ...s }, (ev, obs) => aceitar(s, ev, obs, 'ia_editado'));
+    emSegundoPlano(editarEvidencias({ ...s }, (ev, obs) => aceitar(s, ev, obs, 'ia_editado')));
   }
   function aceitar(s, evidencias, observacao, origem) {
     if (sae.diagnosticos.some((d) => d.codigo === s.codigo)) return aviso('Este diagnóstico já está no plano.', 'atencao');
@@ -110,7 +110,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
     s.decisao = origem === 'ia_aceito' ? 'aceito' : 'editado';
     if (sae.status === 'sugerido' || sae.status === 'pendente' || sae.status === 'nao_iniciado') sae.status = 'em_revisao';
     mudou();
-    preencherPadrao(s.codigo);
+    emSegundoPlano(preencherPadrao(s.codigo));
   }
 
   // ------------------------------------------------------------------ resultados e intervenções por padrão
@@ -131,7 +131,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
     const r = { codigo: item.codigo, titulo: item.titulo, padrao: true, indicadores: det.indicadores.filter((i) => sug.has(i.codigo)).map((i) => novoIndicador(i, det)) };
     d.noc.push(r);
     mudou();
-    if (!r.indicadores.length && abrirSeVazio) escolherIndicadores(d, r);
+    if (!r.indicadores.length && abrirSeVazio) emSegundoPlano(escolherIndicadores(d, r));
   }
 
   /** Acrescenta uma NIC ligada e pede à IA as atividades pertinentes; se a IA falhar, abre a escolha. */
@@ -161,7 +161,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
     if (falhou) {
       aviso(`Atividades de "${item.titulo}": ${falhou}. Escolha na lista.`, 'atencao', 7000);
       const x = diagAtual(codigo)?.nic.find((n) => n.codigo === item.codigo);
-      if (x && !x.atividades.length && abrirSeFalhar) escolherAtividades(diagAtual(codigo), x);
+      if (x && !x.atividades.length && abrirSeFalhar) emSegundoPlano(escolherAtividades(diagAtual(codigo), x));
     }
   }
 
@@ -244,7 +244,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
       .map(([v, t]) => h('button', { type: 'button', class: `chip-op${v === '' ? ' on' : ''}`, dataset: { v }, onclick: (e) => {
         categoria = v;
         for (const b of filtros.children) b.classList.toggle('on', b.dataset.v === v);
-        procurar();
+        emSegundoPlano(procurar());
       } }, t)));
     const resultados = h('div', { class: 'sae-resultados' }, h('p', { class: 'ajuda' }, 'Digite pelo menos 2 letras.'));
     const buscar = cat.buscaComPausa(cat.buscarDiagnosticos);
@@ -259,12 +259,12 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
           const noPlano = sae.diagnosticos.some((d) => d.codigo === r.codigo);
           return h('button', { type: 'button', class: 'sae-resultado', disabled: noPlano || !r.temLigacoes, onclick: () => {
             janela.fechar();
-            editarEvidencias({ ...r, evidencias: {} }, (ev, obs, det) => {
+            emSegundoPlano(editarEvidencias({ ...r, evidencias: {} }, (ev, obs, det) => {
               sae.diagnosticos.push(novoDiagnostico({ ...det, evidencias: ev, observacao: obs }, 'enfermeiro'));
               if (sae.status !== 'concluido') sae.status = 'em_revisao';
               mudou();
-              preencherPadrao(det.codigo);
-            });
+              emSegundoPlano(preencherPadrao(det.codigo));
+            }));
           } },
           h('strong', {}, r.titulo), h('span', {}, `${r.codigo} · ${ROT_CAT[r.categoria] || r.categoria} · ${r.dominio}`),
           noPlano ? h('em', {}, 'Já está no plano') : !r.temLigacoes ? h('em', {}, 'Sem NOC/NIC na tabela de ligações') : null);

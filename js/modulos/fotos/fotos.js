@@ -4,7 +4,7 @@
 
 import { backend } from '../../dados/backend.js';
 import { estado, podeEditar } from '../../nucleo/estado.js';
-import { h, aviso, abrirJanela } from '../../nucleo/ui.js';
+import { h, aviso, abrirJanela, emSegundoPlano } from '../../nucleo/ui.js';
 import { formatarData } from '../../regras/datas.js';
 import { FOTO, dimensoes, galeria, novoIdLesao } from '../../regras/fotos.js';
 
@@ -220,5 +220,5 @@ async function abrirGaleria({ item, garantirId, contexto, ro, titulo }) {
       lista),
     acoes: [{ texto: 'Fechar', classe: 'btn-primario' }],
   });
-  carregar();
+  emSegundoPlano(carregar());
 }

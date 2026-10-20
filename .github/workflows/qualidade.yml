@@ -160,7 +160,7 @@ jobs:
         run: |
           ALVO=$([ -n "$PR" ] && echo "pullRequest=$PR" || echo "branch=main")
           curl -sf "https://sonarcloud.io/api/measures/component?component=saeliga_uti&$ALVO&metricKeys=sqale_rating,security_rating,reliability_rating,duplicated_lines_density,code_smells,bugs,vulnerabilities,security_hotspots,ncloc" -o resultados/sonar.json || rm -f resultados/sonar.json
-          curl -sf "https://sonarcloud.io/api/issues/search?componentKeys=saeliga_uti&$ALVO&types=VULNERABILITY,BUG&issueStatuses=OPEN,CONFIRMED&ps=100" -o resultados/sonar-problemas.json || rm -f resultados/sonar-problemas.json
+          curl -sf "https://sonarcloud.io/api/issues/search?componentKeys=saeliga_uti&branch=main&types=VULNERABILITY,BUG&issueStatuses=OPEN,CONFIRMED&ps=100" -o resultados/sonar-problemas.json || rm -f resultados/sonar-problemas.json
       - name: Gerar relatório
         run: node ferramentas/relatorio_qualidade.mjs resultados resultados/relatorio.md
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

@@ -150,7 +150,7 @@ export function imprimirFolhas(folhas, meta = {}) {
   window.addEventListener('afterprint', limpar);
   // Espera as imagens (logotipo) carregarem antes de abrir a impressão.
   const imgs = [...lote.querySelectorAll('img')].map((i) => (i.complete ? null : new Promise((r) => { i.onload = r; i.onerror = r; }))).filter(Boolean);
-  Promise.race([Promise.all(imgs), new Promise((r) => setTimeout(r, 1500))]).then(() => window.print());
+  Promise.race([Promise.all(imgs), new Promise((r) => setTimeout(r, 1500))]).then(() => window.print(), () => window.print());
   return lote;
 }
 
@@ -195,7 +195,7 @@ export function folhaCapa(unidade, data, { observacoes = '', reservas = [] } = {
       ${tres('EQUIPAMENTOS/MATERIAIS', 'amarelo')}
       ${EQUIPAMENTOS.map((e) => tres(e)).join('')}
       <tr><td colspan="6"><strong>RESERVAS</strong> (cirúrgicas e de leito para hemodiálise):</td></tr>
-      ${[...res, ...Array.from({ length: Math.max(1, 5 - linhasRes) }, () => '')].map(linhaReserva).join('')}
+      ${[...res, ...Array.from({ length: Math.max(1, 5 - linhasRes) }, () => '')].map((t, k) => linhaReserva(t, k)).join('')}
       <tr><td colspan="6"><strong>OBSERVAÇÕES:</strong></td></tr>
       ${obs ? `<tr><td colspan="6" class="capa-obs">${esc(obs)}</td></tr>` : ''}
       ${Array.from({ length: Math.max(obs ? 0 : 1, 2 - linhasObs) }, () => '<tr><td colspan="6" style="height:5mm"></td></tr>').join('')}

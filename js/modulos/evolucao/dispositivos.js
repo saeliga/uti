@@ -11,6 +11,7 @@ import {
 } from '../../regras/dispositivos.js';
 import { contagemDia, formatarData } from '../../regras/datas.js';
 import { tipoChecklistDe } from '../../regras/impressos.js';
+import { idAleatorio } from '../../regras/ids.js';
 
 const GRUPOS_TIPO = [
   ['Acessos vasculares', ['cvc', 'cateter_dialise', 'picc', 'cti', 'avp', 'pai']],
@@ -19,7 +20,7 @@ const GRUPOS_TIPO = [
   ['Drenos', ['dreno']],
   ['Outros', ['outro']],
 ];
-const novoId = () => `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const novoId = () => idAleatorio('d', 4);
 const opc = (lista) => Object.fromEntries(lista.map((x) => [x, x]));
 
 export function campoDispositivos(c, { obter, definir, ro, contexto, atualizadores }) {

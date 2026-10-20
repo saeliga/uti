@@ -5,17 +5,23 @@ larguras, alturas, mesclagens, bordas, fontes e rótulos). Nenhum dado de pacien
 é copiado: células com fórmula viram marcadores {{campo}} e as abas usadas são a
 GRADE (ocorrência em branco) e a "BH LEITO 01" (rótulos fixos + fórmulas).
 
-Uso: python3 gerar_impressos.py <Ocorrencia_e_Balanco_Hidrico.xlsx> <saida.js>
+Uso: python3 ferramentas/gerar_impressos.py <Ocorrencia_e_Balanco_Hidrico.xlsx>
+Grava sempre em js/impressos/modelos.js (caminho fixo dentro do repositório).
 """
 import datetime
 import html
 import json
 import sys
+from pathlib import Path
 
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string
 
-ORIGEM, SAIDA = sys.argv[1], sys.argv[2]
+RAIZ = Path(__file__).resolve().parent.parent
+SAIDA = RAIZ / 'js' / 'impressos' / 'modelos.js'  # destino fixo: nada fora do repositório é gravado
+ORIGEM = Path(sys.argv[1]).resolve()
+if ORIGEM.suffix.lower() != '.xlsx' or not ORIGEM.is_file():
+    sys.exit('Informe a planilha .xlsx da Liga.')
 wb = openpyxl.load_workbook(ORIGEM)
 
 # ---------------------------------------------------------------------------
