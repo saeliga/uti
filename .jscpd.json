@@ -1,0 +1,9 @@
+{
+  "threshold": 100,
+  "minTokens": 60,
+  "reporters": ["json", "console"],
+  "output": "resultados/jscpd",
+  "pattern": "js/**/*.js",
+  "ignore": ["**/node_modules/**"],
+  "absolute": false
+}

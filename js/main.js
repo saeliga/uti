@@ -75,7 +75,7 @@ function montarEstrutura() {
     MODO_DEMO ? h('div', { class: 'faixa-demo' }, 'MODO DEMONSTRAÇÃO — dados fictícios, nada é salvo. Ao recarregar a página, tudo volta ao início.') : null,
     h('header', { class: 'topo' },
       h('a', { href: '#/', class: 'topo-marca', 'aria-label': 'Início' },
-        h('img', { src: 'assets/logo/logo_liga_cor.png', alt: 'Liga Contra o Câncer', class: 'topo-logo' })),
+        h('img', { src: 'assets/logo/logo_liga_cor_400.webp', alt: 'Liga Contra o Câncer', class: 'topo-logo' })),
       abas,
       h('div', { id: 'conexao', class: 'conexao' }),
       menu),

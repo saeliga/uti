@@ -1,0 +1,37 @@
+# Confiabilidade (ISO/IEC 25010:2023): disponibilidade do site, verificada de hora em hora.
+# Cada verificação vira uma linha em disponibilidade.csv no ramo "qualidade"
+# (data e hora UTC, código HTTP, tempo de resposta em segundos). O relatório de
+# qualidade calcula a disponibilidade dos últimos 30 dias.
+# Observação: o GitHub pausa agendamentos em repositórios sem atividade por 60 dias.
+name: Disponibilidade
+
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verificar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Verificar o site e registrar
+        run: |
+          R=$(curl -s -o /dev/null -w '%{http_code},%{time_total}' --max-time 30 "https://saeliga.github.io/uti/versao.json?t=$(date +%s)" || echo "000,30")
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin qualidade >/dev/null; then
+            git fetch -q origin qualidade && git worktree add -q -B qualidade /tmp/q origin/qualidade
+          else
+            git worktree add -q --orphan -b qualidade /tmp/q
+          fi
+          cd /tmp/q
+          [ -f disponibilidade.csv ] || echo "data_hora_utc,codigo_http,segundos" > disponibilidade.csv
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ),$R" >> disponibilidade.csv
+          git add disponibilidade.csv
+          git commit -qm "Disponibilidade $(date -u +%Y-%m-%dT%H:%MZ): $R"
+          for i in 1 2 3; do git push -q origin qualidade && break; git pull -q --rebase origin qualidade; done

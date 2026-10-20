@@ -1,0 +1,2 @@
+# Ferramentas dos testes ponta a ponta (CI). O arquivo travado com hashes é requirements-testes.txt.
+playwright==1.56.0

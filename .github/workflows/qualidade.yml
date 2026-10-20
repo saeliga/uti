@@ -1,0 +1,187 @@
+# Qualidade do produto (ISO/IEC 25010:2023), a cada pull request e a cada mudança no main.
+# Tudo com dados fictícios: modo demonstração e simuladores oficiais do Firebase.
+# As ações externas estão fixadas por commit (segurança da cadeia de fornecimento).
+#  - testes: unitários + cobertura, regras de acesso, confiabilidade (Wi-Fi instável e
+#    dois aparelhos), análise estática, duplicação e desempenho (Lighthouse);
+#  - e2e: casos de uso, segurança operacional, compatibilidade e acessibilidade em
+#    Chromium, Firefox e WebKit (Safari), no computador e no tablet;
+#  - zap: varredura de segurança do site publicado (só no main);
+#  - relatorio: junta tudo num relatório por versão (resumo do Actions e ramo "qualidade"),
+#    com as métricas da análise automática do SonarCloud.
+name: Qualidade (ISO/IEC 25010)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Instalar ferramentas (versões travadas, sem scripts de instalação)
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          pip install --only-binary :all: --require-hashes -r requirements-testes.txt
+          python -m playwright install --with-deps chromium
+          mkdir -p resultados
+      - name: Adequação funcional — testes unitários e cobertura
+        run: npm run test:cobertura
+      - name: Segurança da informação — regras do Firestore (simulador)
+        if: always()
+        run: npm run test:regras
+      - name: Confiabilidade — Wi-Fi instável e dois aparelhos (simuladores do Firebase)
+        if: always()
+        run: npm run test:confiabilidade
+      - name: Manutenibilidade — análise estática e duplicação
+        if: always()
+        run: |
+          ./node_modules/.bin/eslint . -f json -o resultados/eslint.json || true
+          ./node_modules/.bin/jscpd --config .jscpd.json || true
+      - name: Eficiência de desempenho — Lighthouse (computador e celular)
+        if: always()
+        run: |
+          ./node_modules/.bin/lhci autorun --config=lighthouserc-desktop.json || true
+          ./node_modules/.bin/lhci autorun --config=lighthouserc-celular.json || true
+      - name: Resumo
+        if: always()
+        run: |
+          for f in unidade regras; do
+            [ -f resultados/$f.tap ] && echo "::notice title=$f::$(grep -E '^# (tests|pass|fail)' resultados/$f.tap | tr '\n' ' ')"
+          done
+          true
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: resultados-testes
+          path: resultados/
+          include-hidden-files: true
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { navegador: chromium, perfil: desktop }
+          - { navegador: chromium, perfil: tablet }
+          - { navegador: firefox, perfil: desktop }
+          - { navegador: webkit, perfil: desktop }
+          - { navegador: webkit, perfil: tablet }
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Instalar navegador e axe-core
+        env:
+          NAVEGADOR: ${{ matrix.navegador }}
+        run: |
+          pip install --only-binary :all: --require-hashes -r requirements-testes.txt
+          python -m playwright install --with-deps "$NAVEGADOR"
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Casos de uso, segurança operacional, compatibilidade e acessibilidade
+        env:
+          NAVEGADOR: ${{ matrix.navegador }}
+          PERFIL: ${{ matrix.perfil }}
+          RESULTADOS: ${{ github.workspace }}/resultados
+        run: cd testes-e2e && python apoio.py
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: resultados-e2e-${{ matrix.navegador }}-${{ matrix.perfil }}
+          path: resultados/
+
+  zap:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Varredura OWASP ZAP (linha de base) do site publicado
+        uses: zaproxy/action-baseline@7c4deb10e6261301961c86d65d54a516394f9aed # v0.14.0
+        with:
+          target: https://saeliga.github.io/uti/?demo=1
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-bruto
+      - name: Guardar resultado
+        if: always()
+        run: mkdir -p resultados/zap && cp report_json.json report_md.md resultados/zap/ 2>/dev/null || true
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: resultados-zap
+          path: resultados/
+
+  relatorio:
+    if: always()
+    needs: [testes, e2e, zap]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          pattern: resultados-*
+          path: resultados
+          merge-multiple: true
+      - name: Disponibilidade registrada (ramo qualidade)
+        run: git show origin/qualidade:disponibilidade.csv > resultados/disponibilidade.csv 2>/dev/null || rm -f resultados/disponibilidade.csv
+      - name: Métricas do SonarCloud (análise automática do repositório)
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          ALVO=$([ -n "$PR" ] && echo "pullRequest=$PR" || echo "branch=main")
+          curl -sf "https://sonarcloud.io/api/measures/component?component=saeliga_uti&$ALVO&metricKeys=sqale_rating,security_rating,reliability_rating,duplicated_lines_density,code_smells,bugs,vulnerabilities,security_hotspots,ncloc" -o resultados/sonar.json || rm -f resultados/sonar.json
+          curl -sf "https://sonarcloud.io/api/issues/search?componentKeys=saeliga_uti&$ALVO&types=VULNERABILITY,BUG&issueStatuses=OPEN,CONFIRMED&ps=100" -o resultados/sonar-problemas.json || rm -f resultados/sonar-problemas.json
+      - name: Gerar relatório
+        run: node ferramentas/relatorio_qualidade.mjs resultados resultados/relatorio.md
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: relatorio-qualidade
+          path: resultados/relatorio.md
+      - name: Guardar o relatório da versão no ramo "qualidade"
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          V=$(node -p "require('./versao.json').versao")
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin qualidade >/dev/null; then
+            git fetch -q origin qualidade && git worktree add -q -B qualidade /tmp/q origin/qualidade
+          else
+            git worktree add -q --orphan -b qualidade /tmp/q
+          fi
+          mkdir -p /tmp/q/relatorios
+          cp resultados/relatorio.md "/tmp/q/relatorios/v$V.md"
+          cp resultados/relatorio.md /tmp/q/relatorios/ultimo.md
+          cd /tmp/q
+          git add relatorios
+          git commit -qm "Relatório de qualidade v$V" || exit 0
+          for i in 1 2 3; do git push -q origin qualidade && break; git pull -q --rebase origin qualidade; done
