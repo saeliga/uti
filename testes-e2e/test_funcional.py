@@ -67,6 +67,7 @@ class CasosDeUso(TesteNavegador):
         p.wait_for_timeout(300)
         n = p.locator('.sae-sugestao').count()
         self.assertGreaterEqual(n, 1, 'a IA trouxe sugestões para revisar')
+        self.assertRegex(p.locator('.sae-sugestao').first.inner_text(), r'prioridade \d da IA', 'a ordem de prioridade da IA aparece na sugestão')
         planos = p.locator('.sae-diagnostico').count()
         p.locator('.sae-sugestao').first.get_by_role('button', name='Aceitar', exact=True).click()
         p.wait_for_timeout(300)
