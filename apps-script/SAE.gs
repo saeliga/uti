@@ -1,7 +1,8 @@
 /**
  * Sugestão do Processo de Enfermagem pela IA (Groq), em duas etapas:
  *  1) a IA escolhe diagnósticos SOMENTE da lista de diagnósticos com ligações
- *     (código + título + categoria), em ordem de prioridade;
+ *     (código + título + categoria), em ordem de prioridade clínica; a ordem
+ *     volta registrada no campo `prioridade` (1 = mais prioritário);
  *  2) para os escolhidos, a IA marca características definidoras e fatores
  *     pelos IDENTIFICADORES da lista oficial de cada diagnóstico (CD1, FR3, RI2…).
  * O servidor confere tudo contra o catálogo: código ou identificador que não
@@ -110,7 +111,7 @@ function iaSugerirSAE_(dados) {
     marcados[c] = (e.itens || []).map(String);
   });
 
-  var sugestoes = escolhidos.map(function (e) {
+  var sugestoes = escolhidos.map(function (e, k) {
     var d = detalhes[e.codigo];
     var ids = marcados[e.codigo] || [];
     var pegar = function (lista, prefixo) {
@@ -119,6 +120,7 @@ function iaSugerirSAE_(dados) {
     var risco = d.categoria === 'Potencial para deteriorar';
     return {
       codigo: d.codigo, titulo: d.titulo, categoria: d.categoria, dominio: d.dominio,
+      prioridade: k + 1,
       justificativa: e.justificativa,
       evidencias: {
         cd: risco ? [] : pegar(d.caracteristicasDefinidoras, 'CD'),

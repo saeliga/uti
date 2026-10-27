@@ -86,9 +86,9 @@ export async function responder(acao, dados = {}) {
       return {
         modelo: 'demonstração', versaoPrompt: 'sae-1.0', versaoLigacoes: 'demonstração', ms: 1800,
         sugestoes: [
-          { ...resumoNanda('90001'), justificativa: 'Exemplo: dispositivos invasivos registrados na avaliação.', evidencias: { cd: [], fr: [], ri: NANDA[90001].fatoresRisco.filter((i) => ['RI1', 'RI2'].includes(i.id)) } },
-          { ...resumoNanda('90002'), justificativa: 'Exemplo: frequência respiratória elevada e assincronia.', evidencias: { cd: NANDA[90002].caracteristicasDefinidoras.slice(0, 1), fr: NANDA[90002].fatoresRelacionados.slice(1, 2), ri: [] } },
-          { ...resumoNanda('90003'), justificativa: 'Exemplo: paciente sedado e imóvel.', evidencias: { cd: [], fr: [], ri: NANDA[90003].fatoresRisco.slice(0, 2) } },
+          { ...resumoNanda('90001'), prioridade: 1, justificativa: 'Exemplo: dispositivos invasivos registrados na avaliação.', evidencias: { cd: [], fr: [], ri: NANDA[90001].fatoresRisco.filter((i) => ['RI1', 'RI2'].includes(i.id)) } },
+          { ...resumoNanda('90002'), prioridade: 2, justificativa: 'Exemplo: frequência respiratória elevada e assincronia.', evidencias: { cd: NANDA[90002].caracteristicasDefinidoras.slice(0, 1), fr: NANDA[90002].fatoresRelacionados.slice(1, 2), ri: [] } },
+          { ...resumoNanda('90003'), prioridade: 3, justificativa: 'Exemplo: paciente sedado e imóvel.', evidencias: { cd: [], fr: [], ri: NANDA[90003].fatoresRisco.slice(0, 2) } },
         ],
       };
     case 'ia.sugerirAtividades': {

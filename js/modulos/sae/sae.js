@@ -374,7 +374,7 @@ export function painelSAE({ dados, somenteLeitura, aoMudar, dadosEvolucao, resum
     const ev = s.evidencias || {};
     const lista = (t, l) => (l?.length ? h('div', {}, h('strong', {}, `${t}: `), l.map((i) => i.texto).join('; ')) : null);
     return h('div', { class: 'sae-sugestao' },
-      h('div', { class: 'sae-sug-topo' }, h('span', { class: 'etiqueta-ia' }, 'Sugestão da IA'), h('strong', {}, s.titulo), h('span', { class: 'ajuda' }, `${s.codigo} · ${ROT_CAT[s.categoria] || s.categoria}`)),
+      h('div', { class: 'sae-sug-topo' }, h('span', { class: 'etiqueta-ia' }, 'Sugestão da IA'), h('strong', {}, s.titulo), h('span', { class: 'ajuda' }, `${s.codigo} · ${ROT_CAT[s.categoria] || s.categoria}${s.prioridade ? ` · prioridade ${s.prioridade} da IA` : ''}`)),
       s.justificativa && h('p', { class: 'sae-just' }, s.justificativa),
       lista('Características definidoras', ev.cd), lista('Fatores relacionados', ev.fr), lista('Fatores de risco', ev.ri),
       !somenteLeitura && h('div', { class: 'linha-acoes' },
